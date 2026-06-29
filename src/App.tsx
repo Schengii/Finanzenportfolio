@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { Holdings } from './components/Holdings';
 import { Transactions } from './components/Transactions';
 import { Strategy } from './components/Strategy';
-import type { Transaction, Holding, PortfolioStats } from './types';
-import { Wallet, PieChart, Activity, Sliders } from 'lucide-react';
+import { Watchlist } from './components/Watchlist';
+import type { Transaction, Holding, PortfolioStats, WatchlistItem, Portfolio, AssetCategory } from './types';
+import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen } from 'lucide-react';
 import './App.css';
 
 // Initial Mock Data
@@ -87,13 +88,99 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
 const INITIAL_PRICES: Record<string, number> = {
   'AAPL': 191.45,
   'EUNL': 87.65,
-  'BTC': 63450.00
+  'BTC': 63450.00,
+  'MSFT': 415.50
 };
 
 function App() {
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [currentPrices, setCurrentPrices] = useState<Record<string, number>>(INITIAL_PRICES);
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy'>('dashboard');
+  const [portfolios, setPortfolios] = useState<Portfolio[]>(() => {
+    const saved = localStorage.getItem('finanz_portfolios');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return [
+      {
+        id: 'default',
+        name: 'Haupt-Portfolio',
+        transactions: INITIAL_TRANSACTIONS,
+        watchlist: [
+          {
+            id: 'w-1',
+            ticker: 'MSFT',
+            name: 'Microsoft Corp.',
+            category: 'Stock',
+            targetPrice: 380.00,
+            notes: 'Kauf geplant bei Korrektur auf das EMA-50 Level.',
+            addedAt: '20.06.2026'
+          }
+        ]
+      }
+    ];
+  });
+
+  const [currentPortfolioId, setCurrentPortfolioId] = useState<string>(() => {
+    return localStorage.getItem('finanz_current_portfolio_id') || 'default';
+  });
+
+  const [currentPrices, setCurrentPrices] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('finanz_current_prices');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_PRICES;
+  });
+
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'watchlist'>('dashboard');
+  const [prefilledTx, setPrefilledTx] = useState<{ ticker: string; name: string; category: AssetCategory; price: number } | null>(null);
+
+  // Sync state to localStorage
+  useEffect(() => {
+    localStorage.setItem('finanz_portfolios', JSON.stringify(portfolios));
+  }, [portfolios]);
+
+  useEffect(() => {
+    localStorage.setItem('finanz_current_portfolio_id', currentPortfolioId);
+  }, [currentPortfolioId]);
+
+  useEffect(() => {
+    localStorage.setItem('finanz_current_prices', JSON.stringify(currentPrices));
+  }, [currentPrices]);
+
+  // Derived current portfolio
+  const currentPortfolio = useMemo(() => {
+    return portfolios.find(p => p.id === currentPortfolioId) || portfolios[0] || { id: 'default', name: 'Haupt-Portfolio', transactions: [], watchlist: [] };
+  }, [portfolios, currentPortfolioId]);
+
+  const transactions = currentPortfolio.transactions || [];
+  const watchlist = currentPortfolio.watchlist || [];
+
+  const setTransactions = (updater: Transaction[] | ((prev: Transaction[]) => Transaction[])) => {
+    setPortfolios(prev => prev.map(p => {
+      if (p.id === currentPortfolio.id) {
+        const nextTxs = typeof updater === 'function' ? updater(p.transactions || []) : updater;
+        return { ...p, transactions: nextTxs };
+      }
+      return p;
+    }));
+  };
+
+  const setWatchlist = (updater: WatchlistItem[] | ((prev: WatchlistItem[]) => WatchlistItem[])) => {
+    setPortfolios(prev => prev.map(p => {
+      if (p.id === currentPortfolio.id) {
+        const nextWatch = typeof updater === 'function' ? updater(p.watchlist || []) : updater;
+        return { ...p, watchlist: nextWatch };
+      }
+      return p;
+    }));
+  };
 
   // Handle adding transactions
   const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
@@ -112,11 +199,71 @@ function App() {
     }
   };
 
-
-
   // Handle deleting transactions
   const handleDeleteTransaction = (id: string) => {
     setTransactions(prev => prev.filter(tx => tx.id !== id));
+  };
+
+  // Watchlist methods
+  const handleAddWatchlistItem = (item: Omit<WatchlistItem, 'id' | 'addedAt'>) => {
+    const newItem: WatchlistItem = {
+      ...item,
+      id: `w-${Date.now()}`,
+      addedAt: new Date().toLocaleDateString('de-DE')
+    };
+    setWatchlist(prev => [...prev, newItem]);
+    
+    if (!currentPrices[newItem.ticker]) {
+      setCurrentPrices(prev => ({
+        ...prev,
+        [newItem.ticker]: newItem.targetPrice
+      }));
+    }
+  };
+
+  const handleRemoveWatchlistItem = (id: string) => {
+    setWatchlist(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleQuickBuy = (ticker: string, name: string, category: AssetCategory, price: number) => {
+    setPrefilledTx({ ticker, name, category, price });
+    setCurrentTab('transactions');
+  };
+
+  // Backup & Import
+  const handleExportAll = () => {
+    const dataStr = JSON.stringify({ portfolios, currentPrices }, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `finanzportfolio_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportAll = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target?.result as string);
+        if (parsed.portfolios && Array.isArray(parsed.portfolios)) {
+          setPortfolios(parsed.portfolios);
+          if (parsed.currentPrices) {
+            setCurrentPrices(parsed.currentPrices);
+          }
+          if (parsed.portfolios.length > 0) {
+            setCurrentPortfolioId(parsed.portfolios[0].id);
+          }
+          alert('Backup erfolgreich geladen!');
+        } else {
+          alert('Ungültiges Dateiformat. Portfolios fehlen.');
+        }
+      } catch (err) {
+        alert('Fehler beim Lesen der Backup-Datei.');
+      }
+    };
+    reader.readAsText(file);
   };
 
   // Simulate market price changes
@@ -124,7 +271,6 @@ function App() {
     setCurrentPrices(prev => {
       const updated = { ...prev };
       Object.keys(updated).forEach(ticker => {
-        // change price randomly between -2.5% and +3.5%
         const changePercent = (Math.random() * 6 - 2.5) / 100;
         updated[ticker] = Math.round(updated[ticker] * (1 + changePercent) * 100) / 100;
       });
@@ -144,7 +290,6 @@ function App() {
       totalBuyCost: number;
     }> = {};
 
-    // Process transactions in chronological order to correctly calculate weighted cost basis
     const sortedTxs = [...transactions].sort((a, b) => {
       const dateA = a.date.split('.').reverse().join('-');
       const dateB = b.date.split('.').reverse().join('-');
@@ -152,7 +297,7 @@ function App() {
     });
 
     sortedTxs.forEach(tx => {
-      if (tx.type === 'DIVIDEND') return; // Dividends don't affect share count directly here
+      if (tx.type === 'DIVIDEND') return;
 
       if (!assets[tx.ticker]) {
         assets[tx.ticker] = {
@@ -174,16 +319,14 @@ function App() {
         asset.totalBuyShares += tx.amount;
         asset.totalBuyCost += cost;
       } else if (tx.type === 'SELL') {
-        // Average cost remains the same, but share count and absolute cost basis reduce
         const avgPrice = asset.totalShares > 0 ? (asset.totalCostBasis / asset.totalShares) : 0;
         asset.totalShares = Math.max(0, asset.totalShares - tx.amount);
         asset.totalCostBasis = asset.totalShares * avgPrice;
       }
     });
 
-    // Convert aggregated assets map into Holding list
     const holdingsList: Holding[] = Object.values(assets)
-      .filter(asset => asset.totalShares > 0.00001) // Filter out fully sold positions
+      .filter(asset => asset.totalShares > 0.00001)
       .map(asset => {
         const shares = asset.totalShares;
         const averageBuyPrice = asset.totalShares > 0 ? (asset.totalCostBasis / asset.totalShares) : 0;
@@ -204,11 +347,10 @@ function App() {
           currentValue,
           totalGain,
           totalGainPercent,
-          portfolioWeight: 0 // Will compute in next step
+          portfolioWeight: 0
         };
       });
 
-    // Calculate weight for each holding
     const grandValueTotal = holdingsList.reduce((acc, curr) => acc + curr.currentValue, 0);
     return holdingsList.map(h => ({
       ...h,
@@ -227,7 +369,6 @@ function App() {
       totalCost += h.totalCost;
     });
 
-    // Aggregate dividends from transaction list
     transactions
       .filter(tx => tx.type === 'DIVIDEND')
       .forEach(tx => {
@@ -257,6 +398,44 @@ function App() {
           <span className="logo-text">FinanzPortfolio CoPilot</span>
         </div>
 
+        {/* Portfolio Dropdown Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.25rem 0.5rem 0.25rem 0.75rem' }}>
+          <FolderOpen size={16} style={{ color: 'var(--accent-purple)' }} />
+          <select 
+            value={currentPortfolioId} 
+            onChange={(e) => {
+              if (e.target.value === 'CREATE_NEW') {
+                const name = prompt('Name des neuen Portfolios:');
+                if (name && name.trim()) {
+                  const id = `p-${Date.now()}`;
+                  setPortfolios(prev => [...prev, { id, name: name.trim(), transactions: [], watchlist: [] }]);
+                  setCurrentPortfolioId(id);
+                }
+              } else if (e.target.value === 'DELETE_CURRENT') {
+                if (portfolios.length <= 1) {
+                  alert('Du musst mindestens ein Portfolio behalten!');
+                  return;
+                }
+                if (confirm(`Möchtest du das Portfolio "${currentPortfolio.name}" wirklich löschen?`)) {
+                  const remaining = portfolios.filter(p => p.id !== currentPortfolioId);
+                  setPortfolios(remaining);
+                  setCurrentPortfolioId(remaining[0].id);
+                }
+              } else {
+                setCurrentPortfolioId(e.target.value);
+              }
+            }}
+            style={{ background: 'none', border: 'none', color: '#fff', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'pointer', paddingRight: '0.5rem' }}
+          >
+            {portfolios.map(p => (
+              <option key={p.id} value={p.id} style={{ background: 'var(--bg-main)', color: '#fff' }}>{p.name}</option>
+            ))}
+            <option value="" disabled>──────────</option>
+            <option value="CREATE_NEW" style={{ background: 'var(--bg-main)', color: 'var(--accent-blue)', fontWeight: 'bold' }}>+ Neues Portfolio...</option>
+            <option value="DELETE_CURRENT" style={{ background: 'var(--bg-main)', color: 'var(--accent-rose)' }}>🗑️ Aktuelles Portfolio löschen</option>
+          </select>
+        </div>
+
         <nav className="navigation-tabs">
           <button 
             className={`nav-tab ${currentTab === 'dashboard' ? 'active' : ''}`}
@@ -282,6 +461,12 @@ function App() {
           >
             <Sliders size={16} /> Strategie & Prognose
           </button>
+          <button 
+            className={`nav-tab ${currentTab === 'watchlist' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('watchlist')}
+          >
+            <Eye size={16} /> Watchlist
+          </button>
         </nav>
       </header>
 
@@ -292,6 +477,8 @@ function App() {
             stats={stats} 
             holdings={holdings} 
             transactions={transactions} 
+            onExportAll={handleExportAll}
+            onImportAll={handleImportAll}
           />
         )}
         {currentTab === 'holdings' && (
@@ -305,12 +492,23 @@ function App() {
             transactions={transactions}
             onAddTransaction={handleAddTransaction}
             onDeleteTransaction={handleDeleteTransaction}
+            prefilledData={prefilledTx}
+            onClearPrefilledData={() => setPrefilledTx(null)}
           />
         )}
         {currentTab === 'strategy' && (
           <Strategy 
             holdings={holdings} 
             totalValue={stats.totalValue} 
+          />
+        )}
+        {currentTab === 'watchlist' && (
+          <Watchlist 
+            watchlist={watchlist} 
+            currentPrices={currentPrices} 
+            onAddWatchlist={handleAddWatchlistItem} 
+            onRemoveWatchlist={handleRemoveWatchlistItem} 
+            onQuickBuy={handleQuickBuy}
           />
         )}
       </main>

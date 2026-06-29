@@ -39,3 +39,22 @@ export interface PortfolioStats {
   totalGainsPercent: number;
   dividendsReceived: number;
 }
+
+export interface WatchlistItem {
+  id: string;
+  ticker: string;
+  name: string;
+  category: AssetCategory;
+  targetPrice: number;
+  notes?: string;
+  addedAt: string;
+}
+
+export interface Portfolio {
+  id: string;
+  name: string;
+  transactions: Transaction[];
+  watchlist: WatchlistItem[];
+  targetAllocations?: TargetAllocation[];
+}
+

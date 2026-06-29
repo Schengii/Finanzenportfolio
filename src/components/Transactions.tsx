@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Transaction, AssetCategory } from '../types';
 import { parseBrokerPdf } from './PdfParser';
 import { Upload, Plus, Trash2, Info } from 'lucide-react';
@@ -7,12 +7,16 @@ interface TransactionsProps {
   transactions: Transaction[];
   onAddTransaction: (transaction: Omit<Transaction, 'id'>) => void;
   onDeleteTransaction: (id: string) => void;
+  prefilledData?: { ticker: string; name: string; category: AssetCategory; price: number } | null;
+  onClearPrefilledData?: () => void;
 }
 
 export const Transactions: React.FC<TransactionsProps> = ({
   transactions,
   onAddTransaction,
-  onDeleteTransaction
+  onDeleteTransaction,
+  prefilledData,
+  onClearPrefilledData
 }) => {
   // Manual transaction form state
   const [type, setType] = useState<'BUY' | 'SELL' | 'DIVIDEND'>('BUY');
@@ -24,6 +28,19 @@ export const Transactions: React.FC<TransactionsProps> = ({
   const [fee, setFee] = useState<string>('0');
   const [tax, setTax] = useState<string>('0');
   const [category, setCategory] = useState<AssetCategory>('Stock');
+
+  useEffect(() => {
+    if (prefilledData) {
+      setType('BUY');
+      setTicker(prefilledData.ticker);
+      setName(prefilledData.name);
+      setCategory(prefilledData.category);
+      setPrice(prefilledData.price.toString());
+      if (onClearPrefilledData) {
+        onClearPrefilledData();
+      }
+    }
+  }, [prefilledData, onClearPrefilledData]);
 
   // Drag and drop state
   const [dragActive, setDragActive] = useState<boolean>(false);
