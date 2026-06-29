@@ -6,7 +6,7 @@ import { Strategy } from './components/Strategy';
 import { Watchlist } from './components/Watchlist';
 import { SavingsSimulator } from './components/SavingsSimulator';
 import type { Transaction, Holding, PortfolioStats, WatchlistItem, Portfolio, SavingsPlan, AssetCategory } from './types';
-import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar } from 'lucide-react';
+import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar, Sun, Moon } from 'lucide-react';
 import './App.css';
 
 // Initial Mock Data
@@ -157,6 +157,10 @@ function App() {
     return INITIAL_PRICES;
   });
 
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('finanz_theme') as any) || 'dark';
+  });
+
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'watchlist' | 'savings'>('dashboard');
   const [prefilledTx, setPrefilledTx] = useState<{ ticker: string; name: string; category: AssetCategory; price: number } | null>(null);
 
@@ -172,6 +176,16 @@ function App() {
   useEffect(() => {
     localStorage.setItem('finanz_current_prices', JSON.stringify(currentPrices));
   }, [currentPrices]);
+
+  // Sync theme
+  useEffect(() => {
+    localStorage.setItem('finanz_theme', theme);
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+  }, [theme]);
 
   // Derived current portfolio
   const currentPortfolio = useMemo(() => {
@@ -367,7 +381,7 @@ function App() {
       } else if (tx.type === 'SELL') {
         const avgPrice = asset.totalShares > 0 ? (asset.totalCostBasis / asset.totalShares) : 0;
         asset.totalShares = Math.max(0, asset.totalShares - tx.amount);
-        asset.totalCostBasis = asset.totalShares * avgPrice;
+        asset.totalCostBasis = asset.totalShares * avgCost;
       }
     });
 
@@ -444,44 +458,55 @@ function App() {
           <span className="logo-text">FinanzPortfolio CoPilot</span>
         </div>
 
-        {/* Portfolio Dropdown Selector */}
-        <div className="portfolio-selector-container">
-          <FolderOpen size={16} className="portfolio-select-icon" />
-          <select 
-            value={currentPortfolioId} 
-            title="Portfolio auswählen"
-            aria-label="Portfolio auswählen"
-            onChange={(e) => {
-              if (e.target.value === 'CREATE_NEW') {
-                const name = prompt('Name des neuen Portfolios:');
-                if (name && name.trim()) {
-                  const id = `p-${Date.now()}`;
-                  setPortfolios(prev => [...prev, { id, name: name.trim(), transactions: [], watchlist: [], savingsPlans: [] }]);
-                  setCurrentPortfolioId(id);
-                }
-              } else if (e.target.value === 'DELETE_CURRENT') {
-                if (portfolios.length <= 1) {
-                  alert('Du musst mindestens ein Portfolio behalten!');
-                  return;
-                }
-                if (confirm(`Möchtest du das Portfolio "${currentPortfolio.name}" wirklich löschen?`)) {
-                  const remaining = portfolios.filter(p => p.id !== currentPortfolioId);
-                  setPortfolios(remaining);
-                  setCurrentPortfolioId(remaining[0].id);
-                }
-              } else {
-                setCurrentPortfolioId(e.target.value);
-              }
-            }}
-            className="portfolio-select"
+        {/* Theme Toggle & Portfolio Switcher */}
+        <div className="header-controls-group">
+          <button 
+            className="theme-toggle-btn"
+            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+            title={theme === 'dark' ? 'Hellmodus einschalten' : 'Dunkelmodus einschalten'}
+            aria-label={theme === 'dark' ? 'Hellmodus einschalten' : 'Dunkelmodus einschalten'}
           >
-            {portfolios.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-            <option value="" disabled>──────────</option>
-            <option value="CREATE_NEW">+ Neues Portfolio...</option>
-            <option value="DELETE_CURRENT">🗑️ Aktuelles Portfolio löschen</option>
-          </select>
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
+          <div className="portfolio-selector-container">
+            <FolderOpen size={16} className="portfolio-select-icon" />
+            <select 
+              value={currentPortfolioId} 
+              title="Portfolio auswählen"
+              aria-label="Portfolio auswählen"
+              onChange={(e) => {
+                if (e.target.value === 'CREATE_NEW') {
+                  const name = prompt('Name des neuen Portfolios:');
+                  if (name && name.trim()) {
+                    const id = `p-${Date.now()}`;
+                    setPortfolios(prev => [...prev, { id, name: name.trim(), transactions: [], watchlist: [], savingsPlans: [] }]);
+                    setCurrentPortfolioId(id);
+                  }
+                } else if (e.target.value === 'DELETE_CURRENT') {
+                  if (portfolios.length <= 1) {
+                    alert('Du musst mindestens ein Portfolio behalten!');
+                    return;
+                  }
+                  if (confirm(`Möchtest du das Portfolio "${currentPortfolio.name}" wirklich löschen?`)) {
+                    const remaining = portfolios.filter(p => p.id !== currentPortfolioId);
+                    setPortfolios(remaining);
+                    setCurrentPortfolioId(remaining[0].id);
+                  }
+                } else {
+                  setCurrentPortfolioId(e.target.value);
+                }
+              }}
+              className="portfolio-select"
+            >
+              {portfolios.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+              <option value="" disabled>──────────</option>
+              <option value="CREATE_NEW">+ Neues Portfolio...</option>
+              <option value="DELETE_CURRENT">🗑️ Aktuelles Portfolio löschen</option>
+            </select>
+          </div>
         </div>
 
         <nav className="navigation-tabs">

@@ -10,15 +10,14 @@ interface HoldingsProps {
 export const Holdings: React.FC<HoldingsProps> = ({ holdings, onTriggerPriceRefresh }) => {
   return (
     <div className="glass-panel fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div className="hl-header-row">
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Deine Investments</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Aktuelle Übersicht aller Vermögenswerte und deren Performance.</p>
+          <h2 className="hl-title-h2">Deine Investments</h2>
+          <p className="hl-subtitle">Aktuelle Übersicht aller Vermögenswerte und deren Performance.</p>
         </div>
         <button 
-          className="btn btn-secondary" 
+          className="btn btn-secondary hl-sim-btn" 
           onClick={onTriggerPriceRefresh}
-          style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
         >
           <RefreshCw size={14} /> Live Kurse simulieren
         </button>
@@ -46,9 +45,9 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, onTriggerPriceRefr
                 return (
                   <tr key={holding.ticker}>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: 600 }}>{holding.name}</span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{holding.ticker}</span>
+                      <div className="hl-flex-col-name">
+                        <span className="hl-name-span">{holding.name}</span>
+                        <span className="hl-ticker-span">{holding.ticker}</span>
                       </div>
                     </td>
                     <td>
@@ -62,33 +61,28 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, onTriggerPriceRefr
                     <td>
                       {holding.averageBuyPrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
                     </td>
-                    <td style={{ fontWeight: 500 }}>
+                    <td className="hl-medium-weight">
                       {holding.currentPrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
                     </td>
                     <td>
                       {holding.totalCost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
                     </td>
-                    <td style={{ fontWeight: 600 }}>
+                    <td className="hl-bold-weight">
                       {holding.currentValue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
                     </td>
                     <td>
                       <span 
-                        style={{ 
-                          display: 'inline-flex', 
-                          alignItems: 'center', 
-                          gap: '0.2rem',
-                          color: isPositive ? 'var(--accent-emerald)' : 'var(--accent-rose)',
-                          fontWeight: 600
-                        }}
+                        className="hl-gain-loss-container"
+                        style={{ color: isPositive ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}
                       >
                         {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                         {isPositive ? '+' : ''}{holding.totalGainPercent.toFixed(2)}%
-                        <span style={{ fontSize: '0.8rem', fontWeight: 400, opacity: 0.8 }}>
+                        <span className="hl-gain-loss-subtext">
                           ({holding.totalGain.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })})
                         </span>
                       </span>
                     </td>
-                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                    <td className="hl-weight-col">
                       {holding.portfolioWeight.toFixed(1)}%
                     </td>
                   </tr>
@@ -96,7 +90,7 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, onTriggerPriceRefr
               })
             ) : (
               <tr>
-                <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+                <td colSpan={9} className="hl-empty-row">
                   Noch keine Investments vorhanden. Füge eine Transaktion hinzu oder lade ein Broker-PDF hoch.
                 </td>
               </tr>

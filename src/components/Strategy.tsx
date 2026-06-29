@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Holding } from '../types';
-import { ShieldCheck, AlertTriangle, Lightbulb, TrendingUp, Sliders } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Lightbulb, TrendingUp } from 'lucide-react';
 
 interface StrategyProps {
   holdings: Holding[];
@@ -19,12 +19,14 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
   const [targetEtf, setTargetEtf] = useState<number>(50);
   const [targetCrypto, setTargetCrypto] = useState<number>(10);
 
+  // 3. Investment Planner State
+  const [extraInvestment, setExtraInvestment] = useState<number>(1000);
+
   // Auto-adjust target sliders to sum up to 100% when one changes
   const adjustSliders = (changed: 'stock' | 'etf' | 'crypto', val: number) => {
     if (changed === 'stock') {
       setTargetStock(val);
       const rem = 100 - val;
-      // split remainder proportionally or 50/50
       setTargetEtf(Math.round(rem * 0.8));
       setTargetCrypto(Math.round(rem * 0.2));
     } else if (changed === 'etf') {
@@ -90,8 +92,6 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
     };
   }, [holdings, totalValue]);
 
-
-
   // AI-like Insights Generator
   const coachInsights = useMemo(() => {
     const insights = [];
@@ -149,198 +149,238 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
     }
 
     return insights;
-  }, [holdings, currentAllocation, monthlySavings, years, forecastData]);
+  }, [holdings, currentAllocation, monthlySavings, forecastData, years]);
+
+  // Pro-rated rebalancing purchasing calculator (without selling)
+  const rebalancePlanner = useMemo(() => {
+    if (extraInvestment <= 0) return { Stock: 0, ETF: 0, Crypto: 0 };
+    
+    const newTotal = totalValue + extraInvestment;
+    const stockCurrent = currentAllocation.Stock.val;
+    const etfCurrent = currentAllocation.ETF.val;
+    const cryptoCurrent = currentAllocation.Crypto.val;
+
+    const stockTarget = newTotal * (targetStock / 100);
+    const etfTarget = newTotal * (targetEtf / 100);
+    const cryptoTarget = newTotal * (targetCrypto / 100);
+
+    const diffStock = Math.max(0, stockTarget - stockCurrent);
+    const diffEtf = Math.max(0, etfTarget - etfCurrent);
+    const diffCrypto = Math.max(0, cryptoTarget - cryptoCurrent);
+
+    const sumDiffs = diffStock + diffEtf + diffCrypto;
+
+    if (sumDiffs > 0) {
+      const factor = extraInvestment / sumDiffs;
+      if (factor < 1) {
+        return {
+          Stock: Math.round(diffStock * factor),
+          ETF: Math.round(diffEtf * factor),
+          Crypto: Math.round(diffCrypto * factor)
+        };
+      } else {
+        const excess = extraInvestment - sumDiffs;
+        return {
+          Stock: Math.round(diffStock + excess * (targetStock / 100)),
+          ETF: Math.round(diffEtf + excess * (targetEtf / 100)),
+          Crypto: Math.round(diffCrypto + excess * (targetCrypto / 100))
+        };
+      }
+    } else {
+      return {
+        Stock: Math.round(extraInvestment * (targetStock / 100)),
+        ETF: Math.round(extraInvestment * (targetEtf / 100)),
+        Crypto: Math.round(extraInvestment * (targetCrypto / 100))
+      };
+    }
+  }, [extraInvestment, totalValue, currentAllocation, targetStock, targetEtf, targetCrypto]);
 
   return (
-    <div className="grid-main fade-in">
-      {/* Left Column: Forecast & sliders */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        
-        {/* Forecast Graph & Config */}
-        <div className="glass-panel">
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <TrendingUp size={20} className="text-secondary" style={{ color: 'var(--accent-purple)' }} />
-            Zukunftsprognose (Zinseszins)
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-            Simuliere das Wachstum deines Kapitals basierend auf deiner monatlichen Sparrate.
-          </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Zeitraum: {years} Jahre</span>
-              <input 
-                type="range" 
-                min="5" 
-                max="40" 
-                value={years} 
-                onChange={(e) => setYears(parseInt(e.target.value))}
-                className="projection-range"
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Sparrate: {monthlySavings} €/Monat</span>
-              <input 
-                type="range" 
-                min="0" 
-                max="2000" 
-                step="50"
-                value={monthlySavings} 
-                onChange={(e) => setMonthlySavings(parseInt(e.target.value))}
-                className="projection-range"
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Renditeerwartung: {expectedYield} % p.a.</span>
-              <input 
-                type="range" 
-                min="1" 
-                max="15" 
-                value={expectedYield} 
-                onChange={(e) => setExpectedYield(parseInt(e.target.value))}
-                className="projection-range"
-              />
-            </div>
-          </div>
-
-          <div style={{ width: '100%', height: '280px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={forecastData}>
-                <defs>
-                  <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent-purple)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="var(--accent-purple)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="year" stroke="var(--text-muted)" fontSize={11} tickLine={false} tickFormatter={(y) => `Jahr ${y}`} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k €`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-color)', borderRadius: '8px' }}
-                  formatter={(value) => value !== undefined && value !== null ? `${Number(value).toLocaleString('de-DE')} €` : ''}
-                />
-                <Area type="monotone" dataKey="Wert" stroke="var(--accent-purple)" strokeWidth={2} fillOpacity={1} fill="url(#colorForecast)" name="Endwert" />
-                <Area type="monotone" dataKey="Einzahlungen" stroke="var(--text-muted)" strokeWidth={1} strokeDasharray="3 3" fill="none" name="Eigenkapital" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Target Allocation Strategy */}
-        <div className="glass-panel">
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Sliders size={20} className="text-secondary" style={{ color: 'var(--accent-blue)' }} />
-            Investmentstrategie & Rebalancing
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-            Definiere deine Soll-Allokation. Wir berechnen, wie viel du kaufen/verkaufen musst, um sie zu erreichen.
-          </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Aktien: {targetStock}%</span>
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={targetStock} 
-                onChange={(e) => adjustSliders('stock', parseInt(e.target.value))}
-                className="projection-range"
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>ETFs: {targetEtf}%</span>
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={targetEtf} 
-                onChange={(e) => adjustSliders('etf', parseInt(e.target.value))}
-                className="projection-range"
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Kryptos: {targetCrypto}%</span>
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={targetCrypto} 
-                onChange={(e) => adjustSliders('crypto', parseInt(e.target.value))}
-                className="projection-range"
-              />
-            </div>
-          </div>
-
-          <div className="table-container">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>Anlageklasse</th>
-                  <th>Ist-Anteil</th>
-                  <th>Soll-Anteil</th>
-                  <th>Differenz (EUR)</th>
-                  <th>Empfohlene Aktion</th>
-                </tr>
-              </thead>
-              <tbody>
-                {['Stock', 'ETF', 'Crypto'].map((cat) => {
-                  const current = currentAllocation[cat as keyof typeof currentAllocation];
-                  const target = cat === 'Stock' ? targetStock : cat === 'ETF' ? targetEtf : targetCrypto;
-                  const diff = (totalValue * (target / 100)) - current.val;
-                  const isBuy = diff > 0;
-                  
-                  return (
-                    <tr key={cat}>
-                      <td style={{ fontWeight: 600 }}>{cat === 'Stock' ? 'Aktien' : cat === 'ETF' ? 'ETFs' : 'Kryptowährungen'}</td>
-                      <td>{current.pct.toFixed(1)}%</td>
-                      <td>{target}%</td>
-                      <td style={{ color: Math.abs(diff) < 5 ? 'var(--text-secondary)' : isBuy ? 'var(--accent-emerald)' : 'var(--accent-rose)', fontWeight: 600 }}>
-                        {diff > 0 ? '+' : ''}{diff.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                      <td>
-                        {Math.abs(diff) < 20 ? (
-                          <span style={{ color: 'var(--text-muted)' }}>Optimal balanciert</span>
-                        ) : (
-                          <span className={`badge ${isBuy ? 'badge-buy' : 'badge-sell'}`}>
-                            {isBuy ? 'Kaufen' : 'Verkaufen'}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+    <div className="fade-in strat-container">
+      <div className="sav-header">
+        <div>
+          <h2 className="sav-title-h2">Strategie & Allokation</h2>
+          <p className="strat-title-p">Verwalte deine Asset-Allokation, simuliere Vermögenswerte und nutze den Rebalancing-Rechner.</p>
         </div>
       </div>
 
-      {/* Right Column: AI Investment Coach Advice */}
-      <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Lightbulb size={20} className="text-secondary" style={{ color: 'var(--accent-gold)' }} />
-          Portfolio-Coach
-        </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-          Intelligente Analysen und Empfehlungen für deine Investmentstrategie.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {coachInsights.map((insight, idx) => (
-            <div key={idx} className={`recom-card ${insight.type === 'success' ? 'success' : insight.type === 'warning' ? 'warning' : ''}`}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                {insight.type === 'success' ? (
-                  <ShieldCheck size={18} style={{ color: 'var(--accent-emerald)' }} />
-                ) : (
-                  <AlertTriangle size={18} style={{ color: 'var(--accent-gold)' }} />
-                )}
-                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{insight.title}</span>
+      <div className="sav-main-grid">
+        {/* Left Column: Target Allocation & Rebalancing */}
+        <div className="sav-col-flex">
+          
+          <div className="glass-panel">
+            <h3 className="tx-manual-title">Soll-Allokation (Zielgewichtung)</h3>
+            <p className="tx-dropzone-subtitle">Passe die Schieberegler an. Die Summe wird automatisch auf 100% gehalten.</p>
+            
+            <div className="strat-target-grid">
+              <div className="strat-target-col">
+                <div className="sav-slider-label-row">
+                  <label htmlFor="slider-target-stock" className="strat-target-label">Aktien</label>
+                  <span className="sav-slider-label-bold">{targetStock}%</span>
+                </div>
+                <input 
+                  id="slider-target-stock"
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={targetStock} 
+                  title="Zielgewichtung Aktien"
+                  aria-label="Zielgewichtung Aktien"
+                  onChange={(e) => adjustSliders('stock', parseInt(e.target.value))}
+                  className="projection-range"
+                />
               </div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                {insight.desc}
-              </p>
+              <div className="strat-target-col">
+                <div className="sav-slider-label-row">
+                  <label htmlFor="slider-target-etf" className="strat-target-label">ETFs</label>
+                  <span className="sav-slider-label-bold">{targetEtf}%</span>
+                </div>
+                <input 
+                  id="slider-target-etf"
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={targetEtf} 
+                  title="Zielgewichtung ETFs"
+                  aria-label="Zielgewichtung ETFs"
+                  onChange={(e) => adjustSliders('etf', parseInt(e.target.value))}
+                  className="projection-range"
+                />
+              </div>
+              <div className="strat-target-col">
+                <div className="sav-slider-label-row">
+                  <label htmlFor="slider-target-crypto" className="strat-target-label">Kryptos</label>
+                  <span className="sav-slider-label-bold">{targetCrypto}%</span>
+                </div>
+                <input 
+                  id="slider-target-crypto"
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={targetCrypto} 
+                  title="Zielgewichtung Kryptowährungen"
+                  aria-label="Zielgewichtung Kryptowährungen"
+                  onChange={(e) => adjustSliders('crypto', parseInt(e.target.value))}
+                  className="projection-range"
+                />
+              </div>
             </div>
-          ))}
+
+            <div className="strat-table-container">
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Anlageklasse</th>
+                    <th>Ist-Anteil</th>
+                    <th>Soll-Anteil</th>
+                    <th>Differenz (EUR)</th>
+                    <th>Empfohlene Aktion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {['Stock', 'ETF', 'Crypto'].map((cat) => {
+                    const current = currentAllocation[cat as keyof typeof currentAllocation];
+                    const target = cat === 'Stock' ? targetStock : cat === 'ETF' ? targetEtf : targetCrypto;
+                    const diff = (totalValue * (target / 100)) - current.val;
+                    const isBuy = diff > 0;
+                    
+                    return (
+                      <tr key={cat}>
+                        <td className="sav-item-title-active">{cat === 'Stock' ? 'Aktien' : cat === 'ETF' ? 'ETFs' : 'Kryptowährungen'}</td>
+                        <td>{current.pct.toFixed(1)}%</td>
+                        <td>{target}%</td>
+                        <td style={{ color: Math.abs(diff) < 5 ? 'var(--text-secondary)' : isBuy ? 'var(--accent-emerald)' : 'var(--accent-rose)', fontWeight: 600 }}>
+                          {diff > 0 ? '+' : ''}{diff.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                        </td>
+                        <td>
+                          {Math.abs(diff) < 20 ? (
+                            <span className="sav-list-empty" style={{ margin: 0 }}>Optimal balanciert</span>
+                          ) : (
+                            <span className={isBuy ? 'rebalance-badge-buy' : 'rebalance-badge-sell'}>
+                              {isBuy ? 'Kaufen' : 'Verkaufen'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Interactive Investment Planner (Smart Rebalancing by Purchase) */}
+            <div className="strat-investment-planner-box">
+              <h4 className="strat-planner-title">Rebalancing-Investitions-Planer</h4>
+              <p className="strat-planner-desc">
+                Gib einen Betrag ein, den du investieren möchtest. Der Rechner verteilt ihn so, dass du deinen Soll-Allokationen am nächsten kommst.
+              </p>
+              
+              <div className="strat-planner-input-row">
+                <div className="strat-planner-input-group">
+                  <label htmlFor="planner-extra-capital">Investmentbetrag (€)</label>
+                  <input 
+                    id="planner-extra-capital"
+                    type="number" 
+                    className="form-input" 
+                    value={extraInvestment} 
+                    placeholder="z.B. 1000"
+                    onChange={(e) => setExtraInvestment(e.target.value ? Number(e.target.value) : 0)} 
+                  />
+                </div>
+              </div>
+
+              <div className="strat-planner-results">
+                <h5 className="strat-planner-results-title">Empfohlene Verteilung der Einzahlung:</h5>
+                <div className="rebalance-grid">
+                  <div className="rebalance-item">
+                    <span className="sav-item-subtitle">Aktien</span>
+                    <span className="sav-item-amount">{rebalancePlanner.Stock.toLocaleString('de-DE')} €</span>
+                    <span className={rebalancePlanner.Stock > 0 ? 'rebalance-badge-buy' : 'rebalance-badge-ok'}>
+                      {rebalancePlanner.Stock > 0 ? 'Kaufen' : 'Halten'}
+                    </span>
+                  </div>
+                  <div className="rebalance-item">
+                    <span className="sav-item-subtitle">ETFs</span>
+                    <span className="sav-item-amount">{rebalancePlanner.ETF.toLocaleString('de-DE')} €</span>
+                    <span className={rebalancePlanner.ETF > 0 ? 'rebalance-badge-buy' : 'rebalance-badge-ok'}>
+                      {rebalancePlanner.ETF > 0 ? 'Kaufen' : 'Halten'}
+                    </span>
+                  </div>
+                  <div className="rebalance-item">
+                    <span className="sav-item-subtitle">Kryptowährungen</span>
+                    <span className="sav-item-amount">{rebalancePlanner.Crypto.toLocaleString('de-DE')} €</span>
+                    <span className={rebalancePlanner.Crypto > 0 ? 'rebalance-badge-buy' : 'rebalance-badge-ok'}>
+                      {rebalancePlanner.Crypto > 0 ? 'Kaufen' : 'Halten'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Right Column: AI Investment Coach Advice */}
+        <div className="glass-panel">
+          <h2 className="sav-sim-header">
+            <Lightbulb size={20} className="portfolio-select-icon" /> Portfolio-Coach
+          </h2>
+          <p className="tx-dropzone-subtitle">
+            Intelligente Analysen und Empfehlungen für deine Investmentstrategie.
+          </p>
+
+          <div className="sav-list-flex">
+            {coachInsights.map((insight, idx) => (
+              <div key={idx} className={`recom-card ${insight.type === 'success' ? 'success' : insight.type === 'warning' ? 'warning' : ''}`}>
+                <div className="strat-recom-title-row">
+                  <span className="sav-item-title-active">{insight.title}</span>
+                </div>
+                <p className="strat-recom-text">
+                  {insight.desc}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
