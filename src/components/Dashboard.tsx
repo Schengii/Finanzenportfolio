@@ -289,6 +289,9 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
                ref={fileInputRef} 
                onChange={handleFileChange} 
                accept=".json" 
+               title="Backup JSON Datei auswählen"
+               aria-label="Backup JSON Datei auswählen"
+               placeholder="Backup-Datei hochladen"
                style={{ display: 'none' }} 
              />
            </div>
@@ -296,5 +299,4 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
        </div>
      </div>
    );
- };
 

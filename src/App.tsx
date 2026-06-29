@@ -4,8 +4,9 @@ import { Holdings } from './components/Holdings';
 import { Transactions } from './components/Transactions';
 import { Strategy } from './components/Strategy';
 import { Watchlist } from './components/Watchlist';
-import type { Transaction, Holding, PortfolioStats, WatchlistItem, Portfolio, AssetCategory } from './types';
-import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen } from 'lucide-react';
+import { SavingsSimulator } from './components/SavingsSimulator';
+import type { Transaction, Holding, PortfolioStats, WatchlistItem, Portfolio, SavingsPlan, AssetCategory } from './types';
+import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar } from 'lucide-react';
 import './App.css';
 
 // Initial Mock Data
@@ -117,6 +118,24 @@ function App() {
             notes: 'Kauf geplant bei Korrektur auf das EMA-50 Level.',
             addedAt: '20.06.2026'
           }
+        ],
+        savingsPlans: [
+          {
+            id: 'sp-1',
+            ticker: 'EUNL',
+            name: 'iShares Core MSCI World ETF',
+            category: 'ETF',
+            amount: 150,
+            isActive: true
+          },
+          {
+            id: 'sp-2',
+            ticker: 'BTC',
+            name: 'Bitcoin (BTC)',
+            category: 'Crypto',
+            amount: 50,
+            isActive: true
+          }
         ]
       }
     ];
@@ -138,7 +157,7 @@ function App() {
     return INITIAL_PRICES;
   });
 
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'watchlist'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'watchlist' | 'savings'>('dashboard');
   const [prefilledTx, setPrefilledTx] = useState<{ ticker: string; name: string; category: AssetCategory; price: number } | null>(null);
 
   // Sync state to localStorage
@@ -156,11 +175,12 @@ function App() {
 
   // Derived current portfolio
   const currentPortfolio = useMemo(() => {
-    return portfolios.find(p => p.id === currentPortfolioId) || portfolios[0] || { id: 'default', name: 'Haupt-Portfolio', transactions: [], watchlist: [] };
+    return portfolios.find(p => p.id === currentPortfolioId) || portfolios[0] || { id: 'default', name: 'Haupt-Portfolio', transactions: [], watchlist: [], savingsPlans: [] };
   }, [portfolios, currentPortfolioId]);
 
   const transactions = currentPortfolio.transactions || [];
   const watchlist = currentPortfolio.watchlist || [];
+  const savingsPlans = currentPortfolio.savingsPlans || [];
 
   const setTransactions = (updater: Transaction[] | ((prev: Transaction[]) => Transaction[])) => {
     setPortfolios(prev => prev.map(p => {
@@ -182,6 +202,16 @@ function App() {
     }));
   };
 
+  const setSavingsPlans = (updater: SavingsPlan[] | ((prev: SavingsPlan[]) => SavingsPlan[])) => {
+    setPortfolios(prev => prev.map(p => {
+      if (p.id === currentPortfolio.id) {
+        const nextPlans = typeof updater === 'function' ? updater(p.savingsPlans || []) : updater;
+        return { ...p, savingsPlans: nextPlans };
+      }
+      return p;
+    }));
+  };
+
   // Handle adding transactions
   const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
     const transaction: Transaction = {
@@ -190,7 +220,6 @@ function App() {
     };
     setTransactions(prev => [transaction, ...prev]);
 
-    // Seed price if it is a new ticker we don't have price for
     if (!currentPrices[transaction.ticker]) {
       setCurrentPrices(prev => ({
         ...prev,
@@ -228,6 +257,23 @@ function App() {
   const handleQuickBuy = (ticker: string, name: string, category: AssetCategory, price: number) => {
     setPrefilledTx({ ticker, name, category, price });
     setCurrentTab('transactions');
+  };
+
+  // Savings Plan methods
+  const handleAddSavingsPlan = (plan: Omit<SavingsPlan, 'id'>) => {
+    const newPlan: SavingsPlan = {
+      ...plan,
+      id: `sp-${Date.now()}`
+    };
+    setSavingsPlans(prev => [...prev, newPlan]);
+  };
+
+  const handleDeleteSavingsPlan = (id: string) => {
+    setSavingsPlans(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleToggleSavingsPlan = (id: string) => {
+    setSavingsPlans(prev => prev.map(p => p.id === id ? { ...p, isActive: !p.isActive } : p));
   };
 
   // Backup & Import
@@ -399,16 +445,18 @@ function App() {
         </div>
 
         {/* Portfolio Dropdown Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.25rem 0.5rem 0.25rem 0.75rem' }}>
-          <FolderOpen size={16} style={{ color: 'var(--accent-purple)' }} />
+        <div className="portfolio-selector-container">
+          <FolderOpen size={16} className="portfolio-select-icon" />
           <select 
             value={currentPortfolioId} 
+            title="Portfolio auswählen"
+            aria-label="Portfolio auswählen"
             onChange={(e) => {
               if (e.target.value === 'CREATE_NEW') {
                 const name = prompt('Name des neuen Portfolios:');
                 if (name && name.trim()) {
                   const id = `p-${Date.now()}`;
-                  setPortfolios(prev => [...prev, { id, name: name.trim(), transactions: [], watchlist: [] }]);
+                  setPortfolios(prev => [...prev, { id, name: name.trim(), transactions: [], watchlist: [], savingsPlans: [] }]);
                   setCurrentPortfolioId(id);
                 }
               } else if (e.target.value === 'DELETE_CURRENT') {
@@ -425,14 +473,14 @@ function App() {
                 setCurrentPortfolioId(e.target.value);
               }
             }}
-            style={{ background: 'none', border: 'none', color: '#fff', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'pointer', paddingRight: '0.5rem' }}
+            className="portfolio-select"
           >
             {portfolios.map(p => (
-              <option key={p.id} value={p.id} style={{ background: 'var(--bg-main)', color: '#fff' }}>{p.name}</option>
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
             <option value="" disabled>──────────</option>
-            <option value="CREATE_NEW" style={{ background: 'var(--bg-main)', color: 'var(--accent-blue)', fontWeight: 'bold' }}>+ Neues Portfolio...</option>
-            <option value="DELETE_CURRENT" style={{ background: 'var(--bg-main)', color: 'var(--accent-rose)' }}>🗑️ Aktuelles Portfolio löschen</option>
+            <option value="CREATE_NEW">+ Neues Portfolio...</option>
+            <option value="DELETE_CURRENT">🗑️ Aktuelles Portfolio löschen</option>
           </select>
         </div>
 
@@ -459,7 +507,7 @@ function App() {
             className={`nav-tab ${currentTab === 'strategy' ? 'active' : ''}`}
             onClick={() => setCurrentTab('strategy')}
           >
-            <Sliders size={16} /> Strategie & Prognose
+            <Sliders size={16} /> Strategie
           </button>
           <button 
             className={`nav-tab ${currentTab === 'watchlist' ? 'active' : ''}`}
@@ -467,11 +515,17 @@ function App() {
           >
             <Eye size={16} /> Watchlist
           </button>
+          <button 
+            className={`nav-tab ${currentTab === 'savings' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('savings')}
+          >
+            <Calendar size={16} /> Sparpläne & Simulator
+          </button>
         </nav>
       </header>
 
       {/* Main Content Area */}
-      <main style={{ flexGrow: 1, paddingBottom: '3rem' }}>
+      <main className="app-main-content">
         {currentTab === 'dashboard' && (
           <Dashboard 
             stats={stats} 
@@ -509,6 +563,15 @@ function App() {
             onAddWatchlist={handleAddWatchlistItem} 
             onRemoveWatchlist={handleRemoveWatchlistItem} 
             onQuickBuy={handleQuickBuy}
+          />
+        )}
+        {currentTab === 'savings' && (
+          <SavingsSimulator 
+            savingsPlans={savingsPlans} 
+            portfolioValue={stats.totalValue} 
+            onAddSavingsPlan={handleAddSavingsPlan} 
+            onDeleteSavingsPlan={handleDeleteSavingsPlan} 
+            onToggleSavingsPlan={handleToggleSavingsPlan} 
           />
         )}
       </main>

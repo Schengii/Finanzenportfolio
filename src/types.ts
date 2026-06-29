@@ -50,11 +50,21 @@ export interface WatchlistItem {
   addedAt: string;
 }
 
+export interface SavingsPlan {
+  id: string;
+  ticker: string;
+  name: string;
+  category: AssetCategory;
+  amount: number; // monthly savings rate
+  isActive: boolean;
+}
+
 export interface Portfolio {
   id: string;
   name: string;
   transactions: Transaction[];
   watchlist: WatchlistItem[];
+  savingsPlans?: SavingsPlan[];
   targetAllocations?: TargetAllocation[];
 }
 

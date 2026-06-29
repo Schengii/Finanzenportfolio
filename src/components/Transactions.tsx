@@ -123,12 +123,12 @@ export const Transactions: React.FC<TransactionsProps> = ({
   return (
     <div className="grid-main fade-in">
       {/* Left Column: Import / PDF Drop and Manual Entry Form */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="sav-col-flex">
         
         {/* PDF Import Zone */}
         <div className="glass-panel">
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>PDF Import</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+          <h2 className="tx-dropzone-title-h2">PDF Import</h2>
+          <p className="tx-dropzone-subtitle">
             Ziehe eine Original-Abrechnung von <strong>Trade Republic</strong> oder <strong>Scalable Capital</strong> hierhin.
           </p>
 
@@ -143,24 +143,27 @@ export const Transactions: React.FC<TransactionsProps> = ({
             <input 
               type="file" 
               ref={fileInputRef} 
-              style={{ display: 'none' }} 
+              className="tx-dropzone-input-hidden"
               accept=".pdf" 
+              title="Broker Abrechnungs-PDF auswählen"
+              aria-label="Broker Abrechnungs-PDF auswählen"
+              placeholder="PDF-Abrechnung hochladen"
               onChange={handleFileInput}
             />
             <div className="dropzone-icon">
               <Upload size={24} />
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <span style={{ fontWeight: 600, display: 'block', fontSize: '0.95rem' }}>
+            <div className="tx-dropzone-center-text">
+              <span className="tx-dropzone-text-main">
                 {parsingActive ? 'Lese PDF ein...' : 'Broker PDF auswählen oder reinziehen'}
               </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <span className="tx-dropzone-text-sub">
                 Unterstützt PDF-Abrechnungen
               </span>
             </div>
           </div>
           {pdfError && (
-            <div style={{ color: 'var(--accent-rose)', fontSize: '0.85rem', marginTop: '0.75rem', display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+            <div className="tx-pdf-error-box">
               <Info size={14} /> {pdfError}
             </div>
           )}
@@ -168,12 +171,19 @@ export const Transactions: React.FC<TransactionsProps> = ({
 
         {/* Manual Form */}
         <div className="glass-panel">
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>Manuell hinzufügen</h2>
+          <h2 className="tx-manual-title">Manuell hinzufügen</h2>
           <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="tx-form-row-2">
               <div className="form-group">
-                <label className="form-label">Typ</label>
-                <select className="form-select" value={type} onChange={(e) => setType(e.target.value as any)}>
+                <label htmlFor="tx-type" className="form-label">Typ</label>
+                <select 
+                  id="tx-type"
+                  className="form-select" 
+                  value={type} 
+                  title="Transaktionstyp"
+                  aria-label="Transaktionstyp"
+                  onChange={(e) => setType(e.target.value as any)}
+                >
                   <option value="BUY">Kauf</option>
                   <option value="SELL">Verkauf</option>
                   <option value="DIVIDEND">Dividende</option>
@@ -181,8 +191,15 @@ export const Transactions: React.FC<TransactionsProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Kategorie</label>
-                <select className="form-select" value={category} onChange={(e) => setCategory(e.target.value as AssetCategory)}>
+                <label htmlFor="tx-category" className="form-label">Kategorie</label>
+                <select 
+                  id="tx-category"
+                  className="form-select" 
+                  value={category} 
+                  title="Asset-Kategorie"
+                  aria-label="Asset-Kategorie"
+                  onChange={(e) => setCategory(e.target.value as AssetCategory)}
+                >
                   <option value="Stock">Aktie</option>
                   <option value="ETF">ETF</option>
                   <option value="Crypto">Krypto</option>
@@ -190,10 +207,11 @@ export const Transactions: React.FC<TransactionsProps> = ({
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="tx-form-row-2">
               <div className="form-group">
-                <label className="form-label">Kürzel / Ticker / ISIN</label>
+                <label htmlFor="tx-ticker" className="form-label">Kürzel / Ticker / ISIN</label>
                 <input 
+                  id="tx-ticker"
                   type="text" 
                   className="form-input" 
                   placeholder="z.B. AAPL oder US0378331002"
@@ -204,8 +222,9 @@ export const Transactions: React.FC<TransactionsProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Name</label>
+                <label htmlFor="tx-name" className="form-label">Name</label>
                 <input 
+                  id="tx-name"
                   type="text" 
                   className="form-input" 
                   placeholder="z.B. Apple Inc."
@@ -216,10 +235,11 @@ export const Transactions: React.FC<TransactionsProps> = ({
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="tx-form-row-2">
               <div className="form-group">
-                <label className="form-label">Anzahl / Anteile</label>
+                <label htmlFor="tx-amount" className="form-label">Anzahl / Anteile</label>
                 <input 
+                  id="tx-amount"
                   type="number" 
                   step="any"
                   className="form-input" 
@@ -231,8 +251,9 @@ export const Transactions: React.FC<TransactionsProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Kurs (€)</label>
+                <label htmlFor="tx-price" className="form-label">Kurs (€)</label>
                 <input 
+                  id="tx-price"
                   type="number" 
                   step="any"
                   className="form-input" 
@@ -244,24 +265,28 @@ export const Transactions: React.FC<TransactionsProps> = ({
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="tx-form-row-2">
               <div className="form-group">
-                <label className="form-label">Gebühren (€)</label>
+                <label htmlFor="tx-fee" className="form-label">Gebühren (€)</label>
                 <input 
+                  id="tx-fee"
                   type="number" 
                   step="any"
                   className="form-input" 
+                  placeholder="Gebühren eingeben"
                   value={fee}
                   onChange={(e) => setFee(e.target.value)}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Steuern (€)</label>
+                <label htmlFor="tx-tax" className="form-label">Steuern (€)</label>
                 <input 
+                  id="tx-tax"
                   type="number" 
                   step="any"
                   className="form-input" 
+                  placeholder="Steuern eingeben"
                   value={tax}
                   onChange={(e) => setTax(e.target.value)}
                 />
@@ -269,17 +294,19 @@ export const Transactions: React.FC<TransactionsProps> = ({
             </div>
 
             <div className="form-group">
-              <label className="form-label">Datum</label>
+              <label htmlFor="tx-date" className="form-label">Datum</label>
               <input 
+                id="tx-date"
                 type="date" 
                 className="form-input" 
+                placeholder="Datum auswählen"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
               />
             </div>
 
-            <button type="submit" className="btn" style={{ width: '100%', marginTop: '0.5rem' }}>
+            <button type="submit" className="btn tx-form-submit-btn-full">
               <Plus size={16} /> Hinzufügen
             </button>
           </form>
@@ -288,12 +315,12 @@ export const Transactions: React.FC<TransactionsProps> = ({
 
       {/* Right Column: Transaction List */}
       <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>Aktivitäten-Protokoll</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+        <h2 className="tx-list-title-h2">Aktivitäten-Protokoll</h2>
+        <p className="tx-list-subtitle">
           Alle erfassten Käufe, Verkäufe und Dividenden.
         </p>
 
-        <div style={{ flexGrow: 1, overflowY: 'auto', maxHeight: '600px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div className="tx-list-scrollable">
           {transactions.length > 0 ? (
             transactions.map((tx) => {
               const isBuy = tx.type === 'BUY';
@@ -301,58 +328,35 @@ export const Transactions: React.FC<TransactionsProps> = ({
               const total = tx.amount * tx.price;
               
               return (
-                <div 
-                  key={tx.id} 
-                  style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    padding: '0.75rem 1rem',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '10px',
-                    background: 'rgba(255, 255, 255, 0.01)'
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <div key={tx.id} className="tx-item-box">
+                  <div className="tx-item-left">
                     <span className={`badge badge-${tx.type.toLowerCase()}`}>
                       {tx.type === 'BUY' ? 'Kauf' : tx.type === 'SELL' ? 'Verkauf' : 'Div.'}
                     </span>
                     <div>
-                      <span style={{ fontWeight: 600, display: 'block', fontSize: '0.9rem' }}>{tx.name}</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <span className="tx-item-name-bold">{tx.name}</span>
+                      <span className="tx-item-meta">
                         {tx.date} • {tx.amount} Stk. @ {tx.price.toFixed(2)} €
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ 
-                        fontWeight: 600, 
-                        display: 'block', 
-                        fontSize: '0.9rem',
-                        color: isBuy ? '#60a5fa' : isDiv ? 'var(--accent-gold)' : 'var(--accent-rose)'
-                      }}>
+                  <div className="tx-item-right-wrap">
+                    <div className="tx-item-right-text">
+                      <span className="tx-item-total-value" style={{ color: isBuy ? '#60a5fa' : isDiv ? 'var(--accent-gold)' : 'var(--accent-rose)' }}>
                         {isBuy ? '-' : '+'}{total.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
                       </span>
                       {tx.fee > 0 && (
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <span className="tx-item-fee-text">
                           inkl. {tx.fee.toFixed(2)} € Gebühr
                         </span>
                       )}
                     </div>
                     <button 
                       onClick={() => onDeleteTransaction(tx.id)}
-                      style={{ 
-                        background: 'transparent', 
-                        border: 'none', 
-                        color: 'var(--text-muted)', 
-                        cursor: 'pointer',
-                        padding: '0.25rem',
-                        transition: 'var(--transition-smooth)'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-rose)'}
-                      onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                      className="tx-item-trash-btn"
+                      title="Transaktion löschen"
+                      aria-label="Transaktion löschen"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -361,7 +365,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
               );
             })
           ) : (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+            <div className="tx-list-empty">
               Keine Transaktionen erfasst.
             </div>
           )}
