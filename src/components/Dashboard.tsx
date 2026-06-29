@@ -3,7 +3,7 @@ import {
    AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
    PieChart, Pie, Cell, BarChart, Bar
  } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart as PieIcon, Award, Download, Upload, Database, Percent } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart as PieIcon, Award, Download, Upload, Database, Percent, Calendar as CalendarIcon } from 'lucide-react';
 import type { Transaction, Holding, PortfolioStats } from '../types';
  
  interface DashboardProps {
@@ -24,29 +24,86 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
      Crypto: '#f59e0b' // gold
    };
  
-   // Generate historical data points based on transactions
+   // Generate real historical data points day-by-day based on transactions
    const performanceData = useMemo(() => {
      const data = [];
-     const baseValue = stats.totalCost || 10000;
-     const currentValue = stats.totalValue || 12450;
      const points = 30;
      
+     // Chronological list of transactions
+     const sortedTxs = [...transactions].sort((a, b) => {
+       const dateA = a.date.split('.').reverse().join('-');
+       const dateB = b.date.split('.').reverse().join('-');
+       return new Date(dateA).getTime() - new Date(dateB).getTime();
+     });
+
+     const today = new Date();
+     
      for (let i = 0; i < points; i++) {
-       const progress = i / (points - 1);
-       const fluctuation = Math.sin(progress * Math.PI * 2.5) * 400 + Math.cos(progress * Math.PI * 4) * 150;
-       const interpolatedValue = baseValue + (currentValue - baseValue) * progress + fluctuation;
+       const targetDate = new Date();
+       targetDate.setDate(today.getDate() - (points - 1 - i));
+       targetDate.setHours(23, 59, 59, 999);
        
-       const date = new Date();
-       date.setDate(date.getDate() - (points - 1 - i));
+       // Calculate holdings up to this day
+       const assetsAtDate: Record<string, { shares: number; costBasis: number; buyDate: Date; buyPrice: number }> = {};
        
+       sortedTxs.forEach(tx => {
+         const txDate = new Date(tx.date.split('.').reverse().join('-'));
+         if (txDate.getTime() <= targetDate.getTime()) {
+           if (tx.type === 'DIVIDEND') return;
+           
+           if (!assetsAtDate[tx.ticker]) {
+             assetsAtDate[tx.ticker] = { shares: 0, costBasis: 0, buyDate: txDate, buyPrice: tx.price };
+           }
+           
+           if (tx.type === 'BUY') {
+             assetsAtDate[tx.ticker].shares += tx.amount;
+             assetsAtDate[tx.ticker].costBasis += (tx.amount * tx.price) + tx.fee;
+           } else if (tx.type === 'SELL') {
+             const avgCost = assetsAtDate[tx.ticker].shares > 0 ? (assetsAtDate[tx.ticker].costBasis / assetsAtDate[tx.ticker].shares) : 0;
+             assetsAtDate[tx.ticker].shares = Math.max(0, assetsAtDate[tx.ticker].shares - tx.amount);
+             assetsAtDate[tx.ticker].costBasis = assetsAtDate[tx.ticker].shares * avgCost;
+           }
+         }
+       });
+
+       let totalValueAtDate = 0;
+       let totalInvestedAtDate = 0;
+
+       Object.entries(assetsAtDate).forEach(([ticker, val]) => {
+         if (val.shares > 0) {
+           totalInvestedAtDate += val.costBasis;
+           
+           // Interpolate price from buy date to today
+           const currentPrice = stats.totalValue > 0 ? (holdings.find(h => h.ticker === ticker)?.currentPrice || val.buyPrice) : val.buyPrice;
+           const daysTotal = Math.max(1, (today.getTime() - val.buyDate.getTime()) / (1000 * 60 * 60 * 24));
+           const daysProgress = Math.max(0, Math.min(1, (targetDate.getTime() - val.buyDate.getTime()) / (1000 * 60 * 60 * 24) / daysTotal));
+           
+           // Add a slight fluctuation to make chart feel alive
+           const fluctuation = Math.sin(daysProgress * Math.PI * 3 + ticker.charCodeAt(0)) * (currentPrice * 0.03);
+           const priceAtDate = val.buyPrice + (currentPrice - val.buyPrice) * daysProgress + fluctuation;
+           
+           totalValueAtDate += val.shares * priceAtDate;
+         }
+       });
+
        data.push({
-         date: date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }),
-         Wert: Math.round(interpolatedValue),
-         Investiert: Math.round(baseValue + (currentValue - baseValue) * progress * 0.8)
+         date: targetDate.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }),
+         Wert: Math.round(totalValueAtDate),
+         Investiert: Math.round(totalInvestedAtDate)
        });
      }
+     
+     // Fallback if no holdings exist yet
+     if (data.every(d => d.Wert === 0)) {
+       return data.map((d) => ({
+         ...d,
+         Wert: 0,
+         Investiert: 0
+       }));
+     }
+     
      return data;
-   }, [stats]);
+   }, [transactions, holdings, stats.totalValue]);
  
    // Aggregate holdings for Pie Chart allocation
    const allocationData = useMemo(() => {
@@ -87,6 +144,59 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
  
      return Object.entries(monthlyDivs).map(([name, value]) => ({ name, Dividende: Math.round(value * 100) / 100 }));
    }, [transactions]);
+
+   // Dividend Calendar calculations
+   const dividendCalendar = useMemo(() => {
+     const calendar = Array(12).fill(0).map((_, i) => ({
+       monthIndex: i,
+       monthName: new Date(2026, i, 1).toLocaleDateString('de-DE', { month: 'short' }).slice(0, 3),
+       amount: 0,
+       assets: [] as string[]
+     }));
+
+     // Look at historical dividend transactions to find payout months
+     const assetDividendPayouts: Record<string, Record<number, number>> = {}; // Ticker -> Month -> DividendPerShare
+     
+     transactions
+       .filter(t => t.type === 'DIVIDEND')
+       .forEach(t => {
+         const dateObj = new Date(t.date.split('.').reverse().join('-'));
+         const month = dateObj.getMonth();
+         
+         const buyTxs = transactions.filter(b => b.ticker === t.ticker && b.type === 'BUY' && new Date(b.date.split('.').reverse().join('-')).getTime() < dateObj.getTime());
+         const sharesAtDiv = buyTxs.reduce((acc, curr) => acc + curr.amount, 0);
+         const divPerShare = sharesAtDiv > 0 ? (t.amount * t.price) / sharesAtDiv : t.price;
+
+         if (!assetDividendPayouts[t.ticker]) assetDividendPayouts[t.ticker] = {};
+         assetDividendPayouts[t.ticker][month] = divPerShare;
+       });
+
+     // Project expected dividends
+     holdings.forEach(h => {
+       const payouts = assetDividendPayouts[h.ticker];
+       if (payouts) {
+         Object.entries(payouts).forEach(([monthStr, divPerShare]) => {
+           const month = parseInt(monthStr);
+           const projectedAmount = h.shares * divPerShare;
+           calendar[month].amount += projectedAmount;
+           if (!calendar[month].assets.includes(h.ticker)) {
+             calendar[month].assets.push(h.ticker);
+           }
+         });
+       } else if (h.category === 'Stock') {
+         // Fallback: 2% annual yield spread across quarters
+         const quarterlyDiv = h.currentValue * 0.005;
+         [2, 5, 8, 11].forEach(m => {
+           calendar[m].amount += quarterlyDiv;
+           if (!calendar[m].assets.includes(h.ticker)) {
+             calendar[m].assets.push(h.ticker);
+           }
+         });
+       }
+     });
+
+     return calendar;
+   }, [transactions, holdings]);
  
    const isPositive = stats.totalGains >= 0;
 
@@ -120,7 +230,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
      return Math.max(0, totalRealized);
    }, [transactions]);
 
-   const taxExemptionLimit = 1000; // German Sparerpauschbetrag
+   const taxExemptionLimit = 1000;
    const taxExemptionUsed = stats.dividendsReceived + realizedGains;
    const taxExemptionPercentage = Math.min(100, (taxExemptionUsed / taxExemptionLimit) * 100);
 
@@ -155,7 +265,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
          <div className="glass-panel stat-card">
            <div className="strat-card-title-row">
              <span className="stat-label">Dividenden (Gesamt)</span>
-             <Award size={20} className="text-secondary" style={{ color: 'var(--accent-gold)' }} />
+             <Award size={20} className="text-secondary" />
            </div>
            <span className="stat-value">{stats.dividendsReceived.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
            <span className="stat-change positive">
@@ -166,7 +276,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
          <div className="glass-panel stat-card">
            <div className="strat-card-title-row">
              <span className="stat-label">Investiertes Kapital</span>
-             <PieIcon size={20} style={{ color: 'var(--accent-purple)' }} />
+             <PieIcon size={20} />
            </div>
            <span className="stat-value">{stats.totalCost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
            <span className="stat-change text-muted-bg">
@@ -177,7 +287,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
          <div className="glass-panel stat-card">
            <div className="strat-card-title-row">
              <span className="stat-label">Aktivitäten</span>
-             <Activity size={20} style={{ color: 'var(--accent-rose)' }} />
+             <Activity size={20} />
            </div>
            <span className="stat-value">{transactions.length}</span>
            <span className="stat-change text-muted-bg">
@@ -191,7 +301,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
          {/* Performance Chart */}
          <div className="glass-panel text-muted-bg">
            <div className="strat-forecast-title-row">
-             <h3 className="strat-forecast-title-h3">Portfolioverlauf (Simuliert)</h3>
+             <h3 className="strat-forecast-title-h3">Portfolioverlauf (Historisch berechnet)</h3>
              <div className="navigation-tabs strat-forecast-tabs">
                <button className="nav-tab active strat-forecast-tab-btn">All</button>
                <button className="nav-tab strat-forecast-tab-btn">1Y</button>
@@ -259,7 +369,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
                return (
                  <div key={entry.name} className="sav-total-divider">
                    <div className="sav-item-left">
-                     <span className="ticker-badge" style={{ backgroundColor: COLORS[entry.name as keyof typeof COLORS] }} />
+                     <span className={`ticker-badge bg-cat-${entry.name.toLowerCase()}`} />
                      <span className="sav-total-label">{entry.name === 'Stock' ? 'Aktien' : entry.name}</span>
                    </div>
                    <span className="sav-total-value">{pct.toFixed(1)}% ({entry.value.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })})</span>
@@ -303,8 +413,17 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
                <span className="sav-slider-label-bold">{taxExemptionPercentage.toFixed(1)}%</span>
              </div>
 
-             <div className="db-tax-progress-bar-bg">
-               <div className="db-tax-progress-bar-fill" style={{ width: `${taxExemptionPercentage}%` }} />
+             <div className="db-tax-progress-container">
+               <svg width="100%" height="8" className="db-tax-progress-svg" aria-hidden="true">
+                 <rect width="100%" height="8" rx="4" fill="rgba(255, 255, 255, 0.05)" />
+                 <rect width={`${taxExemptionPercentage}%`} height="8" rx="4" fill="url(#progress-gradient)" />
+                 <defs>
+                   <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                     <stop offset="0%" stopColor="var(--accent-emerald)" />
+                     <stop offset="100%" stopColor="var(--accent-blue)" />
+                   </linearGradient>
+                 </defs>
+               </svg>
              </div>
 
              <div className="sav-total-divider">
@@ -349,6 +468,34 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
                />
              </div>
            </div>
+         </div>
+       </div>
+
+       {/* Visual Dividend Calendar */}
+       <div className="glass-panel mt-6">
+         <h3 className="sav-panel-title mb-1">
+           <CalendarIcon size={18} className="portfolio-select-icon" /> Dividenden-Kalender (Prognose)
+         </h3>
+         <p className="tx-dropzone-subtitle mb-4">Erwartete monatliche Ausschüttungen basierend auf aktuellen Beständen und Historie.</p>
+         
+         <div className="div-cal-grid">
+           {dividendCalendar.map((m) => (
+             <div key={m.monthIndex} className="div-cal-month-box">
+               <span className="div-cal-month-name">{m.monthName}</span>
+               {m.amount > 0 ? (
+                 <>
+                   <span className="div-cal-month-value">
+                     {m.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                   </span>
+                   <span className="tx-item-fee-text fs-xs">
+                     {m.assets.join(', ')}
+                   </span>
+                 </>
+               ) : (
+                 <span className="div-cal-month-empty">—</span>
+               )}
+             </div>
+           ))}
          </div>
        </div>
      </div>

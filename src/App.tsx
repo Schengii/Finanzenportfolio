@@ -563,6 +563,7 @@ function App() {
         {currentTab === 'holdings' && (
           <Holdings 
             holdings={holdings} 
+            transactions={transactions}
             onTriggerPriceRefresh={handleTriggerPriceRefresh} 
           />
         )}
