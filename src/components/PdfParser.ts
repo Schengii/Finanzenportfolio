@@ -15,6 +15,16 @@ export interface ParsedTransaction {
   category: 'Stock' | 'ETF' | 'Crypto';
 }
 
+// Mock text data representing statements from various brokers for demo simulation
+export const MOCK_PDF_TEXTS = {
+  TR: "TRADE REPUBLIC BANK GMBH WERTPAPIERABRECHNUNG Kauf von Apple Inc. ISIN: US0378331002 Ausführung am 15.01.2026 um 16:30 Uhr an LS Exchange. 5,0000 Stk. zu 172,50 EUR. Fremdkostenzuschlag: 1,00 EUR. Gesamtbetrag: 863,50 EUR.",
+  SCALABLE: "Baader Bank AG Wertpapierabrechnung Verkauf von Apple Inc. ISIN: US0378331002. Ausführung am 18.06.2026. Abrechnung: 5,0000 Stück zu 189,20 EUR. Transaktionsentgelt / Provision: 1,99 EUR. Kapitalertragsteuer: 2,10 EUR. Gesamtbetrag: 943,91 EUR.",
+  ING: "ING-DiBa AG WERTPAPIERABRECHNUNG Ausführung Sparplan Kauf Vanguard FTSE All-World UCITS ETF ISIN: IE00B3RBWM25. Ausführung am 02.07.2026. Nominale: 10,5000 Stück. Kurs: 112,40 EUR. Kurswert: 1.180,20 EUR. Provision / Gebühr: 1,75 EUR. Endbetrag zu Ihren Lasten: 1.181,95 EUR.",
+  COMDIRECT: "comdirect bank AG Wertpapiergeschäft Abrechnung Kauf Microsoft Corp. ISIN: US5949181045. Ausführungstag: 01.07.2026. Geschäft: 8 Stück zum Kurs von 415,50 EUR. Kurswert: 3.324,00 EUR. Provision: 4,90 EUR. Abwicklungsentgelt: 1,50 EUR. Endbetrag: 3.330,40 EUR.",
+  DKB: "Deutsche Kreditbank AG Wertpapierabrechnung Kauf Allianz SE ISIN: DE0008404005. Ausführungstag: 30.06.2026. Stückzahl: 15 Stück. Kurs: 260,00 EUR. Kurswert: 3.900,00 EUR. Eigene Spesen / Grundprovision: 10,00 EUR. Endbetrag: 3.910,00 EUR.",
+  CONSORS: "Consorsbank BNP Paribas Wertpapierabrechnung Dividende Siemens AG ISIN: DE0007236101. Abrechnungstag: 25.06.2026. Ausschüttung pro Stück: 4,70 EUR für 10 Stück. Kurswert / Bruttobetrag: 47,00 EUR. Quellensteuer: 11,75 EUR. Solidaritätszuschlag: 0,64 EUR. Endbetrag zu Ihren Gunsten: 34,61 EUR."
+};
+
 export async function parseBrokerPdf(file: File): Promise<ParsedTransaction> {
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
@@ -33,14 +43,26 @@ export async function parseBrokerPdf(file: File): Promise<ParsedTransaction> {
   // Basic cleanup
   fullText = fullText.replace(/\s+/g, ' ');
 
-  // Detect broker and extract information
-  if (fullText.includes('Trade Republic') || fullText.includes('TRADE REPUBLIC')) {
-    return parseTradeRepublic(fullText);
-  } else if (fullText.includes('Scalable') || fullText.includes('Baader Bank')) {
-    return parseScalableCapital(fullText);
+  return parseBrokerText(fullText);
+}
+
+// Separate text parser function so it can also parse our mock strings directly
+export function parseBrokerText(text: string): ParsedTransaction {
+  if (text.includes('Trade Republic') || text.includes('TRADE REPUBLIC')) {
+    return parseTradeRepublic(text);
+  } else if (text.includes('Scalable') || text.includes('Baader Bank')) {
+    return parseScalableCapital(text);
+  } else if (text.includes('ING-DiBa') || text.includes('ING ')) {
+    return parseIngDiba(text);
+  } else if (text.includes('comdirect')) {
+    return parseComdirect(text);
+  } else if (text.includes('Deutsche Kreditbank') || text.includes('DKB')) {
+    return parseDkb(text);
+  } else if (text.includes('Consorsbank')) {
+    return parseConsorsbank(text);
   } else {
     // Generic fallback parsing attempt based on keywords
-    return parseGeneric(fullText);
+    return parseGeneric(text);
   }
 }
 
@@ -52,22 +74,17 @@ function parseTradeRepublic(text: string): ParsedTransaction {
   if (isSell) type = 'SELL';
   if (isDiv) type = 'DIVIDEND';
 
-  // Extract date (Format: DD.MM.YYYY)
   const dateMatch = text.match(/(\d{2}\.\d{2}\.\d{4})/);
   const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
 
-  // Extract ISIN (12 char uppercase code usually starting with country code e.g. US, DE)
   const isinMatch = text.match(/\b([A-Z]{2}[A-Z0-9]{9}\d)\b/);
   const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
 
-  // Try to find the name of the asset
-  // Trade Republic statements typically list the name right before or after the ISIN
   let name = 'Asset';
   const nameMatch = text.match(/(?:Wertpapierabrechnung|Kauf|Verkauf|Dividende)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk\.)/i);
   if (nameMatch) {
     name = nameMatch[1].trim();
   } else {
-    // Fallback: try to grab text around ISIN
     const parts = text.split(ticker);
     if (parts.length > 0) {
       const segment = parts[0].slice(-50).trim();
@@ -75,21 +92,17 @@ function parseTradeRepublic(text: string): ParsedTransaction {
     }
   }
 
-  // Extract amount
-  // e.g., "5,0000 Stk." or "0,2500 Stk." or "5 Stk."
   let amount = 1;
   const amountMatch = text.match(/(\d+(?:,\d+)?)\s*Stk\./i);
   if (amountMatch) {
     amount = parseFloat(amountMatch[1].replace(',', '.'));
   }
 
-  // Extract price per share
   let price = 0;
   const priceMatch = text.match(/(?:Kurs|Preis|Ausschüttung)\s+(\d+(?:,\d+)?)\s*EUR/i);
   if (priceMatch) {
     price = parseFloat(priceMatch[1].replace(',', '.'));
   } else {
-    // Try Gesamtbetrag / amount
     const totalMatch = text.match(/(?:Gesamtbetrag|Kurswert)\s+(\d+(?:,\d+)?)\s*EUR/i);
     if (totalMatch) {
       const total = parseFloat(totalMatch[1].replace(',', '.'));
@@ -97,21 +110,18 @@ function parseTradeRepublic(text: string): ParsedTransaction {
     }
   }
 
-  // Extract fees
   let fee = 0;
   const feeMatch = text.match(/(?:Fremdkostenzuschlag|Gebühr|Provision)\s+(\d+(?:,\d+)?)\s*EUR/i);
   if (feeMatch) {
     fee = parseFloat(feeMatch[1].replace(',', '.'));
   }
 
-  // Extract taxes
   let tax = 0;
   const taxMatch = text.match(/(?:Kapitalertragsteuer|Quellensteuer|Solidaritätszuschlag)\s+(\d+(?:,\d+)?)\s*EUR/i);
   if (taxMatch) {
     tax = parseFloat(taxMatch[1].replace(',', '.'));
   }
 
-  // Category detection
   let category: 'Stock' | 'ETF' | 'Crypto' = 'Stock';
   if (name.toLowerCase().includes('etf') || name.toLowerCase().includes('msci') || name.toLowerCase().includes('ishares')) {
     category = 'ETF';
@@ -137,7 +147,7 @@ function parseScalableCapital(text: string): ParsedTransaction {
   const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
 
   let name = 'Asset';
-  const nameMatch = text.match(/(?:Kauf|Verkauf|Dividende)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk\.)/i);
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Dividende)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk\.|Stück)/i);
   if (nameMatch) {
     name = nameMatch[1].trim();
   }
@@ -176,8 +186,203 @@ function parseScalableCapital(text: string): ParsedTransaction {
   return { type, date, ticker, name, amount, price, fee, tax, category };
 }
 
+function parseIngDiba(text: string): ParsedTransaction {
+  const isSell = text.includes('Verkauf');
+  const isDiv = text.includes('Dividende') || text.includes('Ausschüttung');
+  let type: 'BUY' | 'SELL' | 'DIVIDEND' = 'BUY';
+  if (isSell) type = 'SELL';
+  if (isDiv) type = 'DIVIDEND';
+
+  const dateMatch = text.match(/(\d{2}\.\d{2}\.\d{4})/);
+  const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+
+  const isinMatch = text.match(/\b([A-Z]{2}[A-Z0-9]{9}\d)\b/);
+  const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
+
+  let name = 'ING Asset';
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Sparplan)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk|Stück|Nominale)/i);
+  if (nameMatch) name = nameMatch[1].trim();
+
+  let amount = 1;
+  const amountMatch = text.match(/(?:Nominale|Stück|Stk\.|Stückzahl):\s*(\d+(?:[.,]\d+)?)/i) || text.match(/(\d+(?:[.,]\d+)?)\s*(?:Stück|Stk\.)/i);
+  if (amountMatch) {
+    amount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let price = 0;
+  const priceMatch = text.match(/(?:Kurs|Preis):\s*(\d+(?:[.,]\d+)?)/i) || text.match(/(?:Kurs|Preis)\s+(\d+(?:[.,]\d+)?)/i);
+  if (priceMatch) {
+    price = parseFloat(priceMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let fee = 0;
+  const feeMatch = text.match(/(?:Provision|Gebühr|Entgelt):\s*(\d+(?:[.,]\d+)?)/i) || text.match(/(?:Provision\s*\/\s*Gebühr):\s*(\d+(?:[.,]\d+)?)/i);
+  if (feeMatch) {
+    fee = parseFloat(feeMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let tax = 0;
+  const taxMatch = text.match(/(?:Kapitalertragsteuer|Quellensteuer|Solidaritätszuschlag):\s*(\d+(?:[.,]\d+)?)/i);
+  if (taxMatch) {
+    tax = parseFloat(taxMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let category: 'Stock' | 'ETF' | 'Crypto' = 'Stock';
+  if (name.toLowerCase().includes('etf') || name.toLowerCase().includes('msci') || name.toLowerCase().includes('ftse') || name.toLowerCase().includes('world')) {
+    category = 'ETF';
+  }
+
+  return { type, date, ticker, name, amount, price, fee, tax, category };
+}
+
+function parseComdirect(text: string): ParsedTransaction {
+  const isSell = text.includes('Verkauf') || text.includes('Verkaufsgeschäft');
+  const isDiv = text.includes('Dividende') || text.includes('Ausschüttung') || text.includes('Erträgnisgutschrift');
+  let type: 'BUY' | 'SELL' | 'DIVIDEND' = 'BUY';
+  if (isSell) type = 'SELL';
+  if (isDiv) type = 'DIVIDEND';
+
+  const dateMatch = text.match(/(\d{2}\.\d{2}\.\d{4})/);
+  const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+
+  const isinMatch = text.match(/\b([A-Z]{2}[A-Z0-9]{9}\d)\b/);
+  const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
+
+  let name = 'comdirect Asset';
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Wertpapiergeschäft|Erträgnisgutschrift)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk|Stück)/i);
+  if (nameMatch) name = nameMatch[1].trim();
+
+  let amount = 1;
+  const amountMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(?:Stück|Stk\.)/i) || text.match(/(?:Stück|Stk\.|Nominale):\s*(\d+(?:[.,]\d+)?)/i);
+  if (amountMatch) {
+    amount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let price = 0;
+  const priceMatch = text.match(/(?:zum Kurs von|Kurs):\s*(\d+(?:[.,]\d+)?)/i) || text.match(/(?:Kurs|Ausschüttung)\s+(\d+(?:[.,]\d+)?)/i);
+  if (priceMatch) {
+    price = parseFloat(priceMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let fee = 0;
+  const provMatch = text.match(/Provision:\s*(\d+(?:[.,]\d+)?)/i);
+  const abwickMatch = text.match(/Abwicklungsentgelt:\s*(\d+(?:[.,]\d+)?)/i);
+  if (provMatch) fee += parseFloat(provMatch[1].replace(/\./g, '').replace(',', '.'));
+  if (abwickMatch) fee += parseFloat(abwickMatch[1].replace(/\./g, '').replace(',', '.'));
+
+  let tax = 0;
+  const taxMatch = text.match(/(?:Quellensteuer|Kapitalertragsteuer|Solidaritätszuschlag):\s*(\d+(?:[.,]\d+)?)/i);
+  if (taxMatch) {
+    tax = parseFloat(taxMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let category: 'Stock' | 'ETF' | 'Crypto' = 'Stock';
+  if (name.toLowerCase().includes('etf') || name.toLowerCase().includes('msci') || name.toLowerCase().includes('ishares')) {
+    category = 'ETF';
+  }
+
+  return { type, date, ticker, name, amount, price, fee, tax, category };
+}
+
+function parseDkb(text: string): ParsedTransaction {
+  const isSell = text.includes('Verkauf');
+  const isDiv = text.includes('Dividende') || text.includes('Ausschüttung');
+  let type: 'BUY' | 'SELL' | 'DIVIDEND' = 'BUY';
+  if (isSell) type = 'SELL';
+  if (isDiv) type = 'DIVIDEND';
+
+  const dateMatch = text.match(/(\d{2}\.\d{2}\.\d{4})/);
+  const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+
+  const isinMatch = text.match(/\b([A-Z]{2}[A-Z0-9]{9}\d)\b/);
+  const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
+
+  let name = 'DKB Asset';
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk|Stück)/i);
+  if (nameMatch) name = nameMatch[1].trim();
+
+  let amount = 1;
+  const amountMatch = text.match(/(?:Stückzahl|Stück|Stk\.):?\s*(\d+(?:[.,]\d+)?)/i) || text.match(/(\d+(?:[.,]\d+)?)\s*(?:Stück|Stk\.)/i);
+  if (amountMatch) {
+    amount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let price = 0;
+  const priceMatch = text.match(/(?:Kurs|Preis):?\s*(\d+(?:[.,]\d+)?)/i) || text.match(/(?:Kurs|Preis)\s+(\d+(?:[.,]\d+)?)/i);
+  if (priceMatch) {
+    price = parseFloat(priceMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let fee = 0;
+  const feeMatch = text.match(/(?:Grundprovision|Provision|Spesen|Entgelt):?\s*(\d+(?:[.,]\d+)?)/i);
+  if (feeMatch) {
+    fee = parseFloat(feeMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let tax = 0;
+  const taxMatch = text.match(/(?:Quellensteuer|Kapitalertragsteuer|Solidaritätszuschlag):?\s*(\d+(?:[.,]\d+)?)/i);
+  if (taxMatch) {
+    tax = parseFloat(taxMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let category: 'Stock' | 'ETF' | 'Crypto' = 'Stock';
+  if (name.toLowerCase().includes('etf') || name.toLowerCase().includes('msci')) {
+    category = 'ETF';
+  }
+
+  return { type, date, ticker, name, amount, price, fee, tax, category };
+}
+
+function parseConsorsbank(text: string): ParsedTransaction {
+  const isSell = text.includes('Verkauf');
+  const isDiv = text.includes('Dividende') || text.includes('Ausschüttung') || text.includes('Erträgnis');
+  let type: 'BUY' | 'SELL' | 'DIVIDEND' = 'BUY';
+  if (isSell) type = 'SELL';
+  if (isDiv) type = 'DIVIDEND';
+
+  const dateMatch = text.match(/(\d{2}\.\d{2}\.\d{4})/);
+  const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+
+  const isinMatch = text.match(/\b([A-Z]{2}[A-Z0-9]{9}\d)\b/);
+  const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
+
+  let name = 'Consorsbank Asset';
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Dividende|Erträgnis)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk|Stück)/i);
+  if (nameMatch) name = nameMatch[1].trim();
+
+  let amount = 1;
+  const amountMatch = text.match(/für\s+(\d+(?:[.,]\d+)?)\s*(?:Stück|Stk\.)/i) || text.match(/(\d+(?:[.,]\d+)?)\s*(?:Stück|Stk\.)/i) || text.match(/(?:Stück|Stk\.):?\s*(\d+(?:[.,]\d+)?)/i);
+  if (amountMatch) {
+    amount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let price = 0;
+  const priceMatch = text.match(/(?:Kurs|Preis|pro Stück):?\s*(\d+(?:[.,]\d+)?)/i) || text.match(/(?:Kurs|Ausschüttung)\s+(\d+(?:[.,]\d+)?)/i);
+  if (priceMatch) {
+    price = parseFloat(priceMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let fee = 0;
+  const feeMatch = text.match(/(?:Grundgebühr|Provision|Spesen|Entgelt):?\s*(\d+(?:[.,]\d+)?)/i);
+  if (feeMatch) {
+    fee = parseFloat(feeMatch[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let tax = 0;
+  const matches = text.matchAll(/(?:Quellensteuer|Kapitalertragsteuer|Solidaritätszuschlag|Kirchensteuer):\s*(\d+(?:[.,]\d+)?)/gi);
+  for (const m of matches) {
+    tax += parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+  }
+
+  let category: 'Stock' | 'ETF' | 'Crypto' = 'Stock';
+  if (name.toLowerCase().includes('etf') || name.toLowerCase().includes('msci') || name.toLowerCase().includes('ishares')) {
+    category = 'ETF';
+  }
+
+  return { type, date, ticker, name, amount, price, fee, tax, category };
+}
+
 function parseGeneric(text: string): ParsedTransaction {
-  // Simple heuristic parser
   const type = text.includes('Verkauf') || text.includes('SELL') ? 'SELL' : 
                text.includes('Dividende') || text.includes('DIVIDEND') ? 'DIVIDEND' : 'BUY';
 

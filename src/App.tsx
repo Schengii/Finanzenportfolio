@@ -381,7 +381,7 @@ function App() {
       } else if (tx.type === 'SELL') {
         const avgPrice = asset.totalShares > 0 ? (asset.totalCostBasis / asset.totalShares) : 0;
         asset.totalShares = Math.max(0, asset.totalShares - tx.amount);
-        asset.totalCostBasis = asset.totalShares * avgCost;
+        asset.totalCostBasis = asset.totalShares * avgPrice;
       }
     });
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Transaction, AssetCategory } from '../types';
-import { parseBrokerPdf } from './PdfParser';
+import { parseBrokerPdf, parseBrokerText, MOCK_PDF_TEXTS } from './PdfParser';
 import { Upload, Plus, Trash2, Info } from 'lucide-react';
 
 interface TransactionsProps {
@@ -23,6 +23,18 @@ export const Transactions: React.FC<TransactionsProps> = ({
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [ticker, setTicker] = useState<string>('');
   const [name, setName] = useState<string>('');
+
+  const handleSimulateDemo = (brokerKey: keyof typeof MOCK_PDF_TEXTS) => {
+    try {
+      const mockText = MOCK_PDF_TEXTS[brokerKey];
+      const parsed = parseBrokerText(mockText);
+      onAddTransaction(parsed);
+      alert(`Simulation erfolgreich für ${brokerKey}: ${parsed.type === 'BUY' ? 'Kauf' : parsed.type === 'SELL' ? 'Verkauf' : 'Dividende'} von ${parsed.name} (${parsed.amount} Stück für je ${parsed.price.toFixed(2)} €)`);
+    } catch (err) {
+      console.error(err);
+      alert("Fehler bei der Abrechnungssimulation.");
+    }
+  };
   const [amount, setAmount] = useState<string>('');
   const [price, setPrice] = useState<string>('');
   const [fee, setFee] = useState<string>('0');
@@ -129,7 +141,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
         <div className="glass-panel">
           <h2 className="tx-dropzone-title-h2">PDF Import</h2>
           <p className="tx-dropzone-subtitle">
-            Ziehe eine Original-Abrechnung von <strong>Trade Republic</strong> oder <strong>Scalable Capital</strong> hierhin.
+            Ziehe eine Original-Abrechnung von <strong>Trade Republic</strong>, <strong>Scalable Capital</strong>, <strong>ING</strong>, <strong>comdirect</strong>, <strong>DKB</strong> oder <strong>Consorsbank</strong> hierhin.
           </p>
 
           <div 
@@ -167,6 +179,21 @@ export const Transactions: React.FC<TransactionsProps> = ({
               <Info size={14} /> {pdfError}
             </div>
           )}
+
+          {/* Demo Simulation buttons */}
+          <div className="demo-simulation-zone" style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--border-color)' }}>
+            <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Abrechnung simulieren (Demo-Modus)
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('TR'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>Trade Republic (Kauf)</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('SCALABLE'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>Scalable Capital (Verkauf)</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('ING'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>ING Sparplan (Kauf)</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('COMDIRECT'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>comdirect (Kauf)</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('DKB'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>DKB (Kauf)</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('CONSORS'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>Consorsbank (Dividende)</button>
+            </div>
+          </div>
         </div>
 
         {/* Manual Form */}
