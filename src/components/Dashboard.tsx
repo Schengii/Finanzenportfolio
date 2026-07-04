@@ -60,7 +60,7 @@ import { convertCurrency } from './performanceUtils';
        sortedTxs.forEach(tx => {
          const txDate = new Date(tx.date.split('.').reverse().join('-'));
          if (txDate.getTime() <= targetDate.getTime()) {
-           if (tx.type === 'DIVIDEND' || tx.type === 'DEPOSIT' || tx.type === 'WITHDRAWAL') return;
+           if (tx.type === 'DIVIDEND' || tx.type === 'DEPOSIT' || tx.type === 'WITHDRAWAL' || tx.type === 'STAKING') return;
            
            if (!assetsAtDate[tx.ticker]) {
              assetsAtDate[tx.ticker] = { shares: 0, costBasis: 0, buyDate: txDate, buyPrice: tx.price };
@@ -204,11 +204,12 @@ import { convertCurrency } from './performanceUtils';
    const taxExemptionUsed = convertCurrency(stats.taxExemptionUsed, 'EUR', baseCurrency);
    const taxExemptionPercentage = Math.min(100, (taxExemptionUsed / taxExemptionLimit) * 100);
 
-   // Yield on Cost Calculation
-   const yieldOnCost = useMemo(() => {
-     if (stats.totalCost <= 0) return 0;
-     return (stats.dividendsReceived / stats.totalCost) * 100;
-   }, [stats.dividendsReceived, stats.totalCost]);
+   // German Staking Tax rule (Freigrenze 256 € per year)
+   const stakingRewardsVal = stats.stakingRewards || 0;
+   const stakingExemptionLimit = convertCurrency(256, 'EUR', baseCurrency);
+   const stakingExemptionUsed = convertCurrency(stakingRewardsVal, 'EUR', baseCurrency);
+   const stakingPercentage = Math.min(100, (stakingExemptionUsed / stakingExemptionLimit) * 100);
+   const isStakingTaxed = stakingExemptionUsed >= stakingExemptionLimit;
 
    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
      if (e.target.files && e.target.files[0]) {
@@ -234,12 +235,12 @@ import { convertCurrency } from './performanceUtils';
  
          <div className="glass-panel stat-card">
            <div className="strat-card-title-row">
-             <span className="stat-label">Dividenden (Gesamt)</span>
+             <span className="stat-label">Dividenden & Staking</span>
              <Award size={20} className="text-secondary" />
            </div>
-           <span className="stat-value">{formatVal(stats.dividendsReceived)}</span>
+           <span className="stat-value">{formatVal(stats.dividendsReceived + stakingRewardsVal)}</span>
            <span className="stat-change positive">
-             Yield on Cost: {yieldOnCost.toFixed(2)}%
+             Staking: {formatVal(stakingRewardsVal)}
            </span>
          </div>
  
@@ -415,30 +416,52 @@ import { convertCurrency } from './performanceUtils';
            {/* German Tax Exemption Tracker */}
            <div className="glass-panel">
              <h3 className="sav-panel-title">
-               <Percent size={18} className="portfolio-select-icon" /> Sparerpauschbetrag (Steuern)
+               <Percent size={18} className="portfolio-select-icon" /> Steuer-Tracker & Freibeträge
              </h3>
-             <p className="tx-dropzone-subtitle">Auslastung deines jährlichen Freibetrags ({taxExemptionLimit.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}).</p>
              
-             <div className="sav-slider-label-row">
-               <span className="sav-item-subtitle">Genutzt: {taxExemptionUsed.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}</span>
-               <span className="sav-slider-label-bold">{taxExemptionPercentage.toFixed(1)}%</span>
+             {/* 1. Sparerpauschbetrag */}
+             <div className="mb-4">
+               <div className="sav-slider-label-row">
+                 <span className="sav-item-subtitle" style={{ fontWeight: 600 }}>1. Sparerpauschbetrag (Dividende/Kapitalertrag)</span>
+                 <span className="sav-slider-label-bold">{taxExemptionPercentage.toFixed(1)}%</span>
+               </div>
+               <p className="tx-dropzone-subtitle" style={{ margin: '0 0 0.5rem 0' }}>Genutzt: {taxExemptionUsed.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })} von {taxExemptionLimit.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}</p>
+               <div className="db-tax-progress-container" style={{ marginBottom: '0.5rem' }}>
+                 <svg width="100%" height="6" className="db-tax-progress-svg" aria-hidden="true">
+                   <rect width="100%" height="6" rx="3" fill="rgba(255, 255, 255, 0.05)" />
+                   <rect width={`${taxExemptionPercentage}%`} height="6" rx="3" fill="url(#progress-gradient-1)" />
+                   <defs>
+                     <linearGradient id="progress-gradient-1" x1="0%" y1="0%" x2="100%" y2="0%">
+                       <stop offset="0%" stopColor="var(--accent-emerald)" />
+                       <stop offset="100%" stopColor="var(--accent-blue)" />
+                     </linearGradient>
+                   </defs>
+                 </svg>
+               </div>
              </div>
- 
-             <div className="db-tax-progress-container">
-               <svg width="100%" height="8" className="db-tax-progress-svg" aria-hidden="true">
-                 <rect width="100%" height="8" rx="4" fill="rgba(255, 255, 255, 0.05)" />
-                 <rect width={`${taxExemptionPercentage}%`} height="8" rx="4" fill="url(#progress-gradient)" />
-                 <defs>
-                   <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                     <stop offset="0%" stopColor="var(--accent-emerald)" />
-                     <stop offset="100%" stopColor="var(--accent-blue)" />
-                   </linearGradient>
-                 </defs>
-               </svg>
+
+             {/* 2. Crypto Staking Freigrenze */}
+             <div>
+               <div className="sav-slider-label-row">
+                 <span className="sav-item-subtitle" style={{ fontWeight: 600 }}>2. Krypto-Staking Freigrenze (Sonst. Einkünfte)</span>
+                 <span className="sav-slider-label-bold" style={{ color: isStakingTaxed ? 'var(--accent-rose)' : 'var(--accent-emerald)' }}>
+                   {stakingPercentage.toFixed(1)}%
+                 </span>
+               </div>
+               <p className="tx-dropzone-subtitle" style={{ margin: '0 0 0.5rem 0' }}>
+                 Genutzt: {stakingExemptionUsed.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })} von {stakingExemptionLimit.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}
+                 {isStakingTaxed && <span style={{ color: 'var(--accent-rose)', marginLeft: '0.5rem' }}>(Steuerpflichtig!)</span>}
+               </p>
+               <div className="db-tax-progress-container">
+                 <svg width="100%" height="6" className="db-tax-progress-svg" aria-hidden="true">
+                   <rect width="100%" height="6" rx="3" fill="rgba(255, 255, 255, 0.05)" />
+                   <rect width={`${stakingPercentage}%`} height="6" rx="3" fill={isStakingTaxed ? 'var(--accent-rose)' : 'var(--accent-emerald)'} />
+                 </svg>
+               </div>
              </div>
- 
-             <div className="sav-total-divider">
-               <span className="sav-item-subtitle">Realisierte Gewinne:</span>
+
+             <div className="sav-total-divider" style={{ marginTop: '1rem', paddingTop: '1rem' }}>
+               <span className="sav-item-subtitle">Realisierte Aktiengewinne:</span>
                <span className="sav-item-amount">{formatVal(stats.realizedGains)}</span>
              </div>
            </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { Transaction, AssetCategory } from '../types';
+import type { Transaction, AssetCategory, AssetMappingRule } from '../types';
 import { parseBrokerPdf, parseBrokerText, MOCK_PDF_TEXTS } from './PdfParser';
 import { Upload, Plus, Trash2, Info } from 'lucide-react';
 import { PdfPreviewModal } from './PdfPreviewModal';
@@ -10,6 +10,7 @@ interface TransactionsProps {
   onDeleteTransaction: (id: string) => void;
   prefilledData?: { ticker: string; name: string; category: AssetCategory; price: number } | null;
   onClearPrefilledData?: () => void;
+  mappingRules?: AssetMappingRule[];
 }
 
 export const Transactions: React.FC<TransactionsProps> = ({
@@ -17,7 +18,8 @@ export const Transactions: React.FC<TransactionsProps> = ({
   onAddTransaction,
   onDeleteTransaction,
   prefilledData,
-  onClearPrefilledData
+  onClearPrefilledData,
+  mappingRules = []
 }) => {
   // Manual transaction form state
   const [type, setType] = useState<Transaction['type']>('BUY');
@@ -58,6 +60,10 @@ export const Transactions: React.FC<TransactionsProps> = ({
       setName(type === 'DEPOSIT' ? 'Einzahlung (Cash)' : 'Auszahlung (Cash)');
       setPrice('1');
       setCategory('Stock');
+    } else if (type === 'STAKING') {
+      setCategory('Crypto');
+      setPrice('1'); // Staking yields are typically entered as total coin rewards worth $X or 1
+      if (ticker === 'CASH') setTicker('');
     } else if (ticker === 'CASH') {
       setTicker('');
       setName('');
@@ -106,7 +112,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
   const handleSimulateDemo = (brokerKey: keyof typeof MOCK_PDF_TEXTS) => {
     try {
       const mockText = MOCK_PDF_TEXTS[brokerKey];
-      const parsed = parseBrokerText(mockText);
+      const parsed = parseBrokerText(mockText, mappingRules);
       
       // Set to preview modal instead of adding directly
       setParsedTx({
@@ -139,7 +145,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
     setPdfError(null);
     setParsingActive(true);
     try {
-      const parsed = await parseBrokerPdf(file);
+      const parsed = await parseBrokerPdf(file, mappingRules);
       
       // Open preview modal instead of adding directly
       setParsedTx({
@@ -253,6 +259,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   <option value="BUY">Kauf</option>
                   <option value="SELL">Verkauf</option>
                   <option value="DIVIDEND">Dividende</option>
+                  <option value="STAKING">Staking (Crypto)</option>
                   <option value="DEPOSIT">Einzahlung (Cash)</option>
                   <option value="WITHDRAWAL">Auszahlung (Cash)</option>
                 </select>
@@ -266,7 +273,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   value={category} 
                   title="Asset-Kategorie"
                   aria-label="Asset-Kategorie"
-                  disabled={type === 'DEPOSIT' || type === 'WITHDRAWAL'}
+                  disabled={type === 'DEPOSIT' || type === 'WITHDRAWAL' || type === 'STAKING'}
                   onChange={(e) => setCategory(e.target.value as AssetCategory)}
                 >
                   <option value="Stock">Aktie</option>
@@ -284,7 +291,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                     id="tx-ticker"
                     type="text" 
                     className="form-input" 
-                    placeholder="z.B. AAPL oder US0378331002"
+                    placeholder="z.B. AAPL oder BTC"
                     value={ticker}
                     onChange={(e) => setTicker(e.target.value)}
                     required
@@ -297,7 +304,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                     id="tx-name"
                     type="text" 
                     className="form-input" 
-                    placeholder="z.B. Apple Inc."
+                    placeholder="z.B. Bitcoin"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
@@ -325,7 +332,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
 
               {(type !== 'DEPOSIT' && type !== 'WITHDRAWAL') && (
                 <div className="form-group">
-                  <label htmlFor="tx-price" className="form-label">Kurs</label>
+                  <label htmlFor="tx-price" className="form-label">Kurs ({currency})</label>
                   <input 
                     id="tx-price"
                     type="number" 
@@ -370,7 +377,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
               </div>
             </div>
 
-            {(type !== 'DEPOSIT' && type !== 'WITHDRAWAL') && (
+            {(type !== 'DEPOSIT' && type !== 'WITHDRAWAL' && type !== 'STAKING') && (
               <div className="tx-form-row-2">
                 <div className="form-group">
                   <label htmlFor="tx-fee" className="form-label">Gebühren</label>
@@ -432,6 +439,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
             transactions.map((tx) => {
               const isBuy = tx.type === 'BUY';
               const isDiv = tx.type === 'DIVIDEND';
+              const isStaking = tx.type === 'STAKING';
               const isDeposit = tx.type === 'DEPOSIT';
               const isWithdrawal = tx.type === 'WITHDRAWAL';
               
@@ -449,10 +457,10 @@ export const Transactions: React.FC<TransactionsProps> = ({
                 <div key={tx.id} className="tx-item-box">
                   <div className="tx-item-left">
                     <span className={`badge badge-${tx.type.toLowerCase()}`} style={{
-                      backgroundColor: isDeposit ? 'rgba(16, 185, 129, 0.2)' : isWithdrawal ? 'rgba(239, 68, 68, 0.2)' : undefined,
-                      color: isDeposit ? 'var(--accent-emerald)' : isWithdrawal ? 'var(--accent-rose)' : undefined
+                      backgroundColor: isDeposit ? 'rgba(16, 185, 129, 0.2)' : isWithdrawal ? 'rgba(239, 68, 68, 0.2)' : isStaking ? 'rgba(245, 158, 11, 0.2)' : undefined,
+                      color: isDeposit ? 'var(--accent-emerald)' : isWithdrawal ? 'var(--accent-rose)' : isStaking ? 'var(--accent-gold)' : undefined
                     }}>
-                      {tx.type === 'BUY' ? 'Kauf' : tx.type === 'SELL' ? 'Verkauf' : tx.type === 'DIVIDEND' ? 'Div.' : tx.type === 'DEPOSIT' ? 'Einz.' : 'Ausz.'}
+                      {tx.type === 'BUY' ? 'Kauf' : tx.type === 'SELL' ? 'Verkauf' : tx.type === 'DIVIDEND' ? 'Div.' : tx.type === 'STAKING' ? 'Staking' : tx.type === 'DEPOSIT' ? 'Einz.' : 'Ausz.'}
                     </span>
                     <div>
                       <span className="tx-item-name-bold">{tx.name}</span>
@@ -466,7 +474,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   <div className="tx-item-right-wrap">
                     <div className="tx-item-right-text">
                       <span className="tx-item-total-value" style={{ 
-                        color: (isBuy || isWithdrawal) ? 'var(--accent-rose)' : (isDiv || isDeposit) ? 'var(--accent-emerald)' : 'var(--text-color)' 
+                        color: (isBuy || isWithdrawal) ? 'var(--accent-rose)' : (isDiv || isDeposit || isStaking) ? 'var(--accent-emerald)' : 'var(--text-color)' 
                       }}>
                         {(isBuy || isWithdrawal) ? '-' : '+'}{displayVal}
                       </span>

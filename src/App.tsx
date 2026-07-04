@@ -5,8 +5,10 @@ import { Transactions } from './components/Transactions';
 import { Strategy } from './components/Strategy';
 import { Watchlist } from './components/Watchlist';
 import { SavingsSimulator } from './components/SavingsSimulator';
-import type { Transaction, Holding, PortfolioStats, WatchlistItem, Portfolio, SavingsPlan, AssetCategory } from './types';
-import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar, Sun, Moon } from 'lucide-react';
+import { DividendCalendar } from './components/DividendCalendar';
+import { MappingEditor } from './components/MappingEditor';
+import type { Transaction, Holding, PortfolioStats, WatchlistItem, Portfolio, SavingsPlan, AssetCategory, AssetMappingRule } from './types';
+import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar, Sun, Moon, Settings } from 'lucide-react';
 import { calculateIRR, calculateTTWRR, calculateMaxDrawdown, calculateVolatility, calculateSharpeRatio, calculateRealizedGains, DEFAULT_EXCHANGE_RATES } from './components/performanceUtils';
 import './App.css';
 
@@ -109,6 +111,20 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     category: 'Stock',
     currency: 'EUR',
     exchangeRate: 1.0
+  },
+  {
+    id: 'tx-7',
+    type: 'STAKING',
+    date: '25.06.2026',
+    ticker: 'BTC',
+    name: 'Bitcoin (BTC)',
+    amount: 0.0012,
+    price: 62500.00,
+    fee: 0,
+    tax: 0,
+    category: 'Crypto',
+    currency: 'EUR',
+    exchangeRate: 1.0
   }
 ];
 
@@ -119,6 +135,23 @@ const INITIAL_PRICES: Record<string, number> = {
   'BTC': 63450.00,
   'MSFT': 415.50
 };
+
+const INITIAL_MAPPING_RULES: AssetMappingRule[] = [
+  {
+    id: 'rule-1',
+    pattern: 'US0378331002',
+    ticker: 'AAPL',
+    name: 'Apple Inc.',
+    category: 'Stock'
+  },
+  {
+    id: 'rule-2',
+    pattern: 'IE00B3RBWM25',
+    ticker: 'VGWD',
+    name: 'Vanguard FTSE All-World UCITS ETF',
+    category: 'ETF'
+  }
+];
 
 function App() {
   const [portfolios, setPortfolios] = useState<Portfolio[]>(() => {
@@ -163,7 +196,8 @@ function App() {
             amount: 50,
             isActive: true
           }
-        ]
+        ],
+        mappingRules: INITIAL_MAPPING_RULES
       }
     ];
   });
@@ -192,7 +226,7 @@ function App() {
     return (localStorage.getItem('finanz_base_currency') as any) || 'EUR';
   });
 
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'watchlist' | 'savings'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'watchlist' | 'savings' | 'dividend_calendar' | 'mapping_rules'>('dashboard');
   const [prefilledTx, setPrefilledTx] = useState<{ ticker: string; name: string; category: AssetCategory; price: number } | null>(null);
 
   // Sync state to localStorage
@@ -224,12 +258,20 @@ function App() {
 
   // Derived current portfolio
   const currentPortfolio = useMemo(() => {
-    return portfolios.find(p => p.id === currentPortfolioId) || portfolios[0] || { id: 'default', name: 'Haupt-Portfolio', transactions: [], watchlist: [], savingsPlans: [] };
+    const found = portfolios.find(p => p.id === currentPortfolioId) || portfolios[0];
+    if (!found) {
+      return { id: 'default', name: 'Haupt-Portfolio', transactions: [], watchlist: [], savingsPlans: [], mappingRules: INITIAL_MAPPING_RULES };
+    }
+    return {
+      ...found,
+      mappingRules: found.mappingRules || INITIAL_MAPPING_RULES
+    };
   }, [portfolios, currentPortfolioId]);
 
   const transactions = currentPortfolio.transactions || [];
   const watchlist = currentPortfolio.watchlist || [];
   const savingsPlans = currentPortfolio.savingsPlans || [];
+  const mappingRules = currentPortfolio.mappingRules || [];
 
   const setTransactions = (updater: Transaction[] | ((prev: Transaction[]) => Transaction[])) => {
     setPortfolios(prev => prev.map(p => {
@@ -261,6 +303,16 @@ function App() {
     }));
   };
 
+  const setMappingRules = (updater: AssetMappingRule[] | ((prev: AssetMappingRule[]) => AssetMappingRule[])) => {
+    setPortfolios(prev => prev.map(p => {
+      if (p.id === currentPortfolio.id) {
+        const nextRules = typeof updater === 'function' ? updater(p.mappingRules || []) : updater;
+        return { ...p, mappingRules: nextRules };
+      }
+      return p;
+    }));
+  };
+
   // Handle adding transactions
   const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
     const transaction: Transaction = {
@@ -280,6 +332,19 @@ function App() {
   // Handle deleting transactions
   const handleDeleteTransaction = (id: string) => {
     setTransactions(prev => prev.filter(tx => tx.id !== id));
+  };
+
+  // Mapping rules methods
+  const handleAddMappingRule = (rule: Omit<AssetMappingRule, 'id'>) => {
+    const newRule: AssetMappingRule = {
+      ...rule,
+      id: `rule-${Date.now()}`
+    };
+    setMappingRules(prev => [...prev, newRule]);
+  };
+
+  const handleRemoveMappingRule = (id: string) => {
+    setMappingRules(prev => prev.filter(r => r.id !== id));
   };
 
   // Watchlist methods
@@ -418,6 +483,9 @@ function App() {
       } else if (tx.type === 'DIVIDEND') {
         const divInEur = ((tx.amount * tx.price) - tx.tax) / rate;
         asset.totalDividends += divInEur;
+      } else if (tx.type === 'STAKING') {
+        // Staking rewards add shares, cost basis remains 0. This decreases avgBuyPrice.
+        asset.totalShares += tx.amount;
       }
     });
 
@@ -481,6 +549,7 @@ function App() {
       } else if (tx.type === 'DIVIDEND') {
         balance += ((tx.amount * tx.price) - tx.tax) / rate;
       }
+      // Note: Staking rewards are received in assets directly, not changing cash account
     });
 
     return balance;
@@ -491,18 +560,21 @@ function App() {
     let totalValue = 0; // current holdings value
     let totalCost = 0;  // cost of active holdings
     let dividendsReceived = 0;
+    let stakingRewards = 0;
 
     holdings.forEach(h => {
       totalValue += h.currentValue;
       totalCost += h.totalCost;
     });
 
-    transactions
-      .filter(tx => tx.type === 'DIVIDEND')
-      .forEach(tx => {
-        const rate = tx.exchangeRate || DEFAULT_EXCHANGE_RATES[tx.currency || 'EUR'] || 1.0;
+    transactions.forEach(tx => {
+      const rate = tx.exchangeRate || DEFAULT_EXCHANGE_RATES[tx.currency || 'EUR'] || 1.0;
+      if (tx.type === 'DIVIDEND') {
         dividendsReceived += ((tx.amount * tx.price) - tx.tax) / rate;
-      });
+      } else if (tx.type === 'STAKING') {
+        stakingRewards += (tx.amount * tx.price) / rate;
+      }
+    });
 
     const totalGains = totalValue - totalCost;
     const totalGainsPercent = totalCost > 0 ? (totalGains / totalCost) * 100 : 0;
@@ -534,7 +606,8 @@ function App() {
       maxDrawdown,
       sharpeRatio,
       realizedGains,
-      taxExemptionUsed: dividendsReceived + realizedGains
+      taxExemptionUsed: dividendsReceived + realizedGains,
+      stakingRewards
     };
   }, [holdings, transactions, cashBalance]);
 
@@ -571,7 +644,7 @@ function App() {
                   const name = prompt('Name des neuen Portfolios:');
                   if (name && name.trim()) {
                     const id = `p-${Date.now()}`;
-                    setPortfolios(prev => [...prev, { id, name: name.trim(), transactions: [], watchlist: [], savingsPlans: [] }]);
+                    setPortfolios(prev => [...prev, { id, name: name.trim(), transactions: [], watchlist: [], savingsPlans: [], mappingRules: INITIAL_MAPPING_RULES }]);
                     setCurrentPortfolioId(id);
                   }
                 } else if (e.target.value === 'DELETE_CURRENT') {
@@ -626,6 +699,12 @@ function App() {
             <Sliders size={16} /> Strategie
           </button>
           <button 
+            className={`nav-tab ${currentTab === 'dividend_calendar' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('dividend_calendar')}
+          >
+            <Calendar size={16} /> Zahltage
+          </button>
+          <button 
             className={`nav-tab ${currentTab === 'watchlist' ? 'active' : ''}`}
             onClick={() => setCurrentTab('watchlist')}
           >
@@ -635,7 +714,13 @@ function App() {
             className={`nav-tab ${currentTab === 'savings' ? 'active' : ''}`}
             onClick={() => setCurrentTab('savings')}
           >
-            <Calendar size={16} /> Sparpläne & Simulator
+            <Calendar size={16} /> Sparpläne
+          </button>
+          <button 
+            className={`nav-tab ${currentTab === 'mapping_rules' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('mapping_rules')}
+          >
+            <Settings size={16} /> PDF-Regeln
           </button>
         </nav>
       </header>
@@ -668,12 +753,19 @@ function App() {
             onDeleteTransaction={handleDeleteTransaction}
             prefilledData={prefilledTx}
             onClearPrefilledData={() => setPrefilledTx(null)}
+            mappingRules={mappingRules}
           />
         )}
         {currentTab === 'strategy' && (
           <Strategy 
             holdings={holdings} 
             totalValue={stats.totalValue} 
+          />
+        )}
+        {currentTab === 'dividend_calendar' && (
+          <DividendCalendar 
+            transactions={transactions}
+            baseCurrency={baseCurrency}
           />
         )}
         {currentTab === 'watchlist' && (
@@ -692,6 +784,13 @@ function App() {
             onAddSavingsPlan={handleAddSavingsPlan} 
             onDeleteSavingsPlan={handleDeleteSavingsPlan} 
             onToggleSavingsPlan={handleToggleSavingsPlan} 
+          />
+        )}
+        {currentTab === 'mapping_rules' && (
+          <MappingEditor 
+            rules={mappingRules}
+            onAddRule={handleAddMappingRule}
+            onRemoveRule={handleRemoveMappingRule}
           />
         )}
       </main>

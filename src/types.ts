@@ -1,8 +1,16 @@
 export type AssetCategory = 'Stock' | 'ETF' | 'Crypto';
 
+export interface AssetMappingRule {
+  id: string;
+  pattern: string;
+  ticker: string;
+  name: string;
+  category: AssetCategory;
+}
+
 export interface Transaction {
   id: string;
-  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL';
+  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL' | 'STAKING';
   date: string;
   ticker: string;
   name: string;
@@ -48,6 +56,7 @@ export interface PortfolioStats {
   sharpeRatio: number;
   realizedGains: number;
   taxExemptionUsed: number;
+  stakingRewards?: number;
 }
 
 export interface WatchlistItem {
@@ -76,6 +85,8 @@ export interface Portfolio {
   watchlist: WatchlistItem[];
   savingsPlans?: SavingsPlan[];
   targetAllocations?: TargetAllocation[];
+  mappingRules?: AssetMappingRule[];
 }
+
 
 

@@ -25,7 +25,9 @@ export const MOCK_PDF_TEXTS = {
   CONSORS: "Consorsbank BNP Paribas Wertpapierabrechnung Dividende Siemens AG ISIN: DE0007236101. Abrechnungstag: 25.06.2026. Ausschüttung pro Stück: 4,70 EUR für 10 Stück. Kurswert / Bruttobetrag: 47,00 EUR. Quellensteuer: 11,75 EUR. Solidaritätszuschlag: 0,64 EUR. Endbetrag zu Ihren Gunsten: 34,61 EUR."
 };
 
-export async function parseBrokerPdf(file: File): Promise<ParsedTransaction> {
+import type { AssetMappingRule } from '../types';
+
+export async function parseBrokerPdf(file: File, rules?: AssetMappingRule[]): Promise<ParsedTransaction> {
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
   const pdf = await loadingTask.promise;
@@ -43,27 +45,43 @@ export async function parseBrokerPdf(file: File): Promise<ParsedTransaction> {
   // Basic cleanup
   fullText = fullText.replace(/\s+/g, ' ');
 
-  return parseBrokerText(fullText);
+  return parseBrokerText(fullText, rules);
 }
 
 // Separate text parser function so it can also parse our mock strings directly
-export function parseBrokerText(text: string): ParsedTransaction {
+export function parseBrokerText(text: string, rules?: AssetMappingRule[]): ParsedTransaction {
+  let result: ParsedTransaction;
+
   if (text.includes('Trade Republic') || text.includes('TRADE REPUBLIC')) {
-    return parseTradeRepublic(text);
+    result = parseTradeRepublic(text);
   } else if (text.includes('Scalable') || text.includes('Baader Bank')) {
-    return parseScalableCapital(text);
+    result = parseScalableCapital(text);
   } else if (text.includes('ING-DiBa') || text.includes('ING ')) {
-    return parseIngDiba(text);
+    result = parseIngDiba(text);
   } else if (text.includes('comdirect')) {
-    return parseComdirect(text);
+    result = parseComdirect(text);
   } else if (text.includes('Deutsche Kreditbank') || text.includes('DKB')) {
-    return parseDkb(text);
+    result = parseDkb(text);
   } else if (text.includes('Consorsbank')) {
-    return parseConsorsbank(text);
+    result = parseConsorsbank(text);
   } else {
     // Generic fallback parsing attempt based on keywords
-    return parseGeneric(text);
+    result = parseGeneric(text);
   }
+
+  // Apply user mapping rules if a match is found
+  if (rules && rules.length > 0) {
+    for (const rule of rules) {
+      if (text.toLowerCase().includes(rule.pattern.toLowerCase())) {
+        result.ticker = rule.ticker;
+        result.name = rule.name;
+        result.category = rule.category;
+        break; // Match first matching rule
+      }
+    }
+  }
+
+  return result;
 }
 
 function parseTradeRepublic(text: string): ParsedTransaction {
