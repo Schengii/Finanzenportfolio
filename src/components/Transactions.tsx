@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { Transaction, AssetCategory } from '../types';
 import { parseBrokerPdf, parseBrokerText, MOCK_PDF_TEXTS } from './PdfParser';
 import { Upload, Plus, Trash2, Info } from 'lucide-react';
+import { PdfPreviewModal } from './PdfPreviewModal';
 
 interface TransactionsProps {
   transactions: Transaction[];
@@ -19,27 +20,21 @@ export const Transactions: React.FC<TransactionsProps> = ({
   onClearPrefilledData
 }) => {
   // Manual transaction form state
-  const [type, setType] = useState<'BUY' | 'SELL' | 'DIVIDEND'>('BUY');
+  const [type, setType] = useState<Transaction['type']>('BUY');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [ticker, setTicker] = useState<string>('');
   const [name, setName] = useState<string>('');
-
-  const handleSimulateDemo = (brokerKey: keyof typeof MOCK_PDF_TEXTS) => {
-    try {
-      const mockText = MOCK_PDF_TEXTS[brokerKey];
-      const parsed = parseBrokerText(mockText);
-      onAddTransaction(parsed);
-      alert(`Simulation erfolgreich für ${brokerKey}: ${parsed.type === 'BUY' ? 'Kauf' : parsed.type === 'SELL' ? 'Verkauf' : 'Dividende'} von ${parsed.name} (${parsed.amount} Stück für je ${parsed.price.toFixed(2)} €)`);
-    } catch (err) {
-      console.error(err);
-      alert("Fehler bei der Abrechnungssimulation.");
-    }
-  };
   const [amount, setAmount] = useState<string>('');
   const [price, setPrice] = useState<string>('');
   const [fee, setFee] = useState<string>('0');
   const [tax, setTax] = useState<string>('0');
   const [category, setCategory] = useState<AssetCategory>('Stock');
+  const [currency, setCurrency] = useState<'EUR' | 'USD' | 'CHF'>('EUR');
+  const [exchangeRate, setExchangeRate] = useState<string>('1.0');
+
+  // PDF Preview modal state
+  const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
+  const [parsedTx, setParsedTx] = useState<Omit<Transaction, 'id'> | null>(null);
 
   useEffect(() => {
     if (prefilledData) {
@@ -48,11 +43,27 @@ export const Transactions: React.FC<TransactionsProps> = ({
       setName(prefilledData.name);
       setCategory(prefilledData.category);
       setPrice(prefilledData.price.toString());
+      setCurrency('EUR');
+      setExchangeRate('1.0');
       if (onClearPrefilledData) {
         onClearPrefilledData();
       }
     }
   }, [prefilledData, onClearPrefilledData]);
+
+  // Adjust form fields automatically based on transaction type
+  useEffect(() => {
+    if (type === 'DEPOSIT' || type === 'WITHDRAWAL') {
+      setTicker('CASH');
+      setName(type === 'DEPOSIT' ? 'Einzahlung (Cash)' : 'Auszahlung (Cash)');
+      setPrice('1');
+      setCategory('Stock');
+    } else if (ticker === 'CASH') {
+      setTicker('');
+      setName('');
+      setPrice('');
+    }
+  }, [type]);
 
   // Drag and drop state
   const [dragActive, setDragActive] = useState<boolean>(false);
@@ -76,16 +87,38 @@ export const Transactions: React.FC<TransactionsProps> = ({
       price: parseFloat(price),
       fee: parseFloat(fee) || 0,
       tax: parseFloat(tax) || 0,
-      category
+      category,
+      currency,
+      exchangeRate: parseFloat(exchangeRate) || 1.0
     });
 
-    // Reset fields except date and category
-    setTicker('');
-    setName('');
+    // Reset fields except date, type, and currency
+    if (type !== 'DEPOSIT' && type !== 'WITHDRAWAL') {
+      setTicker('');
+      setName('');
+      setPrice('');
+    }
     setAmount('');
-    setPrice('');
     setFee('0');
     setTax('0');
+  };
+
+  const handleSimulateDemo = (brokerKey: keyof typeof MOCK_PDF_TEXTS) => {
+    try {
+      const mockText = MOCK_PDF_TEXTS[brokerKey];
+      const parsed = parseBrokerText(mockText);
+      
+      // Set to preview modal instead of adding directly
+      setParsedTx({
+        ...parsed,
+        currency: 'EUR',
+        exchangeRate: 1.0
+      });
+      setIsPreviewOpen(true);
+    } catch (err) {
+      console.error(err);
+      alert("Fehler bei der Abrechnungssimulation.");
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -107,11 +140,17 @@ export const Transactions: React.FC<TransactionsProps> = ({
     setParsingActive(true);
     try {
       const parsed = await parseBrokerPdf(file);
-      onAddTransaction(parsed);
-      alert(`PDF erfolgreich eingelesen: ${parsed.type === 'BUY' ? 'Kauf' : parsed.type === 'SELL' ? 'Verkauf' : 'Dividende'} von ${parsed.name} (${parsed.amount} Stück für je ${parsed.price.toFixed(2)} €)`);
+      
+      // Open preview modal instead of adding directly
+      setParsedTx({
+        ...parsed,
+        currency: 'EUR',
+        exchangeRate: 1.0
+      });
+      setIsPreviewOpen(true);
     } catch (err) {
       console.error(err);
-      setPdfError("Fehler beim Verarbeiten des PDFs. Bitte stelle sicher, dass es sich um eine Originalabrechnung (z.B. Trade Republic) handelt.");
+      setPdfError("Fehler beim Verarbeiten des PDFs. Bitte stelle sicher, dass es sich um eine Originalabrechnung handelt.");
     } finally {
       setParsingActive(false);
     }
@@ -214,6 +253,8 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   <option value="BUY">Kauf</option>
                   <option value="SELL">Verkauf</option>
                   <option value="DIVIDEND">Dividende</option>
+                  <option value="DEPOSIT">Einzahlung (Cash)</option>
+                  <option value="WITHDRAWAL">Auszahlung (Cash)</option>
                 </select>
               </div>
 
@@ -225,6 +266,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   value={category} 
                   title="Asset-Kategorie"
                   aria-label="Asset-Kategorie"
+                  disabled={type === 'DEPOSIT' || type === 'WITHDRAWAL'}
                   onChange={(e) => setCategory(e.target.value as AssetCategory)}
                 >
                   <option value="Stock">Aktie</option>
@@ -234,91 +276,129 @@ export const Transactions: React.FC<TransactionsProps> = ({
               </div>
             </div>
 
+            {(type !== 'DEPOSIT' && type !== 'WITHDRAWAL') && (
+              <div className="tx-form-row-2">
+                <div className="form-group">
+                  <label htmlFor="tx-ticker" className="form-label">Kürzel / Ticker / ISIN</label>
+                  <input 
+                    id="tx-ticker"
+                    type="text" 
+                    className="form-input" 
+                    placeholder="z.B. AAPL oder US0378331002"
+                    value={ticker}
+                    onChange={(e) => setTicker(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="tx-name" className="form-label">Name</label>
+                  <input 
+                    id="tx-name"
+                    type="text" 
+                    className="form-input" 
+                    placeholder="z.B. Apple Inc."
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="tx-form-row-2">
               <div className="form-group">
-                <label htmlFor="tx-ticker" className="form-label">Kürzel / Ticker / ISIN</label>
-                <input 
-                  id="tx-ticker"
-                  type="text" 
-                  className="form-input" 
-                  placeholder="z.B. AAPL oder US0378331002"
-                  value={ticker}
-                  onChange={(e) => setTicker(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="tx-name" className="form-label">Name</label>
-                <input 
-                  id="tx-name"
-                  type="text" 
-                  className="form-input" 
-                  placeholder="z.B. Apple Inc."
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="tx-form-row-2">
-              <div className="form-group">
-                <label htmlFor="tx-amount" className="form-label">Anzahl / Anteile</label>
+                <label htmlFor="tx-amount" className="form-label">
+                  {type === 'DEPOSIT' || type === 'WITHDRAWAL' ? 'Betrag' : 'Anzahl / Anteile'}
+                </label>
                 <input 
                   id="tx-amount"
                   type="number" 
                   step="any"
                   className="form-input" 
-                  placeholder="z.B. 10"
+                  placeholder={type === 'DEPOSIT' || type === 'WITHDRAWAL' ? 'z.B. 1000' : 'z.B. 10'}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="tx-price" className="form-label">Kurs (€)</label>
-                <input 
-                  id="tx-price"
-                  type="number" 
-                  step="any"
-                  className="form-input" 
-                  placeholder="z.B. 175.50"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  required
-                />
-              </div>
+              {(type !== 'DEPOSIT' && type !== 'WITHDRAWAL') && (
+                <div className="form-group">
+                  <label htmlFor="tx-price" className="form-label">Kurs</label>
+                  <input 
+                    id="tx-price"
+                    type="number" 
+                    step="any"
+                    className="form-input" 
+                    placeholder="z.B. 175.50"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
             </div>
 
             <div className="tx-form-row-2">
               <div className="form-group">
-                <label htmlFor="tx-fee" className="form-label">Gebühren (€)</label>
-                <input 
-                  id="tx-fee"
-                  type="number" 
-                  step="any"
-                  className="form-input" 
-                  placeholder="Gebühren eingeben"
-                  value={fee}
-                  onChange={(e) => setFee(e.target.value)}
-                />
+                <label htmlFor="tx-currency" className="form-label">Währung</label>
+                <select 
+                  id="tx-currency"
+                  className="form-select" 
+                  value={currency} 
+                  onChange={(e) => setCurrency(e.target.value as any)}
+                >
+                  <option value="EUR">EUR (€)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="CHF">CHF (Fr.)</option>
+                </select>
               </div>
 
               <div className="form-group">
-                <label htmlFor="tx-tax" className="form-label">Steuern (€)</label>
+                <label htmlFor="tx-exrate" className="form-label">Wechselkurs (zu EUR)</label>
                 <input 
-                  id="tx-tax"
+                  id="tx-exrate"
                   type="number" 
                   step="any"
                   className="form-input" 
-                  placeholder="Steuern eingeben"
-                  value={tax}
-                  onChange={(e) => setTax(e.target.value)}
+                  placeholder="z.B. 1.08"
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(e.target.value)}
+                  disabled={currency === 'EUR'}
                 />
               </div>
             </div>
+
+            {(type !== 'DEPOSIT' && type !== 'WITHDRAWAL') && (
+              <div className="tx-form-row-2">
+                <div className="form-group">
+                  <label htmlFor="tx-fee" className="form-label">Gebühren</label>
+                  <input 
+                    id="tx-fee"
+                    type="number" 
+                    step="any"
+                    className="form-input" 
+                    placeholder="Gebühren"
+                    value={fee}
+                    onChange={(e) => setFee(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="tx-tax" className="form-label">Steuern</label>
+                  <input 
+                    id="tx-tax"
+                    type="number" 
+                    step="any"
+                    className="form-input" 
+                    placeholder="Steuern"
+                    value={tax}
+                    onChange={(e) => setTax(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="form-group">
               <label htmlFor="tx-date" className="form-label">Datum</label>
@@ -344,7 +424,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
       <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
         <h2 className="tx-list-title-h2">Aktivitäten-Protokoll</h2>
         <p className="tx-list-subtitle">
-          Alle erfassten Käufe, Verkäufe und Dividenden.
+          Alle erfassten Transaktionen inkl. Ein- und Auszahlungen.
         </p>
 
         <div className="tx-list-scrollable">
@@ -352,30 +432,47 @@ export const Transactions: React.FC<TransactionsProps> = ({
             transactions.map((tx) => {
               const isBuy = tx.type === 'BUY';
               const isDiv = tx.type === 'DIVIDEND';
-              const total = tx.amount * tx.price;
+              const isDeposit = tx.type === 'DEPOSIT';
+              const isWithdrawal = tx.type === 'WITHDRAWAL';
               
+              const txCurrency = tx.currency || 'EUR';
+              const symbol = txCurrency === 'USD' ? '$' : txCurrency === 'CHF' ? 'CHF' : '€';
+              
+              let displayVal = '';
+              if (isDeposit || isWithdrawal) {
+                displayVal = `${tx.amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
+              } else {
+                displayVal = `${(tx.amount * tx.price).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
+              }
+
               return (
                 <div key={tx.id} className="tx-item-box">
                   <div className="tx-item-left">
-                    <span className={`badge badge-${tx.type.toLowerCase()}`}>
-                      {tx.type === 'BUY' ? 'Kauf' : tx.type === 'SELL' ? 'Verkauf' : 'Div.'}
+                    <span className={`badge badge-${tx.type.toLowerCase()}`} style={{
+                      backgroundColor: isDeposit ? 'rgba(16, 185, 129, 0.2)' : isWithdrawal ? 'rgba(239, 68, 68, 0.2)' : undefined,
+                      color: isDeposit ? 'var(--accent-emerald)' : isWithdrawal ? 'var(--accent-rose)' : undefined
+                    }}>
+                      {tx.type === 'BUY' ? 'Kauf' : tx.type === 'SELL' ? 'Verkauf' : tx.type === 'DIVIDEND' ? 'Div.' : tx.type === 'DEPOSIT' ? 'Einz.' : 'Ausz.'}
                     </span>
                     <div>
                       <span className="tx-item-name-bold">{tx.name}</span>
                       <span className="tx-item-meta">
-                        {tx.date} • {tx.amount} Stk. @ {tx.price.toFixed(2)} €
+                        {tx.date} {(!isDeposit && !isWithdrawal) && `• ${tx.amount} Stk. @ ${tx.price.toLocaleString('de-DE')} ${symbol}`}
+                        {txCurrency !== 'EUR' && ` (Kurs: ${tx.exchangeRate || 1.0})`}
                       </span>
                     </div>
                   </div>
 
                   <div className="tx-item-right-wrap">
                     <div className="tx-item-right-text">
-                      <span className="tx-item-total-value" style={{ color: isBuy ? '#60a5fa' : isDiv ? 'var(--accent-gold)' : 'var(--accent-rose)' }}>
-                        {isBuy ? '-' : '+'}{total.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                      <span className="tx-item-total-value" style={{ 
+                        color: (isBuy || isWithdrawal) ? 'var(--accent-rose)' : (isDiv || isDeposit) ? 'var(--accent-emerald)' : 'var(--text-color)' 
+                      }}>
+                        {(isBuy || isWithdrawal) ? '-' : '+'}{displayVal}
                       </span>
                       {tx.fee > 0 && (
                         <span className="tx-item-fee-text">
-                          inkl. {tx.fee.toFixed(2)} € Gebühr
+                          inkl. {tx.fee.toFixed(2)} {symbol} Gebühr
                         </span>
                       )}
                     </div>
@@ -398,6 +495,16 @@ export const Transactions: React.FC<TransactionsProps> = ({
           )}
         </div>
       </div>
+
+      <PdfPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        parsedTransaction={parsedTx}
+        onConfirm={(confirmed) => {
+          onAddTransaction(confirmed);
+          setParsedTx(null);
+        }}
+      />
     </div>
   );
 };

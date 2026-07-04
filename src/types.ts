@@ -2,15 +2,17 @@ export type AssetCategory = 'Stock' | 'ETF' | 'Crypto';
 
 export interface Transaction {
   id: string;
-  type: 'BUY' | 'SELL' | 'DIVIDEND';
+  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL';
   date: string;
   ticker: string;
   name: string;
-  amount: number; // shares or units
-  price: number; // price per share
+  amount: number; // shares or units, or cash amount for deposit/withdrawal
+  price: number; // price per share, or 1 for cash
   fee: number;
   tax: number;
   category: AssetCategory;
+  currency?: 'EUR' | 'USD' | 'CHF';
+  exchangeRate?: number; // how many currency units per EUR, e.g. 1.08 USD per 1 EUR
 }
 
 export interface Holding {
@@ -25,6 +27,7 @@ export interface Holding {
   totalGain: number;
   totalGainPercent: number;
   portfolioWeight: number;
+  yieldOnCost: number;
 }
 
 export interface TargetAllocation {
@@ -38,6 +41,13 @@ export interface PortfolioStats {
   totalGains: number;
   totalGainsPercent: number;
   dividendsReceived: number;
+  cashBalance: number;
+  irr: number;
+  ttwrr: number;
+  maxDrawdown: number;
+  sharpeRatio: number;
+  realizedGains: number;
+  taxExemptionUsed: number;
 }
 
 export interface WatchlistItem {
@@ -67,4 +77,5 @@ export interface Portfolio {
   savingsPlans?: SavingsPlan[];
   targetAllocations?: TargetAllocation[];
 }
+
 

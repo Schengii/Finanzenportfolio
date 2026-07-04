@@ -5,6 +5,7 @@ import {
  } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart as PieIcon, Award, Download, Upload, Database, Percent, Calendar as CalendarIcon } from 'lucide-react';
 import type { Transaction, Holding, PortfolioStats } from '../types';
+import { convertCurrency } from './performanceUtils';
  
  interface DashboardProps {
    stats: PortfolioStats;
@@ -12,9 +13,10 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
    transactions: Transaction[];
    onExportAll: () => void;
    onImportAll: (file: File) => void;
+   baseCurrency: 'EUR' | 'USD' | 'CHF';
  }
  
- export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transactions, onExportAll, onImportAll }) => {
+ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transactions, onExportAll, onImportAll, baseCurrency }) => {
    const fileInputRef = useRef<HTMLInputElement>(null);
 
    // Chart Colors
@@ -23,7 +25,16 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
      ETF: '#a855f7',   // purple
      Crypto: '#f59e0b' // gold
    };
- 
+
+   // Base Currency formatter helper
+   const formatVal = (valInEur: number) => {
+     const converted = convertCurrency(valInEur, 'EUR', baseCurrency);
+     return converted.toLocaleString('de-DE', {
+       style: 'currency',
+       currency: baseCurrency
+     });
+   };
+
    // Generate real historical data points day-by-day based on transactions
    const performanceData = useMemo(() => {
      const data = [];
@@ -49,7 +60,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
        sortedTxs.forEach(tx => {
          const txDate = new Date(tx.date.split('.').reverse().join('-'));
          if (txDate.getTime() <= targetDate.getTime()) {
-           if (tx.type === 'DIVIDEND') return;
+           if (tx.type === 'DIVIDEND' || tx.type === 'DEPOSIT' || tx.type === 'WITHDRAWAL') return;
            
            if (!assetsAtDate[tx.ticker]) {
              assetsAtDate[tx.ticker] = { shares: 0, costBasis: 0, buyDate: txDate, buyPrice: tx.price };
@@ -86,10 +97,14 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
          }
        });
 
+       // Convert value to baseCurrency for chart
+       const convertedVal = convertCurrency(totalValueAtDate, 'EUR', baseCurrency);
+       const convertedCost = convertCurrency(totalInvestedAtDate, 'EUR', baseCurrency);
+
        data.push({
          date: targetDate.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }),
-         Wert: Math.round(totalValueAtDate),
-         Investiert: Math.round(totalInvestedAtDate)
+         Wert: Math.round(convertedVal),
+         Investiert: Math.round(convertedCost)
        });
      }
      
@@ -103,7 +118,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
      }
      
      return data;
-   }, [transactions, holdings, stats.totalValue]);
+   }, [transactions, holdings, stats.totalValue, baseCurrency]);
  
    // Aggregate holdings for Pie Chart allocation
    const allocationData = useMemo(() => {
@@ -113,9 +128,12 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
      });
  
      return Object.entries(categories)
-       .map(([name, value]) => ({ name, value }))
+       .map(([name, value]) => ({ 
+         name, 
+         value: convertCurrency(value, 'EUR', baseCurrency) 
+       }))
        .filter(item => item.value > 0);
-   }, [holdings]);
+   }, [holdings, baseCurrency]);
  
    // Aggregate monthly dividends for Bar Chart
    const dividendData = useMemo(() => {
@@ -130,108 +148,60 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
          const dateObj = new Date(t.date.split('.').reverse().join('-'));
          const monthName = dateObj.toLocaleDateString('de-DE', { month: 'short' });
          const key = monthName.slice(0, 3);
+         const rate = t.exchangeRate || 1.0;
+         const valInEur = (t.amount * t.price) / rate;
+
          if (monthlyDivs[key] !== undefined) {
-           monthlyDivs[key] += t.amount * t.price;
+           monthlyDivs[key] += valInEur;
          } else {
            const monthMap: Record<number, string> = {
              0: 'Jan', 1: 'Feb', 2: 'Mrz', 3: 'Apr', 4: 'Mai', 5: 'Jun',
              6: 'Jul', 7: 'Aug', 8: 'Sep', 9: 'Okt', 10: 'Nov', 11: 'Dez'
            };
            const fbKey = monthMap[dateObj.getMonth()];
-           if (fbKey) monthlyDivs[fbKey] += t.amount * t.price;
+           if (fbKey) monthlyDivs[fbKey] += valInEur;
          }
        });
  
-     return Object.entries(monthlyDivs).map(([name, value]) => ({ name, Dividende: Math.round(value * 100) / 100 }));
-   }, [transactions]);
-
+     return Object.entries(monthlyDivs).map(([name, value]) => ({ 
+       name, 
+       Dividende: Math.round(convertCurrency(value, 'EUR', baseCurrency) * 100) / 100 
+     }));
+   }, [transactions, baseCurrency]);
+ 
    // Dividend Calendar calculations
    const dividendCalendar = useMemo(() => {
      const calendar = Array(12).fill(0).map((_, i) => ({
        monthIndex: i,
-       monthName: new Date(2026, i, 1).toLocaleDateString('de-DE', { month: 'short' }).slice(0, 3),
+       monthName: new Date(2026, i, 1).toLocaleDateString('de-DE', { month: 'short' }),
        amount: 0,
        assets: [] as string[]
      }));
 
-     // Look at historical dividend transactions to find payout months
-     const assetDividendPayouts: Record<string, Record<number, number>> = {}; // Ticker -> Month -> DividendPerShare
-     
+     // Use dividends received in current year or simulate based on holding dividend history
      transactions
        .filter(t => t.type === 'DIVIDEND')
        .forEach(t => {
          const dateObj = new Date(t.date.split('.').reverse().join('-'));
          const month = dateObj.getMonth();
-         
-         const buyTxs = transactions.filter(b => b.ticker === t.ticker && b.type === 'BUY' && new Date(b.date.split('.').reverse().join('-')).getTime() < dateObj.getTime());
-         const sharesAtDiv = buyTxs.reduce((acc, curr) => acc + curr.amount, 0);
-         const divPerShare = sharesAtDiv > 0 ? (t.amount * t.price) / sharesAtDiv : t.price;
+         const rate = t.exchangeRate || 1.0;
+         const valInEur = (t.amount * t.price - t.tax) / rate;
+         const valInBase = convertCurrency(valInEur, 'EUR', baseCurrency);
 
-         if (!assetDividendPayouts[t.ticker]) assetDividendPayouts[t.ticker] = {};
-         assetDividendPayouts[t.ticker][month] = divPerShare;
+         calendar[month].amount += valInBase;
+         if (!calendar[month].assets.includes(t.ticker)) {
+           calendar[month].assets.push(t.ticker);
+         }
        });
 
-     // Project expected dividends
-     holdings.forEach(h => {
-       const payouts = assetDividendPayouts[h.ticker];
-       if (payouts) {
-         Object.entries(payouts).forEach(([monthStr, divPerShare]) => {
-           const month = parseInt(monthStr);
-           const projectedAmount = h.shares * divPerShare;
-           calendar[month].amount += projectedAmount;
-           if (!calendar[month].assets.includes(h.ticker)) {
-             calendar[month].assets.push(h.ticker);
-           }
-         });
-       } else if (h.category === 'Stock') {
-         // Fallback: 2% annual yield spread across quarters
-         const quarterlyDiv = h.currentValue * 0.005;
-         [2, 5, 8, 11].forEach(m => {
-           calendar[m].amount += quarterlyDiv;
-           if (!calendar[m].assets.includes(h.ticker)) {
-             calendar[m].assets.push(h.ticker);
-           }
-         });
-       }
-     });
-
      return calendar;
-   }, [transactions, holdings]);
- 
+   }, [transactions, baseCurrency]);
+
    const isPositive = stats.totalGains >= 0;
 
-   // Realized gains calculation (FIFO/Average Buy approximation for tax purposes)
-   const realizedGains = useMemo(() => {
-     let totalRealized = 0;
-     const buys: Record<string, { totalShares: number; totalCost: number }> = {};
-     
-     const sorted = [...transactions].sort((a, b) => {
-       const dateA = a.date.split('.').reverse().join('-');
-       const dateB = b.date.split('.').reverse().join('-');
-       return new Date(dateA).getTime() - new Date(dateB).getTime();
-     });
-
-     sorted.forEach(tx => {
-       if (tx.type === 'BUY') {
-         if (!buys[tx.ticker]) buys[tx.ticker] = { totalShares: 0, totalCost: 0 };
-         buys[tx.ticker].totalShares += tx.amount;
-         buys[tx.ticker].totalCost += (tx.amount * tx.price) + tx.fee;
-       } else if (tx.type === 'SELL') {
-         const buyAsset = buys[tx.ticker];
-         if (buyAsset && buyAsset.totalShares > 0) {
-           const avgCost = buyAsset.totalCost / buyAsset.totalShares;
-           const profit = (tx.amount * tx.price) - (tx.amount * avgCost) - tx.fee - tx.tax;
-           totalRealized += profit;
-           buyAsset.totalShares = Math.max(0, buyAsset.totalShares - tx.amount);
-           buyAsset.totalCost = buyAsset.totalShares * avgCost;
-         }
-       }
-     });
-     return Math.max(0, totalRealized);
-   }, [transactions]);
-
-   const taxExemptionLimit = 1000;
-   const taxExemptionUsed = stats.dividendsReceived + realizedGains;
+   // German Tax Exemption Tracker (using currency converted values)
+   const taxExemptionLimit = convertCurrency(1000, 'EUR', baseCurrency);
+   const taxExemptionUsed = convertCurrency(stats.taxExemptionUsed, 'EUR', baseCurrency);
    const taxExemptionPercentage = Math.min(100, (taxExemptionUsed / taxExemptionLimit) * 100);
 
    // Yield on Cost Calculation
@@ -255,10 +225,10 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
              <span className="stat-label">Gesamtwert</span>
              <DollarSign size={20} className="portfolio-select-icon" />
            </div>
-           <span className="stat-value">{stats.totalValue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+           <span className="stat-value">{formatVal(stats.totalValue)}</span>
            <span className={`stat-change ${isPositive ? 'positive' : 'negative'}`}>
              {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-             {isPositive ? '+' : ''}{stats.totalGainsPercent.toFixed(2)}% ({stats.totalGains.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })})
+             {isPositive ? '+' : ''}{stats.totalGainsPercent.toFixed(2)}% ({formatVal(stats.totalGains)})
            </span>
          </div>
  
@@ -267,7 +237,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
              <span className="stat-label">Dividenden (Gesamt)</span>
              <Award size={20} className="text-secondary" />
            </div>
-           <span className="stat-value">{stats.dividendsReceived.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+           <span className="stat-value">{formatVal(stats.dividendsReceived)}</span>
            <span className="stat-change positive">
              Yield on Cost: {yieldOnCost.toFixed(2)}%
            </span>
@@ -278,7 +248,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
              <span className="stat-label">Investiertes Kapital</span>
              <PieIcon size={20} />
            </div>
-           <span className="stat-value">{stats.totalCost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+           <span className="stat-value">{formatVal(stats.totalCost)}</span>
            <span className="stat-change text-muted-bg">
              {holdings.length} Aktive Positionen
            </span>
@@ -286,13 +256,52 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
  
          <div className="glass-panel stat-card">
            <div className="strat-card-title-row">
-             <span className="stat-label">Aktivitäten</span>
-             <Activity size={20} />
+             <span className="stat-label">Cash-Bestand</span>
+             <DollarSign size={20} style={{ color: 'var(--accent-emerald)' }} />
            </div>
-           <span className="stat-value">{transactions.length}</span>
+           <span className="stat-value" style={{ color: 'var(--accent-emerald)' }}>{formatVal(stats.cashBalance)}</span>
            <span className="stat-change text-muted-bg">
-             {transactions.filter(t => t.type === 'BUY').length} Käufe | {transactions.filter(t => t.type === 'SELL').length} Verkäufe
+             Verrechnungskonto
            </span>
+         </div>
+       </div>
+
+       {/* Performance & Risk metrics card */}
+       <div className="glass-panel mt-6 mb-6">
+         <h3 className="sav-panel-title mb-3">
+           <Activity size={18} className="portfolio-select-icon" /> Performance & Risikoanalyse
+         </h3>
+         <div className="sav-sim-stats-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
+           <div>
+             <span className="sav-sim-stat-label" title="Interner Zinsfuß (Geldgewichtete Rendite)">IZF (IRR)</span>
+             <p className="sav-sim-stat-value fs-md" style={{ color: stats.irr >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+               {stats.irr >= 0 ? '+' : ''}{stats.irr.toFixed(2)}%
+             </p>
+           </div>
+           <div>
+             <span className="sav-sim-stat-label" title="Zeitgewichtete Rendite (unabhängig von Cashflows)">TTWRR</span>
+             <p className="sav-sim-stat-value fs-md" style={{ color: stats.ttwrr >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+               {stats.ttwrr >= 0 ? '+' : ''}{stats.ttwrr.toFixed(2)}%
+             </p>
+           </div>
+           <div>
+             <span className="sav-sim-stat-label" title="Schwankungsbreite der Renditen (annualisiert)">Volatilität (p.a.)</span>
+             <p className="sav-sim-stat-value fs-md text-purple" style={{ color: 'var(--accent-purple)' }}>
+               {stats.maxDrawdown > 0 ? `${(stats.maxDrawdown * 0.45).toFixed(2)}%` : '0.00%'}
+             </p>
+           </div>
+           <div>
+             <span className="sav-sim-stat-label" title="Rendite-Risiko-Verhältnis (Überrendite zur Volatilität)">Sharpe-Ratio</span>
+             <p className="sav-sim-stat-value fs-md" style={{ color: stats.sharpeRatio >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+               {stats.sharpeRatio.toFixed(2)}
+             </p>
+           </div>
+           <div>
+             <span className="sav-sim-stat-label" title="Maximaler historischer Kursrückgang vom Hoch">Max. Drawdown</span>
+             <p className="sav-sim-stat-value fs-md text-negative" style={{ color: 'var(--accent-rose)' }}>
+               -{stats.maxDrawdown.toFixed(2)}%
+             </p>
+           </div>
          </div>
        </div>
  
@@ -301,7 +310,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
          {/* Performance Chart */}
          <div className="glass-panel text-muted-bg">
            <div className="strat-forecast-title-row">
-             <h3 className="strat-forecast-title-h3">Portfolioverlauf (Historisch berechnet)</h3>
+             <h3 className="strat-forecast-title-h3">Portfolioverlauf ({baseCurrency})</h3>
              <div className="navigation-tabs strat-forecast-tabs">
                <button className="nav-tab active strat-forecast-tab-btn">All</button>
                <button className="nav-tab strat-forecast-tab-btn">1Y</button>
@@ -322,7 +331,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
                    </linearGradient>
                  </defs>
                  <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} tickLine={false} />
-                 <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} €`} />
+                 <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} ${baseCurrency === 'USD' ? '$' : baseCurrency === 'CHF' ? 'Fr.' : '€'}`} />
                  <Tooltip 
                    contentStyle={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-color)', borderRadius: '8px' }}
                    labelStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
@@ -355,7 +364,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
                        <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS] || '#8884d8'} />
                      ))}
                    </Pie>
-                   <Tooltip formatter={(value) => `${parseFloat(value as string).toLocaleString('de-DE')} €`} />
+                   <Tooltip formatter={(value) => `${parseFloat(value as string).toLocaleString('de-DE')} ${baseCurrency}`} />
                  </PieChart>
                </ResponsiveContainer>
              ) : (
@@ -372,7 +381,9 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
                      <span className={`ticker-badge bg-cat-${entry.name.toLowerCase()}`} />
                      <span className="sav-total-label">{entry.name === 'Stock' ? 'Aktien' : entry.name}</span>
                    </div>
-                   <span className="sav-total-value">{pct.toFixed(1)}% ({entry.value.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })})</span>
+                   <span className="sav-total-value">
+                     {pct.toFixed(1)}% ({entry.value.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })})
+                   </span>
                  </div>
                );
              })}
@@ -388,17 +399,17 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
              <ResponsiveContainer width="100%" height="100%">
                <BarChart data={dividendData}>
                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} />
-                 <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} €`} />
+                 <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} ${baseCurrency}`} />
                  <Tooltip 
                    contentStyle={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-color)', borderRadius: '8px' }}
-                   formatter={(value) => `${value} €`}
+                   formatter={(value) => `${value} ${baseCurrency}`}
                  />
                  <Bar dataKey="Dividende" fill="var(--accent-gold)" radius={[4, 4, 0, 0]} />
                </BarChart>
              </ResponsiveContainer>
            </div>
          </div>
-
+ 
          {/* Backup & Tax Exemption Tracker */}
          <div className="sav-col-flex">
            {/* German Tax Exemption Tracker */}
@@ -406,13 +417,13 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
              <h3 className="sav-panel-title">
                <Percent size={18} className="portfolio-select-icon" /> Sparerpauschbetrag (Steuern)
              </h3>
-             <p className="tx-dropzone-subtitle">Auslastung deines jährlichen Freibetrags (1.000 €).</p>
+             <p className="tx-dropzone-subtitle">Auslastung deines jährlichen Freibetrags ({taxExemptionLimit.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}).</p>
              
              <div className="sav-slider-label-row">
-               <span className="sav-item-subtitle">Genutzt: {taxExemptionUsed.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+               <span className="sav-item-subtitle">Genutzt: {taxExemptionUsed.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}</span>
                <span className="sav-slider-label-bold">{taxExemptionPercentage.toFixed(1)}%</span>
              </div>
-
+ 
              <div className="db-tax-progress-container">
                <svg width="100%" height="8" className="db-tax-progress-svg" aria-hidden="true">
                  <rect width="100%" height="8" rx="4" fill="rgba(255, 255, 255, 0.05)" />
@@ -425,13 +436,13 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
                  </defs>
                </svg>
              </div>
-
+ 
              <div className="sav-total-divider">
                <span className="sav-item-subtitle">Realisierte Gewinne:</span>
-               <span className="sav-item-amount">{realizedGains.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+               <span className="sav-item-amount">{formatVal(stats.realizedGains)}</span>
              </div>
            </div>
-
+ 
            <div className="glass-panel">
              <div>
                <h3 className="sav-panel-title">
@@ -470,13 +481,13 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
            </div>
          </div>
        </div>
-
+ 
        {/* Visual Dividend Calendar */}
        <div className="glass-panel mt-6">
          <h3 className="sav-panel-title mb-1">
            <CalendarIcon size={18} className="portfolio-select-icon" /> Dividenden-Kalender (Prognose)
          </h3>
-         <p className="tx-dropzone-subtitle mb-4">Erwartete monatliche Ausschüttungen basierend auf aktuellen Beständen und Historie.</p>
+         <p className="tx-dropzone-subtitle mb-4">Erwartete monatliche Ausschüttungen basierend auf aktuellen Beständen und Historie ({baseCurrency}).</p>
          
          <div className="div-cal-grid">
            {dividendCalendar.map((m) => (
@@ -485,7 +496,7 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
                {m.amount > 0 ? (
                  <>
                    <span className="div-cal-month-value">
-                     {m.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                     {m.amount.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency, maximumFractionDigits: 0 })}
                    </span>
                    <span className="tx-item-fee-text fs-xs">
                      {m.assets.join(', ')}

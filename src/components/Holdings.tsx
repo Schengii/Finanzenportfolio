@@ -1,15 +1,53 @@
 import React, { useState, useMemo } from 'react';
 import type { Holding, Transaction } from '../types';
 import { TrendingUp, TrendingDown, RefreshCw, X, ShoppingCart, Award } from 'lucide-react';
+import { convertCurrency } from './performanceUtils';
 
 interface HoldingsProps {
   holdings: Holding[];
   transactions: Transaction[];
   onTriggerPriceRefresh: () => void;
+  baseCurrency: 'EUR' | 'USD' | 'CHF';
+  onBaseCurrencyChange: (currency: 'EUR' | 'USD' | 'CHF') => void;
 }
 
-export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTriggerPriceRefresh }) => {
+export const Holdings: React.FC<HoldingsProps> = ({ 
+  holdings, 
+  transactions, 
+  onTriggerPriceRefresh,
+  baseCurrency,
+  onBaseCurrencyChange
+}) => {
   const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
+
+  // Currency Formatter
+  const formatVal = (value: number) => {
+    return value.toLocaleString('de-DE', {
+      style: 'currency',
+      currency: baseCurrency
+    });
+  };
+
+  // Convert values on the fly to baseCurrency for display
+  const convertedHoldings = useMemo(() => {
+    return holdings.map(h => {
+      // Let's assume h values are in EUR
+      const currentPriceConverted = convertCurrency(h.currentPrice, 'EUR', baseCurrency);
+      const averageBuyPriceConverted = convertCurrency(h.averageBuyPrice, 'EUR', baseCurrency);
+      const totalCostConverted = convertCurrency(h.totalCost, 'EUR', baseCurrency);
+      const currentValueConverted = convertCurrency(h.currentValue, 'EUR', baseCurrency);
+      const totalGainConverted = currentValueConverted - totalCostConverted;
+
+      return {
+        ...h,
+        currentPrice: currentPriceConverted,
+        averageBuyPrice: averageBuyPriceConverted,
+        totalCost: totalCostConverted,
+        currentValue: currentValueConverted,
+        totalGain: totalGainConverted
+      };
+    });
+  }, [holdings, baseCurrency]);
 
   // Filter transactions and dividends for the selected holding
   const assetHistory = useMemo(() => {
@@ -44,12 +82,27 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
           <h2 className="hl-title-h2">Deine Investments</h2>
           <p className="hl-subtitle">Aktuelle Übersicht aller Vermögenswerte. Klicke auf ein Asset, um Details und Historie anzuzeigen.</p>
         </div>
-        <button 
-          className="btn btn-secondary hl-sim-btn" 
-          onClick={onTriggerPriceRefresh}
-        >
-          <RefreshCw size={14} /> Live Kurse simulieren
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="form-group m-0" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label className="form-label m-0" style={{ fontSize: '0.85rem' }}>Anzeigewährung:</label>
+            <select
+              className="form-select"
+              style={{ width: '80px', padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+              value={baseCurrency}
+              onChange={(e) => onBaseCurrencyChange(e.target.value as any)}
+            >
+              <option value="EUR">EUR (€)</option>
+              <option value="USD">USD ($)</option>
+              <option value="CHF">CHF (Fr.)</option>
+            </select>
+          </div>
+          <button 
+            className="btn btn-secondary hl-sim-btn" 
+            onClick={onTriggerPriceRefresh}
+          >
+            <RefreshCw size={14} /> Live Kurse simulieren
+          </button>
+        </div>
       </div>
 
       <div className="table-container">
@@ -64,12 +117,13 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
               <th>Investiert</th>
               <th>Gesamtwert</th>
               <th>Gewinn / Verlust</th>
+              <th>Yield on Cost</th>
               <th>Gewichtung</th>
             </tr>
           </thead>
           <tbody>
-            {holdings.length > 0 ? (
-              holdings.map((holding) => {
+            {convertedHoldings.length > 0 ? (
+              convertedHoldings.map((holding) => {
                 const isPositive = holding.totalGain >= 0;
                 return (
                   <tr 
@@ -93,16 +147,16 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
                       {holding.shares.toLocaleString('de-DE', { maximumFractionDigits: 4 })}
                     </td>
                     <td>
-                      {holding.averageBuyPrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                      {formatVal(holding.averageBuyPrice)}
                     </td>
                     <td className="hl-medium-weight">
-                      {holding.currentPrice.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                      {formatVal(holding.currentPrice)}
                     </td>
                     <td>
-                      {holding.totalCost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                      {formatVal(holding.totalCost)}
                     </td>
                     <td className="hl-bold-weight">
-                      {holding.currentValue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                      {formatVal(holding.currentValue)}
                     </td>
                     <td>
                       <span 
@@ -112,9 +166,12 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
                         {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                         {isPositive ? '+' : ''}{holding.totalGainPercent.toFixed(2)}%
                         <span className="hl-gain-loss-subtext">
-                          ({holding.totalGain.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })})
+                          ({formatVal(holding.totalGain)})
                         </span>
                       </span>
+                    </td>
+                    <td style={{ color: 'var(--accent-gold)', fontWeight: 600 }}>
+                      {holding.yieldOnCost > 0 ? `${holding.yieldOnCost.toFixed(2)}%` : '-'}
                     </td>
                     <td className="hl-weight-col">
                       {holding.portfolioWeight.toFixed(1)}%
@@ -124,7 +181,7 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
               })
             ) : (
               <tr>
-                <td colSpan={9} className="hl-empty-row">
+                <td colSpan={10} className="hl-empty-row">
                   Noch keine Investments vorhanden. Füge eine Transaktion hinzu oder lade ein Broker-PDF hoch.
                 </td>
               </tr>
@@ -158,17 +215,17 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
 
             <div className="modal-body">
               {/* KPIs Row */}
-              <div className="sav-sim-stats-grid mb-5" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+              <div className="sav-sim-stats-grid mb-5" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
                 <div>
                   <span className="sav-sim-stat-label">Gesamtwert</span>
                   <p className="sav-sim-stat-value fs-md">
-                    {selectedHolding.currentValue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                    {formatVal(selectedHolding.currentValue)}
                   </p>
                 </div>
                 <div>
                   <span className="sav-sim-stat-label">Investiert</span>
                   <p className="sav-sim-stat-value fs-md">
-                    {selectedHolding.totalCost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                    {formatVal(selectedHolding.totalCost)}
                   </p>
                 </div>
                 <div>
@@ -177,7 +234,13 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
                     className={`sav-sim-stat-value fs-md ${selectedHolding.totalGain >= 0 ? 'text-positive' : 'text-negative'}`}
                   >
                     {selectedHolding.totalGain >= 0 ? '+' : ''}
-                    {selectedHolding.totalGain.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                    {formatVal(selectedHolding.totalGain)}
+                  </p>
+                </div>
+                <div>
+                  <span className="sav-sim-stat-label">Yield on Cost</span>
+                  <p className="sav-sim-stat-value fs-md text-gold" style={{ color: 'var(--accent-gold)' }}>
+                    {selectedHolding.yieldOnCost > 0 ? `${selectedHolding.yieldOnCost.toFixed(2)}%` : '-'}
                   </p>
                 </div>
                 <div>
@@ -209,7 +272,10 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
                       </thead>
                       <tbody>
                         {assetHistory.buySells.map((tx) => {
-                          const total = tx.amount * tx.price;
+                          const txCurrency = tx.currency || 'EUR';
+                          const txPriceConverted = convertCurrency(tx.price, txCurrency, baseCurrency);
+                          const txFeeConverted = convertCurrency(tx.fee, txCurrency, baseCurrency);
+                          const total = convertCurrency((tx.amount * tx.price), txCurrency, baseCurrency);
                           return (
                             <tr key={tx.id}>
                               <td>{tx.date}</td>
@@ -219,10 +285,10 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
                                 </span>
                               </td>
                               <td>{tx.amount}</td>
-                              <td>{tx.price.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</td>
-                              <td>{tx.fee.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</td>
+                              <td>{formatVal(txPriceConverted)}</td>
+                              <td>{formatVal(txFeeConverted)}</td>
                               <td className="fw-600">
-                                {total.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                                {formatVal(total)}
                               </td>
                             </tr>
                           );
@@ -254,14 +320,17 @@ export const Holdings: React.FC<HoldingsProps> = ({ holdings, transactions, onTr
                       </thead>
                       <tbody>
                         {assetHistory.dividends.map((tx) => {
-                          const netPayout = (tx.amount * tx.price) - tx.tax;
+                          const txCurrency = tx.currency || 'EUR';
+                          const divPriceConverted = convertCurrency(tx.price, txCurrency, baseCurrency);
+                          const divTaxConverted = convertCurrency(tx.tax, txCurrency, baseCurrency);
+                          const netPayout = convertCurrency((tx.amount * tx.price) - tx.tax, txCurrency, baseCurrency);
                           return (
                             <tr key={tx.id}>
                               <td>{tx.date}</td>
-                              <td>{tx.price.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</td>
-                              <td>{tx.tax.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</td>
+                              <td>{formatVal(divPriceConverted)}</td>
+                              <td>{formatVal(divTaxConverted)}</td>
                               <td className="fw-600 text-positive">
-                                {netPayout.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                                {formatVal(netPayout)}
                               </td>
                             </tr>
                           );

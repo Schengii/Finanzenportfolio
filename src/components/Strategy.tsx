@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Holding } from '../types';
-import { ShieldCheck, AlertTriangle, Lightbulb, TrendingUp } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 
 interface StrategyProps {
   holdings: Holding[];
@@ -9,11 +8,6 @@ interface StrategyProps {
 }
 
 export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
-  // 1. Compound Interest Forecast State
-  const [years, setYears] = useState<number>(15);
-  const [monthlySavings, setMonthlySavings] = useState<number>(300);
-  const [expectedYield, setExpectedYield] = useState<number>(7);
-
   // 2. Target Allocation State (Percentages)
   const [targetStock, setTargetStock] = useState<number>(40);
   const [targetEtf, setTargetEtf] = useState<number>(50);
@@ -21,6 +15,7 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
 
   // 3. Investment Planner State
   const [extraInvestment, setExtraInvestment] = useState<number>(1000);
+
 
   // Auto-adjust target sliders to sum up to 100% when one changes
   const adjustSliders = (changed: 'stock' | 'etf' | 'crypto', val: number) => {
@@ -41,38 +36,6 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
       setTargetEtf(Math.round(rem * 0.55));
     }
   };
-
-  // Compound growth calculation
-  const forecastData = useMemo(() => {
-    const data = [];
-    let balance = totalValue;
-    const rate = expectedYield / 100;
-    
-    // Initial year
-    data.push({
-      year: 0,
-      Wert: Math.round(balance),
-      Einzahlungen: Math.round(balance)
-    });
-
-    let totalInvested = balance;
-
-    for (let i = 1; i <= years; i++) {
-      // Compounded monthly
-      for (let m = 0; m < 12; m++) {
-        balance = balance * (1 + rate / 12) + monthlySavings;
-        totalInvested += monthlySavings;
-      }
-      
-      data.push({
-        year: i,
-        Wert: Math.round(balance),
-        Einzahlungen: Math.round(totalInvested)
-      });
-    }
-
-    return data;
-  }, [totalValue, years, monthlySavings, expectedYield]);
 
   // Current allocation calculations
   const currentAllocation = useMemo(() => {
@@ -136,20 +99,8 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
       });
     }
 
-    // Compound Growth tip
-    if (monthlySavings > 0) {
-      const finalAmount = forecastData[forecastData.length - 1].Wert;
-      const totalSaved = forecastData[forecastData.length - 1].Einzahlungen;
-      const profit = finalAmount - totalSaved;
-      insights.push({
-        type: 'success',
-        title: 'Zinseszinseffekt aktiv',
-        desc: `Durch deine Sparrate von ${monthlySavings} € baust du in ${years} Jahren ${finalAmount.toLocaleString('de-DE')} € auf. Davon sind ${profit.toLocaleString('de-DE')} € reiner Gewinn durch Zinsen!`
-      });
-    }
-
     return insights;
-  }, [holdings, currentAllocation, monthlySavings, forecastData, years]);
+  }, [holdings, currentAllocation]);
 
   // Pro-rated rebalancing purchasing calculator (without selling)
   const rebalancePlanner = useMemo(() => {

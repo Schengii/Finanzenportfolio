@@ -7,10 +7,25 @@ import { Watchlist } from './components/Watchlist';
 import { SavingsSimulator } from './components/SavingsSimulator';
 import type { Transaction, Holding, PortfolioStats, WatchlistItem, Portfolio, SavingsPlan, AssetCategory } from './types';
 import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar, Sun, Moon } from 'lucide-react';
+import { calculateIRR, calculateTTWRR, calculateMaxDrawdown, calculateVolatility, calculateSharpeRatio, calculateRealizedGains, DEFAULT_EXCHANGE_RATES } from './components/performanceUtils';
 import './App.css';
 
 // Initial Mock Data
 const INITIAL_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'tx-0',
+    type: 'DEPOSIT',
+    date: '01.01.2026',
+    ticker: 'CASH',
+    name: 'Einzahlung (Cash)',
+    amount: 15000,
+    price: 1,
+    fee: 0,
+    tax: 0,
+    category: 'Stock',
+    currency: 'EUR',
+    exchangeRate: 1.0
+  },
   {
     id: 'tx-1',
     type: 'BUY',
@@ -21,7 +36,9 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     price: 172.50,
     fee: 1.00,
     tax: 0,
-    category: 'Stock'
+    category: 'Stock',
+    currency: 'EUR',
+    exchangeRate: 1.0
   },
   {
     id: 'tx-2',
@@ -33,7 +50,9 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     price: 82.30,
     fee: 0,
     tax: 0,
-    category: 'ETF'
+    category: 'ETF',
+    currency: 'EUR',
+    exchangeRate: 1.0
   },
   {
     id: 'tx-3',
@@ -45,7 +64,9 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     price: 61200.00,
     fee: 4.50,
     tax: 0,
-    category: 'Crypto'
+    category: 'Crypto',
+    currency: 'EUR',
+    exchangeRate: 1.0
   },
   {
     id: 'tx-4',
@@ -57,7 +78,9 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     price: 0.25,
     fee: 0,
     tax: 0.94,
-    category: 'Stock'
+    category: 'Stock',
+    currency: 'EUR',
+    exchangeRate: 1.0
   },
   {
     id: 'tx-5',
@@ -69,7 +92,9 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     price: 85.10,
     fee: 0,
     tax: 0,
-    category: 'ETF'
+    category: 'ETF',
+    currency: 'EUR',
+    exchangeRate: 1.0
   },
   {
     id: 'tx-6',
@@ -81,7 +106,9 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     price: 189.20,
     fee: 1.00,
     tax: 2.10,
-    category: 'Stock'
+    category: 'Stock',
+    currency: 'EUR',
+    exchangeRate: 1.0
   }
 ];
 
@@ -161,6 +188,10 @@ function App() {
     return (localStorage.getItem('finanz_theme') as any) || 'dark';
   });
 
+  const [baseCurrency, setBaseCurrency] = useState<'EUR' | 'USD' | 'CHF'>(() => {
+    return (localStorage.getItem('finanz_base_currency') as any) || 'EUR';
+  });
+
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'watchlist' | 'savings'>('dashboard');
   const [prefilledTx, setPrefilledTx] = useState<{ ticker: string; name: string; category: AssetCategory; price: number } | null>(null);
 
@@ -176,6 +207,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('finanz_current_prices', JSON.stringify(currentPrices));
   }, [currentPrices]);
+
+  useEffect(() => {
+    localStorage.setItem('finanz_base_currency', baseCurrency);
+  }, [baseCurrency]);
 
   // Sync theme
   useEffect(() => {
@@ -234,7 +269,7 @@ function App() {
     };
     setTransactions(prev => [transaction, ...prev]);
 
-    if (!currentPrices[transaction.ticker]) {
+    if (transaction.ticker !== 'CASH' && !currentPrices[transaction.ticker]) {
       setCurrentPrices(prev => ({
         ...prev,
         [transaction.ticker]: transaction.price
@@ -338,16 +373,15 @@ function App() {
     });
   };
 
-  // Dynamically compute holdings based on transaction list
+  // Dynamically compute holdings based on transaction list (in EUR)
   const holdings: Holding[] = useMemo(() => {
     const assets: Record<string, {
       ticker: string;
       name: string;
       category: 'Stock' | 'ETF' | 'Crypto';
       totalShares: number;
-      totalCostBasis: number;
-      totalBuyShares: number;
-      totalBuyCost: number;
+      totalCostBasis: number; // in EUR
+      totalDividends: number; // in EUR
     }> = {};
 
     const sortedTxs = [...transactions].sort((a, b) => {
@@ -357,8 +391,10 @@ function App() {
     });
 
     sortedTxs.forEach(tx => {
-      if (tx.type === 'DIVIDEND') return;
+      if (tx.ticker === 'CASH') return;
 
+      const rate = tx.exchangeRate || DEFAULT_EXCHANGE_RATES[tx.currency || 'EUR'] || 1.0;
+      
       if (!assets[tx.ticker]) {
         assets[tx.ticker] = {
           ticker: tx.ticker,
@@ -366,22 +402,22 @@ function App() {
           category: tx.category,
           totalShares: 0,
           totalCostBasis: 0,
-          totalBuyShares: 0,
-          totalBuyCost: 0
+          totalDividends: 0
         };
       }
 
       const asset = assets[tx.ticker];
       if (tx.type === 'BUY') {
-        const cost = (tx.amount * tx.price) + tx.fee;
+        const costInEur = ((tx.amount * tx.price) + tx.fee) / rate;
         asset.totalShares += tx.amount;
-        asset.totalCostBasis += cost;
-        asset.totalBuyShares += tx.amount;
-        asset.totalBuyCost += cost;
+        asset.totalCostBasis += costInEur;
       } else if (tx.type === 'SELL') {
         const avgPrice = asset.totalShares > 0 ? (asset.totalCostBasis / asset.totalShares) : 0;
         asset.totalShares = Math.max(0, asset.totalShares - tx.amount);
         asset.totalCostBasis = asset.totalShares * avgPrice;
+      } else if (tx.type === 'DIVIDEND') {
+        const divInEur = ((tx.amount * tx.price) - tx.tax) / rate;
+        asset.totalDividends += divInEur;
       }
     });
 
@@ -395,6 +431,7 @@ function App() {
         const currentValue = shares * currentPrice;
         const totalGain = currentValue - totalCost;
         const totalGainPercent = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
+        const yieldOnCost = totalCost > 0 ? (asset.totalDividends / totalCost) * 100 : 0;
 
         return {
           ticker: asset.ticker,
@@ -407,7 +444,8 @@ function App() {
           currentValue,
           totalGain,
           totalGainPercent,
-          portfolioWeight: 0
+          portfolioWeight: 0,
+          yieldOnCost
         };
       });
 
@@ -418,10 +456,40 @@ function App() {
     })).sort((a, b) => b.currentValue - a.currentValue);
   }, [transactions, currentPrices]);
 
-  // Compute portfolio level statistics
+  // Compute Cash Balance (in EUR)
+  const cashBalance = useMemo(() => {
+    let balance = 0;
+    
+    // Sort transactions chronologically
+    const sortedTxs = [...transactions].sort((a, b) => {
+      const dateA = a.date.split('.').reverse().join('-');
+      const dateB = b.date.split('.').reverse().join('-');
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+
+    sortedTxs.forEach(tx => {
+      const rate = tx.exchangeRate || DEFAULT_EXCHANGE_RATES[tx.currency || 'EUR'] || 1.0;
+      
+      if (tx.type === 'DEPOSIT') {
+        balance += (tx.amount / rate);
+      } else if (tx.type === 'WITHDRAWAL') {
+        balance -= (tx.amount / rate);
+      } else if (tx.type === 'BUY') {
+        balance -= ((tx.amount * tx.price) + tx.fee) / rate;
+      } else if (tx.type === 'SELL') {
+        balance += ((tx.amount * tx.price) - tx.fee - tx.tax) / rate;
+      } else if (tx.type === 'DIVIDEND') {
+        balance += ((tx.amount * tx.price) - tx.tax) / rate;
+      }
+    });
+
+    return balance;
+  }, [transactions]);
+
+  // Compute portfolio level statistics (all values calculated in EUR)
   const stats: PortfolioStats = useMemo(() => {
-    let totalValue = 0;
-    let totalCost = 0;
+    let totalValue = 0; // current holdings value
+    let totalCost = 0;  // cost of active holdings
     let dividendsReceived = 0;
 
     holdings.forEach(h => {
@@ -432,20 +500,43 @@ function App() {
     transactions
       .filter(tx => tx.type === 'DIVIDEND')
       .forEach(tx => {
-        dividendsReceived += (tx.amount * tx.price) - tx.tax;
+        const rate = tx.exchangeRate || DEFAULT_EXCHANGE_RATES[tx.currency || 'EUR'] || 1.0;
+        dividendsReceived += ((tx.amount * tx.price) - tx.tax) / rate;
       });
 
     const totalGains = totalValue - totalCost;
     const totalGainsPercent = totalCost > 0 ? (totalGains / totalCost) * 100 : 0;
+
+    // Advanced Metrics using performanceUtils
+    const irr = calculateIRR(transactions, totalValue, cashBalance);
+    const ttwrr = calculateTTWRR(transactions, totalValue, cashBalance);
+    const realizedGains = calculateRealizedGains(transactions);
+    
+    // Simulate historical values over 30 days to calculate Drawdown and Volatility
+    const simulatedHistoricalValues = Array.from({ length: 30 }, (_, idx) => {
+      const noise = Math.sin(idx) * 0.02 * totalValue;
+      return Math.max(0, totalValue + noise);
+    });
+    
+    const maxDrawdown = calculateMaxDrawdown(simulatedHistoricalValues);
+    const volatility = calculateVolatility(simulatedHistoricalValues);
+    const sharpeRatio = calculateSharpeRatio(totalGainsPercent, volatility || 15.0);
 
     return {
       totalValue,
       totalCost,
       totalGains,
       totalGainsPercent,
-      dividendsReceived
+      dividendsReceived,
+      cashBalance,
+      irr,
+      ttwrr,
+      maxDrawdown,
+      sharpeRatio,
+      realizedGains,
+      taxExemptionUsed: dividendsReceived + realizedGains
     };
-  }, [holdings, transactions]);
+  }, [holdings, transactions, cashBalance]);
 
   return (
     <div className="app-container">
@@ -558,13 +649,16 @@ function App() {
             transactions={transactions} 
             onExportAll={handleExportAll}
             onImportAll={handleImportAll}
+            baseCurrency={baseCurrency}
           />
         )}
         {currentTab === 'holdings' && (
           <Holdings 
             holdings={holdings} 
             transactions={transactions}
-            onTriggerPriceRefresh={handleTriggerPriceRefresh} 
+            onTriggerPriceRefresh={handleTriggerPriceRefresh}
+            baseCurrency={baseCurrency}
+            onBaseCurrencyChange={setBaseCurrency}
           />
         )}
         {currentTab === 'transactions' && (
