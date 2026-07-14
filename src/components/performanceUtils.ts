@@ -241,18 +241,16 @@ export function calculateSharpeRatio(
 }
 
 /**
- * Calculate realized gains for tax purposes
- * (from SELL transactions)
+ * Calculate realized gains for tax purposes using FIFO (First-In, First-Out).
  */
 export function calculateRealizedGains(
   transactions: Transaction[],
   rateMap: Record<string, number> = DEFAULT_EXCHANGE_RATES
 ): number {
-  let realized = 0;
+  let totalRealizedGains = 0;
   
-  // Track buy history to match against sells (FIFO or average cost basis)
-  // Let's use average cost basis per asset category for simplicity
-  const buyCostBasis: Record<string, { totalShares: number; totalCost: number }> = {};
+  // Track individual buy lots per ticker for FIFO
+  const buyLots: Record<string, Array<{ date: Date; amount: number; price: number; fee: number; rate: number }>> = {};
   
   const sortedTxs = [...transactions].sort((a, b) => {
     const dateA = a.date.split('.').reverse().join('-');
@@ -262,28 +260,165 @@ export function calculateRealizedGains(
 
   sortedTxs.forEach(tx => {
     const rate = tx.exchangeRate || rateMap[tx.currency || 'EUR'] || 1.0;
+    
     if (tx.type === 'BUY') {
-      if (!buyCostBasis[tx.ticker]) {
-        buyCostBasis[tx.ticker] = { totalShares: 0, totalCost: 0 };
+      if (!buyLots[tx.ticker]) {
+        buyLots[tx.ticker] = [];
       }
-      const cost = (tx.amount * tx.price + tx.fee) / rate;
-      buyCostBasis[tx.ticker].totalShares += tx.amount;
-      buyCostBasis[tx.ticker].totalCost += cost;
+      buyLots[tx.ticker].push({
+        date: parseDateString(tx.date),
+        amount: tx.amount,
+        price: tx.price,
+        fee: tx.fee,
+        rate
+      });
     } else if (tx.type === 'SELL') {
-      const stats = buyCostBasis[tx.ticker];
-      if (stats && stats.totalShares > 0) {
-        const avgPrice = stats.totalCost / stats.totalShares;
-        const sellRevenue = (tx.amount * tx.price - tx.fee - tx.tax) / rate;
-        const buyCostOfSold = tx.amount * avgPrice;
+      let remainingToSell = tx.amount;
+      let revenue = (tx.amount * tx.price - tx.fee - tx.tax) / rate;
+      let costBasis = 0;
+      
+      const lots = buyLots[tx.ticker] || [];
+      while (remainingToSell > 0.000001 && lots.length > 0) {
+        const oldestLot = lots[0];
         
-        realized += (sellRevenue - buyCostOfSold);
-        
-        // Update cost basis
-        stats.totalShares = Math.max(0, stats.totalShares - tx.amount);
-        stats.totalCost = stats.totalShares * avgPrice;
+        if (oldestLot.amount <= remainingToSell) {
+          // Consume whole lot
+          const lotCost = (oldestLot.amount * oldestLot.price + oldestLot.fee) / oldestLot.rate;
+          costBasis += lotCost;
+          remainingToSell -= oldestLot.amount;
+          lots.shift(); // Remove lot
+        } else {
+          // Consume part of the lot
+          const fraction = remainingToSell / oldestLot.amount;
+          const lotCostFraction = (remainingToSell * oldestLot.price + oldestLot.fee * fraction) / oldestLot.rate;
+          costBasis += lotCostFraction;
+          
+          // Reduce lot size
+          oldestLot.amount -= remainingToSell;
+          oldestLot.fee -= oldestLot.fee * fraction;
+          remainingToSell = 0;
+        }
+      }
+      
+      if (remainingToSell < tx.amount) {
+        // If we sold anything, calculate gain
+        const gain = revenue - costBasis;
+        totalRealizedGains += gain;
       }
     }
   });
 
-  return realized;
+  return totalRealizedGains;
 }
+
+export interface GermanTaxCalculationResult {
+  realizedGainsRaw: number;
+  taxableGains: number; // After Teilfreistellung & Crypto > 1y rule
+  withholdingTaxEstimate: number; // 26.375% of taxable gains exceeding exemption
+  taxExemptionRemaining: number;
+}
+
+/**
+ * Calculates German Capital Gains Tax details based on FIFO and partial exemptions (Teilfreistellung).
+ */
+export function calculateGermanTax(
+  transactions: Transaction[],
+  exemptionLimit: number = 1000,
+  rateMap: Record<string, number> = DEFAULT_EXCHANGE_RATES
+): GermanTaxCalculationResult {
+  let realizedGainsRaw = 0;
+  let taxableGains = 0;
+
+  const buyLots: Record<string, Array<{ date: Date; amount: number; price: number; fee: number; rate: number }>> = {};
+  
+  const sortedTxs = [...transactions].sort((a, b) => {
+    const dateA = a.date.split('.').reverse().join('-');
+    const dateB = b.date.split('.').reverse().join('-');
+    return new Date(dateA).getTime() - new Date(dateB).getTime();
+  });
+
+  sortedTxs.forEach(tx => {
+    const rate = tx.exchangeRate || rateMap[tx.currency || 'EUR'] || 1.0;
+    
+    if (tx.type === 'BUY') {
+      if (!buyLots[tx.ticker]) {
+        buyLots[tx.ticker] = [];
+      }
+      buyLots[tx.ticker].push({
+        date: parseDateString(tx.date),
+        amount: tx.amount,
+        price: tx.price,
+        fee: tx.fee,
+        rate
+      });
+    } else if (tx.type === 'SELL') {
+      let remainingToSell = tx.amount;
+      const sellDate = parseDateString(tx.date);
+      let taxableGainForTx = 0;
+      let rawGainForTx = 0;
+      
+      const lots = buyLots[tx.ticker] || [];
+      while (remainingToSell > 0.000001 && lots.length > 0) {
+        const oldestLot = lots[0];
+        const holdingDurationDays = (sellDate.getTime() - oldestLot.date.getTime()) / (1000 * 60 * 60 * 24);
+        
+        // Check partial exemptions (Teilfreistellung) under German tax law
+        let exemptionFactor = 0.0; // 0% tax free for stocks
+        if (tx.category === 'ETF') {
+          exemptionFactor = 0.30; // 30% tax-free for Equity ETFs
+        } else if (tx.category === 'Crypto') {
+          if (holdingDurationDays > 365) {
+            exemptionFactor = 1.0; // 100% tax-free if held > 1 year in Germany
+          }
+        }
+
+        if (oldestLot.amount <= remainingToSell) {
+          const lotCost = (oldestLot.amount * oldestLot.price + oldestLot.fee) / oldestLot.rate;
+          const lotRev = (oldestLot.amount * tx.price - tx.fee * (oldestLot.amount / tx.amount)) / rate;
+          const lotGain = lotRev - lotCost;
+          
+          rawGainForTx += lotGain;
+          taxableGainForTx += lotGain * (1 - exemptionFactor);
+          
+          remainingToSell -= oldestLot.amount;
+          lots.shift();
+        } else {
+          const fraction = remainingToSell / oldestLot.amount;
+          const lotCostFraction = (remainingToSell * oldestLot.price + oldestLot.fee * fraction) / oldestLot.rate;
+          const lotRevFraction = (remainingToSell * tx.price - tx.fee * (remainingToSell / tx.amount)) / rate;
+          const lotGainFraction = lotRevFraction - lotCostFraction;
+          
+          rawGainForTx += lotGainFraction;
+          taxableGainForTx += lotGainFraction * (1 - exemptionFactor);
+          
+          oldestLot.amount -= remainingToSell;
+          oldestLot.fee -= oldestLot.fee * fraction;
+          remainingToSell = 0;
+        }
+      }
+      
+      realizedGainsRaw += rawGainForTx;
+      taxableGains += Math.max(0, taxableGainForTx);
+    } else if (tx.type === 'DIVIDEND') {
+      // Dividends are fully taxable (with ETF exemption if applicable)
+      const divRevenue = ((tx.amount * tx.price) - tx.tax) / rate;
+      let exemptionFactor = 0.0;
+      if (tx.category === 'ETF') exemptionFactor = 0.30;
+      
+      realizedGainsRaw += divRevenue;
+      taxableGains += divRevenue * (1 - exemptionFactor);
+    }
+  });
+
+  const taxableGainsExceedingExemption = Math.max(0, taxableGains - exemptionLimit);
+  const withholdingTaxEstimate = taxableGainsExceedingExemption * 0.26375; // 25% KapESt + 5.5% Soli on KapESt
+  const taxExemptionRemaining = Math.max(0, exemptionLimit - taxableGains);
+
+  return {
+    realizedGainsRaw,
+    taxableGains,
+    withholdingTaxEstimate,
+    taxExemptionRemaining
+  };
+}
+

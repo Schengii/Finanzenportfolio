@@ -11,6 +11,7 @@ interface TransactionsProps {
   prefilledData?: { ticker: string; name: string; category: AssetCategory; price: number } | null;
   onClearPrefilledData?: () => void;
   mappingRules?: AssetMappingRule[];
+  onAddRule?: (rule: Omit<AssetMappingRule, 'id'>) => void;
 }
 
 export const Transactions: React.FC<TransactionsProps> = ({
@@ -19,7 +20,8 @@ export const Transactions: React.FC<TransactionsProps> = ({
   onDeleteTransaction,
   prefilledData,
   onClearPrefilledData,
-  mappingRules = []
+  mappingRules = [],
+  onAddRule
 }) => {
   // Manual transaction form state
   const [type, setType] = useState<Transaction['type']>('BUY');
@@ -508,8 +510,11 @@ export const Transactions: React.FC<TransactionsProps> = ({
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         parsedTransaction={parsedTx}
-        onConfirm={(confirmed) => {
+        onConfirm={(confirmed, saveRule) => {
           onAddTransaction(confirmed);
+          if (saveRule && onAddRule) {
+            onAddRule(saveRule);
+          }
           setParsedTx(null);
         }}
       />

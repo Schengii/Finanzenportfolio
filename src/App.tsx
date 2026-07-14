@@ -426,6 +426,74 @@ function App() {
     reader.readAsText(file);
   };
 
+  const handleExportCSV = () => {
+    const headers = ['ID', 'Type', 'Date', 'Ticker', 'Name', 'Amount', 'Price', 'Fee', 'Tax', 'Category', 'Currency', 'ExchangeRate'];
+    const rows = transactions.map(tx => [
+      tx.id,
+      tx.type,
+      tx.date,
+      tx.ticker,
+      tx.name,
+      tx.amount,
+      tx.price,
+      tx.fee,
+      tx.tax,
+      tx.category,
+      tx.currency || 'EUR',
+      tx.exchangeRate || 1.0
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `finanzportfolio_transaktionen_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportCSV = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length < 2) {
+          alert('Die CSV-Datei ist leer oder hat keine Spalten.');
+          return;
+        }
+        
+        const importedTransactions: Transaction[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          if (cols.length < 10) continue;
+          
+          importedTransactions.push({
+            id: cols[0] || `tx-${Date.now()}-${i}`,
+            type: cols[1] as any,
+            date: cols[2],
+            ticker: cols[3].toUpperCase(),
+            name: cols[4],
+            amount: parseFloat(cols[5]) || 0,
+            price: parseFloat(cols[6]) || 0,
+            fee: parseFloat(cols[7]) || 0,
+            tax: parseFloat(cols[8]) || 0,
+            category: cols[9] as any,
+            currency: (cols[10] || 'EUR') as any,
+            exchangeRate: parseFloat(cols[11]) || 1.0
+          });
+        }
+        
+        setTransactions(importedTransactions);
+        alert(`${importedTransactions.length} Transaktionen erfolgreich importiert!`);
+      } catch (err) {
+        alert('Fehler beim Importieren der CSV-Datei.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+
   // Simulate market price changes
   const handleTriggerPriceRefresh = () => {
     setCurrentPrices(prev => {
@@ -734,6 +802,8 @@ function App() {
             transactions={transactions} 
             onExportAll={handleExportAll}
             onImportAll={handleImportAll}
+            onExportCSV={handleExportCSV}
+            onImportCSV={handleImportCSV}
             baseCurrency={baseCurrency}
           />
         )}
@@ -754,6 +824,7 @@ function App() {
             prefilledData={prefilledTx}
             onClearPrefilledData={() => setPrefilledTx(null)}
             mappingRules={mappingRules}
+            onAddRule={handleAddMappingRule}
           />
         )}
         {currentTab === 'strategy' && (
@@ -765,6 +836,7 @@ function App() {
         {currentTab === 'dividend_calendar' && (
           <DividendCalendar 
             transactions={transactions}
+            holdings={holdings}
             baseCurrency={baseCurrency}
           />
         )}

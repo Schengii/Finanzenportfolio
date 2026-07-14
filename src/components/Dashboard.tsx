@@ -5,7 +5,7 @@ import {
  } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart as PieIcon, Award, Download, Upload, Database, Percent, Calendar as CalendarIcon } from 'lucide-react';
 import type { Transaction, Holding, PortfolioStats } from '../types';
-import { convertCurrency } from './performanceUtils';
+import { convertCurrency, calculateGermanTax } from './performanceUtils';
  
  interface DashboardProps {
    stats: PortfolioStats;
@@ -13,11 +13,14 @@ import { convertCurrency } from './performanceUtils';
    transactions: Transaction[];
    onExportAll: () => void;
    onImportAll: (file: File) => void;
+   onExportCSV: () => void;
+   onImportCSV: (file: File) => void;
    baseCurrency: 'EUR' | 'USD' | 'CHF';
  }
  
- export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transactions, onExportAll, onImportAll, baseCurrency }) => {
+ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transactions, onExportAll, onImportAll, onExportCSV, onImportCSV, baseCurrency }) => {
    const fileInputRef = useRef<HTMLInputElement>(null);
+   const csvFileInputRef = useRef<HTMLInputElement>(null);
 
    // Chart Colors
    const COLORS = {
@@ -199,23 +202,35 @@ import { convertCurrency } from './performanceUtils';
 
    const isPositive = stats.totalGains >= 0;
 
-   // German Tax Exemption Tracker (using currency converted values)
-   const taxExemptionLimit = convertCurrency(1000, 'EUR', baseCurrency);
-   const taxExemptionUsed = convertCurrency(stats.taxExemptionUsed, 'EUR', baseCurrency);
-   const taxExemptionPercentage = Math.min(100, (taxExemptionUsed / taxExemptionLimit) * 100);
+    // Calculate precise German tax using FIFO helper
+    const germanTaxResult = useMemo(() => {
+      return calculateGermanTax(transactions, 1000);
+    }, [transactions]);
 
-   // German Staking Tax rule (Freigrenze 256 € per year)
-   const stakingRewardsVal = stats.stakingRewards || 0;
-   const stakingExemptionLimit = convertCurrency(256, 'EUR', baseCurrency);
-   const stakingExemptionUsed = convertCurrency(stakingRewardsVal, 'EUR', baseCurrency);
-   const stakingPercentage = Math.min(100, (stakingExemptionUsed / stakingExemptionLimit) * 100);
-   const isStakingTaxed = stakingExemptionUsed >= stakingExemptionLimit;
+    // German Tax Exemption Tracker (using currency converted values)
+    const taxExemptionLimit = convertCurrency(1000, 'EUR', baseCurrency);
+    const taxExemptionUsed = convertCurrency(germanTaxResult.taxableGains, 'EUR', baseCurrency);
+    const taxExemptionPercentage = Math.min(100, (taxExemptionUsed / taxExemptionLimit) * 100);
+    const withholdingTaxEstimate = convertCurrency(germanTaxResult.withholdingTaxEstimate, 'EUR', baseCurrency);
 
-   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     if (e.target.files && e.target.files[0]) {
-       onImportAll(e.target.files[0]);
-     }
-   };
+    // German Staking Tax rule (Freigrenze 256 € per year)
+    const stakingRewardsVal = stats.stakingRewards || 0;
+    const stakingExemptionLimit = convertCurrency(256, 'EUR', baseCurrency);
+    const stakingExemptionUsed = convertCurrency(stakingRewardsVal, 'EUR', baseCurrency);
+    const stakingPercentage = Math.min(100, (stakingExemptionUsed / stakingExemptionLimit) * 100);
+    const isStakingTaxed = stakingExemptionUsed >= stakingExemptionLimit;
+ 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        onImportAll(e.target.files[0]);
+      }
+    };
+
+    const handleCsvFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        onImportCSV(e.target.files[0]);
+      }
+    };
  
    return (
      <div className="fade-in">
@@ -459,49 +474,88 @@ import { convertCurrency } from './performanceUtils';
                  </svg>
                </div>
              </div>
-
-             <div className="sav-total-divider" style={{ marginTop: '1rem', paddingTop: '1rem' }}>
-               <span className="sav-item-subtitle">Realisierte Aktiengewinne:</span>
-               <span className="sav-item-amount">{formatVal(stats.realizedGains)}</span>
-             </div>
-           </div>
+             <div className="sav-total-divider" style={{ marginTop: '1rem', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                  <span className="sav-item-subtitle">Realisierte Gewinne (FIFO):</span>
+                  <span className="sav-item-amount">{formatVal(germanTaxResult.realizedGainsRaw)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                  <span className="sav-item-subtitle">Geschätzte Abgeltungsteuer:</span>
+                  <span className="sav-item-amount" style={{ color: withholdingTaxEstimate > 0 ? 'var(--accent-rose)' : 'inherit' }}>
+                    {formatVal(withholdingTaxEstimate)}
+                  </span>
+                </div>
+              </div>
+            </div>
  
-           <div className="glass-panel">
-             <div>
-               <h3 className="sav-panel-title">
-                 <Database size={18} className="portfolio-select-icon" /> Datenverwaltung
-               </h3>
-               <p className="tx-dropzone-subtitle">
-                 Sichere dein gesamtes Portfolio inklusive aller angelegten Unterportfolios und der Watchlist auf deiner Festplatte.
-               </p>
-             </div>
-             
-             <div className="sav-list-flex">
-               <button 
-                 className="btn-secondary" 
-                 onClick={onExportAll} 
-               >
-                 <Download size={16} /> Backup exportieren (JSON)
-               </button>
-               
-               <button 
-                 className="btn-secondary" 
-                 onClick={() => fileInputRef.current?.click()} 
-               >
-                 <Upload size={16} /> Backup importieren
-               </button>
-               <input 
-                 type="file" 
-                 ref={fileInputRef} 
-                 onChange={handleFileChange} 
-                 accept=".json" 
-                 title="Backup JSON Datei auswählen"
-                 aria-label="Backup JSON Datei auswählen"
-                 placeholder="Backup-Datei hochladen"
-                 className="tx-dropzone-input-hidden"
-               />
-             </div>
-           </div>
+            <div className="glass-panel">
+              <div>
+                <h3 className="sav-panel-title">
+                  <Database size={18} className="portfolio-select-icon" /> Datenverwaltung
+                </h3>
+                <p className="tx-dropzone-subtitle">
+                  Sichere dein Portfolio als JSON (Backup) oder importiere/exportiere Transaktionen im universellen CSV-Format.
+                </p>
+              </div>
+              
+              <div className="sav-list-flex" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={onExportAll} 
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
+                  >
+                    <Download size={14} /> JSON Export
+                  </button>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={() => fileInputRef.current?.click()} 
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
+                  >
+                    <Upload size={14} /> JSON Import
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={onExportCSV} 
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
+                  >
+                    <Download size={14} /> CSV Export
+                  </button>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={() => csvFileInputRef.current?.click()} 
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
+                  >
+                    <Upload size={14} /> CSV Import
+                  </button>
+                </div>
+                
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept=".json" 
+                  title="Backup JSON Datei auswählen"
+                  aria-label="Backup JSON Datei auswählen"
+                  className="tx-dropzone-input-hidden"
+                  style={{ display: 'none' }}
+                />
+
+                <input 
+                  type="file" 
+                  ref={csvFileInputRef} 
+                  onChange={handleCsvFileChange} 
+                  accept=".csv" 
+                  title="Backup CSV Datei auswählen"
+                  aria-label="Backup CSV Datei auswählen"
+                  className="tx-dropzone-input-hidden"
+                  style={{ display: 'none' }}
+                />
+              </div>
+            </div>
          </div>
        </div>
  

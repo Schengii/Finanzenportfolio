@@ -6,7 +6,10 @@ interface PdfPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   parsedTransaction: Omit<Transaction, 'id'> | null;
-  onConfirm: (confirmedTx: Omit<Transaction, 'id'>) => void;
+  onConfirm: (
+    confirmedTx: Omit<Transaction, 'id'>,
+    saveRule?: { pattern: string; ticker: string; name: string; category: AssetCategory }
+  ) => void;
 }
 
 export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
@@ -16,6 +19,12 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   onConfirm,
 }) => {
   const [editedTx, setEditedTx] = useState<Omit<Transaction, 'id'> | null>(null);
+  const [shouldCreateRule, setShouldCreateRule] = useState<boolean>(false);
+  const [rulePattern, setRulePattern] = useState<string>('');
+
+  const isIsin = (str: string) => {
+    return /^[A-Z]{2}[A-Z0-9]{9}\d$/.test(str);
+  };
 
   React.useEffect(() => {
     if (parsedTransaction) {
@@ -24,6 +33,14 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
         currency: parsedTransaction.currency || 'EUR',
         exchangeRate: parsedTransaction.exchangeRate || 1.0,
       });
+      // Pre-fill pattern if the parsed ticker is an ISIN
+      if (isIsin(parsedTransaction.ticker)) {
+        setRulePattern(parsedTransaction.ticker);
+        setShouldCreateRule(true);
+      } else {
+        setRulePattern('');
+        setShouldCreateRule(false);
+      }
     }
   }, [parsedTransaction]);
 
@@ -35,7 +52,17 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
 
   const handleSave = () => {
     if (editedTx) {
-      onConfirm(editedTx);
+      const isinPattern = rulePattern.trim();
+      if (shouldCreateRule && isinPattern) {
+        onConfirm(editedTx, {
+          pattern: isinPattern,
+          ticker: editedTx.ticker,
+          name: editedTx.name,
+          category: editedTx.category,
+        });
+      } else {
+        onConfirm(editedTx);
+      }
       onClose();
     }
   };
@@ -169,6 +196,34 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                 <option value="CHF">CHF (Fr.)</option>
               </select>
             </div>
+          </div>
+
+          <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}>
+              <input
+                type="checkbox"
+                checked={shouldCreateRule}
+                onChange={(e) => setShouldCreateRule(e.target.checked)}
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              Dauerhafte PDF-Mappingregel für diese ISIN anlegen
+            </label>
+            
+            {shouldCreateRule && (
+              <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                <label className="form-label">ISIN / Such-Muster im PDF</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={rulePattern}
+                  onChange={(e) => setRulePattern(e.target.value)}
+                  placeholder="Z.B. US0378331002"
+                />
+                <span className="tx-item-fee-text" style={{ fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                  Zukünftige PDFs, die diesen Text enthalten, werden automatisch diesem Ticker und Namen zugeordnet.
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

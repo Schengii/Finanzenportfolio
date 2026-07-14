@@ -191,6 +191,39 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
     }
   }, [extraInvestment, totalValue, currentAllocation, targetStock, targetEtf, targetCrypto]);
 
+  const detailedRebalanceSuggestions = useMemo(() => {
+    const suggestions: Array<{ ticker: string; name: string; category: string; action: 'BUY' | 'SELL'; amount: number; notes: string }> = [];
+    const categories = ['Stock', 'ETF', 'Crypto'] as const;
+
+    categories.forEach(cat => {
+      const extraAllocated = rebalancePlanner[cat];
+      if (extraAllocated <= 5) return;
+
+      const catHoldings = holdings.filter(h => h.category === cat);
+      if (catHoldings.length === 0) return;
+
+      const totalCatValue = catHoldings.reduce((acc, h) => acc + h.currentValue, 0);
+
+      catHoldings.forEach(h => {
+        const prop = totalCatValue > 0 ? (h.currentValue / totalCatValue) : (1 / catHoldings.length);
+        const assetBuyAmount = extraAllocated * prop;
+
+        if (assetBuyAmount >= 10) {
+          suggestions.push({
+            ticker: h.ticker,
+            name: h.name,
+            category: cat,
+            action: 'BUY',
+            amount: Math.round(assetBuyAmount),
+            notes: `Kaufe ca. ${Math.round(assetBuyAmount / h.currentPrice * 1000) / 1000} Anteile zu ${h.currentPrice.toLocaleString('de-DE')} EUR.`
+          });
+        }
+      });
+    });
+
+    return suggestions;
+  }, [rebalancePlanner, holdings]);
+
   // Simulated Historical Backtesting Sandbox data
   const backtestData = useMemo(() => {
     const data = [];
@@ -462,6 +495,28 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
                     </div>
                   </div>
                 </div>
+
+                {detailedRebalanceSuggestions.length > 0 && (
+                  <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+                    <h5 className="strat-planner-results-title mb-2">Gebührenoptimierte Einzelwert-Empfehlungen:</h5>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {detailedRebalanceSuggestions.map((s, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                          <div>
+                            <span style={{ fontWeight: 600, color: 'var(--text-color)' }}>{s.ticker}</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>({s.name})</span>
+                            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.notes}</p>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span className="rebalance-badge-buy" style={{ fontSize: '0.75rem' }}>
+                              +{s.amount.toLocaleString('de-DE')} €
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>
