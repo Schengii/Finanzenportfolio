@@ -422,3 +422,132 @@ export function calculateGermanTax(
   };
 }
 
+/**
+ * Calculates the amount of crypto shares/units that have been held for more than 365 days.
+ */
+export function calculateCryptoTaxFreeShares(
+  transactions: Transaction[],
+  ticker: string,
+  asOfDate: Date = new Date()
+): number {
+  const buyLots: Array<{ date: Date; amount: number }> = [];
+
+  const sortedTxs = [...transactions]
+    .filter(t => t.ticker === ticker)
+    .sort((a, b) => {
+      const dateA = a.date.split('.').reverse().join('-');
+      const dateB = b.date.split('.').reverse().join('-');
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+
+  sortedTxs.forEach(tx => {
+    if (tx.type === 'BUY' || tx.type === 'STAKING') {
+      buyLots.push({
+        date: parseDateString(tx.date),
+        amount: tx.amount
+      });
+    } else if (tx.type === 'SELL') {
+      let remainingToSell = tx.amount;
+      while (remainingToSell > 0.000001 && buyLots.length > 0) {
+        const oldest = buyLots[0];
+        if (oldest.amount <= remainingToSell) {
+          remainingToSell -= oldest.amount;
+          buyLots.shift();
+        } else {
+          oldest.amount -= remainingToSell;
+          remainingToSell = 0;
+        }
+      }
+    }
+  });
+
+  // Count remaining shares that are older than 365 days
+  let taxFreeShares = 0;
+  buyLots.forEach(lot => {
+    const ageDays = (asOfDate.getTime() - lot.date.getTime()) / (1000 * 60 * 60 * 24);
+    if (ageDays > 365) {
+      taxFreeShares += lot.amount;
+    }
+  });
+
+  return taxFreeShares;
+}
+
+export interface FxGainBreakdown {
+  assetGainEur: number;
+  fxGainEur: number;
+}
+
+/**
+ * Calculates the separate impact of asset price changes and exchange rate moves.
+ */
+export function calculateFXGainBreakdown(
+  transactions: Transaction[],
+  ticker: string,
+  currentPrice: number, // in the asset's transaction currency (e.g. USD price for AAPL)
+  currentExchangeRate: number, // current rate (units of foreign currency per EUR)
+  rateMap: Record<string, number> = DEFAULT_EXCHANGE_RATES
+): FxGainBreakdown {
+  // Filter and sort transactions chronologically
+  const assetTxs = [...transactions]
+    .filter(t => t.ticker === ticker)
+    .sort((a, b) => {
+      const dateA = a.date.split('.').reverse().join('-');
+      const dateB = b.date.split('.').reverse().join('-');
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+
+  let totalShares = 0;
+  let totalCostEur = 0;
+  let totalCostAtBuyExchangeRateEur = 0;
+
+  assetTxs.forEach(tx => {
+    if (tx.type === 'BUY') {
+      const rate = tx.exchangeRate || rateMap[tx.currency || 'EUR'] || 1.0;
+      const costEur = (tx.amount * tx.price + tx.fee) / rate;
+      
+      totalShares += tx.amount;
+      totalCostEur += costEur;
+      totalCostAtBuyExchangeRateEur += costEur;
+    } else if (tx.type === 'SELL') {
+      const avgCostEur = totalShares > 0 ? (totalCostEur / totalShares) : 0;
+      const avgCostAtBuyExchangeRateEur = totalShares > 0 ? (totalCostAtBuyExchangeRateEur / totalShares) : 0;
+
+      totalShares = Math.max(0, totalShares - tx.amount);
+      totalCostEur = totalShares * avgCostEur;
+      totalCostAtBuyExchangeRateEur = totalShares * avgCostAtBuyExchangeRateEur;
+    }
+  });
+
+  if (totalShares <= 0) {
+    return { assetGainEur: 0, fxGainEur: 0 };
+  }
+
+  // Current value in EUR at current exchange rate
+  const currentValueEur = (totalShares * currentPrice) / currentExchangeRate;
+
+  // Value in EUR assuming exchange rate remained constant at average purchase rate 
+  // Let's approximate the average exchange rate used for buys
+  let sumExchangeRates = 0;
+  let buyCount = 0;
+  assetTxs.forEach(tx => {
+    if (tx.type === 'BUY') {
+      sumExchangeRates += (tx.exchangeRate || rateMap[tx.currency || 'EUR'] || 1.0);
+      buyCount++;
+    }
+  });
+  const avgBuyRate = buyCount > 0 ? (sumExchangeRates / buyCount) : currentExchangeRate;
+
+  const valueAtBuyExchangeRateEur = (totalShares * currentPrice) / avgBuyRate;
+
+  const totalGainEur = currentValueEur - totalCostEur;
+  const assetGainEur = valueAtBuyExchangeRateEur - totalCostEur;
+  const fxGainEur = totalGainEur - assetGainEur;
+
+  return {
+    assetGainEur,
+    fxGainEur
+  };
+}
+
+

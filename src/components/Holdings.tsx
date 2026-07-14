@@ -37,6 +37,8 @@ export const Holdings: React.FC<HoldingsProps> = ({
       const totalCostConverted = convertCurrency(h.totalCost, 'EUR', baseCurrency);
       const currentValueConverted = convertCurrency(h.currentValue, 'EUR', baseCurrency);
       const totalGainConverted = currentValueConverted - totalCostConverted;
+      const assetGainConverted = convertCurrency(h.assetGainEur || 0, 'EUR', baseCurrency);
+      const fxGainConverted = convertCurrency(h.fxGainEur || 0, 'EUR', baseCurrency);
 
       return {
         ...h,
@@ -44,7 +46,9 @@ export const Holdings: React.FC<HoldingsProps> = ({
         averageBuyPrice: averageBuyPriceConverted,
         totalCost: totalCostConverted,
         currentValue: currentValueConverted,
-        totalGain: totalGainConverted
+        totalGain: totalGainConverted,
+        assetGainEur: assetGainConverted,
+        fxGainEur: fxGainConverted
       };
     });
   }, [holdings, baseCurrency]);
@@ -168,6 +172,12 @@ export const Holdings: React.FC<HoldingsProps> = ({
                         <span className="hl-gain-loss-subtext">
                           ({formatVal(holding.totalGain)})
                         </span>
+                        {(holding.fxGainEur && Math.abs(holding.fxGainEur) > 0.01) ? (
+                          <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.2 }}>
+                            Wert: {holding.assetGainEur >= 0 ? '+' : ''}{formatVal(holding.assetGainEur)}<br/>
+                            FX: {holding.fxGainEur >= 0 ? '+' : ''}{formatVal(holding.fxGainEur)}
+                          </span>
+                        ) : null}
                       </span>
                     </td>
                     <td style={{ color: 'var(--accent-gold)', fontWeight: 600 }}>
@@ -250,6 +260,32 @@ export const Holdings: React.FC<HoldingsProps> = ({
                   </p>
                 </div>
               </div>
+
+              {/* Crypto Specific Tax status */}
+              {selectedHolding.category === 'Crypto' && (
+                <div className="glass-panel text-muted-bg p-4 mb-5" style={{ borderLeft: '4px solid var(--accent-emerald)', background: 'rgba(16, 185, 129, 0.05)' }}>
+                  <h4 className="sav-panel-title" style={{ color: 'var(--accent-emerald)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    🛡️ Steuerstatus-Analyse (Deutschland)
+                  </h4>
+                  <p className="tx-dropzone-subtitle" style={{ margin: '0.25rem 0 0.75rem 0' }}>
+                    Kryptowährungen sind in Deutschland nach 12 Monaten Haltedauer komplett steuerfrei veräußerbar.
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
+                    <span>Steuerfreie Anteile (&gt; 365 Tage gehalten):</span>
+                    <span style={{ fontWeight: 600 }}>
+                      {selectedHolding.cryptoTaxFreeShares?.toLocaleString('de-DE', { maximumFractionDigits: 4 })} / {selectedHolding.shares.toLocaleString('de-DE', { maximumFractionDigits: 4 })} ({selectedHolding.shares > 0 ? ((selectedHolding.cryptoTaxFreeShares || 0) / selectedHolding.shares * 100).toFixed(1) : '0.0'}%)
+                    </span>
+                  </div>
+                  <div className="db-tax-progress-container" style={{ background: 'rgba(255, 255, 255, 0.05)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${selectedHolding.shares > 0 ? Math.min(100, ((selectedHolding.cryptoTaxFreeShares || 0) / selectedHolding.shares * 100)) : 0}%`,
+                      height: '100%',
+                      background: 'var(--accent-emerald)',
+                      borderRadius: '4px'
+                    }} />
+                  </div>
+                </div>
+              )}
 
               {/* Transactions List */}
               <div className="mb-5">

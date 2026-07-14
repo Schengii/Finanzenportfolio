@@ -31,6 +31,7 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
   const [backtestStock, setBacktestStock] = useState<number>(30);
   const [backtestEtf, setBacktestEtf] = useState<number>(60);
   const [backtestCrypto, setBacktestCrypto] = useState<number>(10);
+  const [backtestScenario, setBacktestScenario] = useState<'default' | 'dotcom' | 'financial' | 'covid' | 'bullrun'>('default');
 
   // Auto-adjust sliders to sum up to 100%
   const adjustSliders = (changed: 'stock' | 'etf' | 'crypto', val: number, isBacktest = false) => {
@@ -227,30 +228,60 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
   // Simulated Historical Backtesting Sandbox data
   const backtestData = useMemo(() => {
     const data = [];
-    const years = ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
     
-    // Benchmark factors (cumulative growth)
-    const stockGrowths = [1.0, 1.15, 1.10, 1.35, 1.50, 1.75, 1.40, 1.70, 1.95, 2.10, 2.30]; // S&P 500
-    const etfGrowths   = [1.0, 1.08, 1.02, 1.25, 1.32, 1.55, 1.30, 1.52, 1.72, 1.85, 2.02]; // MSCI World
-    const cryptoGrowths = [1.0, 13.0, 3.5, 6.2, 18.0, 32.0, 10.0, 24.0, 42.0, 38.0, 48.0]; // BTC
+    // Growth factors for each scenario
+    const scenarios = {
+      default: {
+        years: ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'],
+        stock: [1.0, 1.15, 1.10, 1.35, 1.50, 1.75, 1.40, 1.70, 1.95, 2.10, 2.30],
+        etf: [1.0, 1.08, 1.02, 1.25, 1.32, 1.55, 1.30, 1.52, 1.72, 1.85, 2.02],
+        crypto: [1.0, 13.0, 3.5, 6.2, 18.0, 32.0, 10.0, 24.0, 42.0, 38.0, 48.0]
+      },
+      dotcom: {
+        years: ['2000', '2001', '2002', '2003'],
+        stock: [1.0, 0.70, 0.50, 0.45],
+        etf: [1.0, 0.85, 0.65, 0.60],
+        crypto: [1.0, 0.30, 0.10, 0.05]
+      },
+      financial: {
+        years: ['2007', '2008', '2009'],
+        stock: [1.0, 0.62, 0.78],
+        etf: [1.0, 0.65, 0.80],
+        crypto: [1.0, 0.40, 0.55]
+      },
+      covid: {
+        years: ['Feb 20', 'März 20', 'Juni 20', 'Dez 20', 'Juni 21', 'Dez 21'],
+        stock: [1.0, 0.68, 0.88, 1.15, 1.30, 1.45],
+        etf: [1.0, 0.72, 0.85, 1.10, 1.22, 1.35],
+        crypto: [1.0, 0.55, 0.95, 2.80, 3.50, 5.80]
+      },
+      bullrun: {
+        years: ['2023', '2024', '2025', '2026'],
+        stock: [1.0, 1.24, 1.48, 1.72],
+        etf: [1.0, 1.18, 1.35, 1.52],
+        crypto: [1.0, 2.20, 3.80, 4.40]
+      }
+    };
 
-    for (let i = 0; i < years.length; i++) {
-      const stockPart = backtestCapital * (backtestStock / 100) * stockGrowths[i];
-      const etfPart = backtestCapital * (backtestEtf / 100) * etfGrowths[i];
-      const cryptoPart = backtestCapital * (backtestCrypto / 100) * cryptoGrowths[i];
+    const active = scenarios[backtestScenario];
+    
+    for (let i = 0; i < active.years.length; i++) {
+      const stockPart = backtestCapital * (backtestStock / 100) * active.stock[i];
+      const etfPart = backtestCapital * (backtestEtf / 100) * active.etf[i];
+      const cryptoPart = backtestCapital * (backtestCrypto / 100) * active.crypto[i];
       
       const portfolioVal = Math.round(stockPart + etfPart + cryptoPart);
-      const benchmarkVal = Math.round(backtestCapital * etfGrowths[i]); // 100% ETF Benchmark
+      const benchmarkVal = Math.round(backtestCapital * active.etf[i]); // 100% ETF Benchmark
 
       data.push({
-        year: years[i],
+        year: active.years[i],
         Portfolio: portfolioVal,
         Benchmark: benchmarkVal
       });
     }
 
     return data;
-  }, [backtestCapital, backtestStock, backtestEtf, backtestCrypto]);
+  }, [backtestCapital, backtestStock, backtestEtf, backtestCrypto, backtestScenario]);
 
   const backtestStats = useMemo(() => {
     const finalRow = backtestData[backtestData.length - 1];
@@ -549,7 +580,15 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
         /* Backtesting Sandbox view */
         <div className="sav-main-grid">
           <div className="glass-panel sav-col-flex" style={{ flex: 2 }}>
-            <h3 className="tx-manual-title">Historische Wertentwicklung (2016 - 2026)</h3>
+            <h3 className="tx-manual-title">
+              Historische Wertentwicklung ({
+                backtestScenario === 'default' ? '2016 - 2026' :
+                backtestScenario === 'dotcom' ? '2000 - 2003' :
+                backtestScenario === 'financial' ? '2007 - 2009' :
+                backtestScenario === 'covid' ? '2020 - 2021' :
+                '2023 - 2026'
+              })
+            </h3>
             <p className="tx-dropzone-subtitle">Vergleicht deine eingestellte Wunsch-Allokation gegen ein reines MSCI World Benchmark-Portfolio.</p>
             
             <div style={{ height: '300px', width: '100%', margin: '1rem 0' }}>
@@ -593,6 +632,22 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
             <h3 className="tx-manual-title">Backtest Parameter</h3>
             <p className="tx-dropzone-subtitle">Konfiguriere das Startkapital und die historische Ziel-Allokation.</p>
             
+            <div className="form-group mb-4">
+              <label className="form-label">Historisches Szenario</label>
+              <select
+                className="form-select"
+                value={backtestScenario}
+                onChange={(e) => setBacktestScenario(e.target.value as any)}
+                style={{ width: '100%', padding: '0.5rem', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-color)', marginBottom: '1rem' }}
+              >
+                <option value="default">Langzeit-Trend (2016 - 2026)</option>
+                <option value="dotcom">Dotcom-Blase Crash (2000 - 2003)</option>
+                <option value="financial">Finanzkrise (2007 - 2009)</option>
+                <option value="covid">Corona Crash & Rallye (2020 - 2021)</option>
+                <option value="bullrun">Tech Bullrun (2023 - 2026)</option>
+              </select>
+            </div>
+
             <div className="form-group mb-4">
               <label className="form-label">Startkapital (€)</label>
               <input 

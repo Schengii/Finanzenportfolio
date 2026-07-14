@@ -36,6 +36,9 @@ export interface Holding {
   totalGainPercent: number;
   portfolioWeight: number;
   yieldOnCost: number;
+  assetGainEur?: number;
+  fxGainEur?: number;
+  cryptoTaxFreeShares?: number;
 }
 
 export interface TargetAllocation {

@@ -9,7 +9,7 @@ import { DividendCalendar } from './components/DividendCalendar';
 import { MappingEditor } from './components/MappingEditor';
 import type { Transaction, Holding, PortfolioStats, WatchlistItem, Portfolio, SavingsPlan, AssetCategory, AssetMappingRule } from './types';
 import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar, Sun, Moon, Settings } from 'lucide-react';
-import { calculateIRR, calculateTTWRR, calculateMaxDrawdown, calculateVolatility, calculateSharpeRatio, calculateRealizedGains, DEFAULT_EXCHANGE_RATES } from './components/performanceUtils';
+import { calculateIRR, calculateTTWRR, calculateMaxDrawdown, calculateVolatility, calculateSharpeRatio, calculateRealizedGains, DEFAULT_EXCHANGE_RATES, calculateCryptoTaxFreeShares, calculateFXGainBreakdown } from './components/performanceUtils';
 import './App.css';
 
 // Initial Mock Data
@@ -272,6 +272,14 @@ function App() {
   const watchlist = currentPortfolio.watchlist || [];
   const savingsPlans = currentPortfolio.savingsPlans || [];
   const mappingRules = currentPortfolio.mappingRules || [];
+
+  const triggeredWatchlistItems = useMemo(() => {
+    return watchlist.filter(item => {
+      const currentPrice = currentPrices[item.ticker];
+      return currentPrice && currentPrice <= item.targetPrice;
+    });
+  }, [watchlist, currentPrices]);
+
 
   const setTransactions = (updater: Transaction[] | ((prev: Transaction[]) => Transaction[])) => {
     setPortfolios(prev => prev.map(p => {
@@ -569,6 +577,14 @@ function App() {
         const totalGainPercent = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
         const yieldOnCost = totalCost > 0 ? (asset.totalDividends / totalCost) * 100 : 0;
 
+        // Calculate FX breakdown if foreign currency is used
+        const lastTxWithCurrency = transactions.find(t => t.ticker === asset.ticker && t.currency && t.currency !== 'EUR');
+        const currency = (lastTxWithCurrency ? lastTxWithCurrency.currency : 'EUR') as keyof typeof DEFAULT_EXCHANGE_RATES;
+        const fxRate = DEFAULT_EXCHANGE_RATES[currency] || 1.0;
+        
+        const fxBreakdown = calculateFXGainBreakdown(transactions, asset.ticker, currentPrice, fxRate);
+        const taxFreeShares = asset.category === 'Crypto' ? calculateCryptoTaxFreeShares(transactions, asset.ticker) : 0;
+
         return {
           ticker: asset.ticker,
           name: asset.name,
@@ -581,7 +597,10 @@ function App() {
           totalGain,
           totalGainPercent,
           portfolioWeight: 0,
-          yieldOnCost
+          yieldOnCost,
+          assetGainEur: fxBreakdown.assetGainEur,
+          fxGainEur: fxBreakdown.fxGainEur,
+          cryptoTaxFreeShares: taxFreeShares
         };
       });
 
@@ -792,6 +811,34 @@ function App() {
           </button>
         </nav>
       </header>
+
+      {/* Global Watchlist Notification Banner */}
+      {triggeredWatchlistItems.length > 0 && (
+        <div className="wl-global-banner" style={{
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(59, 130, 246, 0.15))',
+          borderBottom: '1px solid rgba(16, 185, 129, 0.3)',
+          padding: '0.75rem 1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.25rem' }}>🔔</span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-color)', fontWeight: 500 }}>
+              Kaufsignale! <strong>{triggeredWatchlistItems.length} beobachtete Werte</strong> haben ihren Zielpreis erreicht oder unterschritten: {triggeredWatchlistItems.map(item => `${item.ticker} (Ziel: ${item.targetPrice}€)`).join(', ')}
+            </span>
+          </div>
+          <button 
+            className="btn btn-primary"
+            onClick={() => setCurrentTab('watchlist')}
+            style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+          >
+            Zur Watchlist
+          </button>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="app-main-content">
