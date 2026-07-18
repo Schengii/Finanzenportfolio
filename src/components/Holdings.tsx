@@ -79,6 +79,35 @@ export const Holdings: React.FC<HoldingsProps> = ({
     return { buySells, dividends };
   }, [selectedHolding, transactions]);
 
+  // Compute holding periods for Crypto Buy Lots
+  const cryptoBuyLots = useMemo(() => {
+    if (!selectedHolding || selectedHolding.category !== 'Crypto') return [];
+
+    const buyTxs = transactions.filter(t => t.ticker === selectedHolding.ticker && t.type === 'BUY');
+    buyTxs.sort((a, b) => {
+      const dateA = a.date.split('.').reverse().join('-');
+      const dateB = b.date.split('.').reverse().join('-');
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+
+    const now = new Date();
+    const oneDayMs = 1000 * 60 * 60 * 24;
+
+    return buyTxs.map(tx => {
+      const buyDate = new Date(tx.date.split('.').reverse().join('-'));
+      const diffMs = now.getTime() - buyDate.getTime();
+      const diffDays = Math.floor(diffMs / oneDayMs);
+      const isTaxFree = diffDays >= 365;
+      const daysRemaining = isTaxFree ? 0 : 365 - diffDays;
+
+      return {
+        ...tx,
+        isTaxFree,
+        daysRemaining
+      };
+    });
+  }, [selectedHolding, transactions]);
+
   return (
     <div className="glass-panel fade-in">
       <div className="hl-header-row">
@@ -284,6 +313,40 @@ export const Holdings: React.FC<HoldingsProps> = ({
                       borderRadius: '4px'
                     }} />
                   </div>
+
+                  {cryptoBuyLots.length > 0 && (
+                    <div className="table-container mt-4 table-max-height-200">
+                      <h5 style={{ margin: '1rem 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-color)' }}>Haltedauer-Details pro Tranche:</h5>
+                      <table className="custom-table fs-xs">
+                        <thead>
+                          <tr>
+                            <th>Kaufdatum</th>
+                            <th>Menge</th>
+                            <th>Status / Haltedauer</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cryptoBuyLots.map((lot, idx) => (
+                            <tr key={lot.id || idx}>
+                              <td>{lot.date}</td>
+                              <td>{lot.amount} {lot.ticker}</td>
+                              <td>
+                                {lot.isTaxFree ? (
+                                  <span style={{ color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
+                                    ✅ Steuerfrei (&gt; 1 Jahr)
+                                  </span>
+                                ) : (
+                                  <span style={{ color: 'var(--accent-gold)', fontWeight: 500 }}>
+                                    ⏳ Noch {lot.daysRemaining} Tage steuerpflichtig
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 

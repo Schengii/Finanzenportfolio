@@ -258,6 +258,27 @@ function App() {
 
   // Derived current portfolio
   const currentPortfolio = useMemo(() => {
+    if (currentPortfolioId === 'all') {
+      const allTransactions = portfolios.flatMap(p => p.transactions || []);
+      const allWatchlist = portfolios.flatMap(p => p.watchlist || []);
+      const allSavingsPlans = portfolios.flatMap(p => p.savingsPlans || []);
+      const allRules = portfolios.flatMap(p => p.mappingRules || []);
+
+      // Deduplicate watchlist items, rules, and plans
+      const uniqueWatchlist = Array.from(new Map(allWatchlist.map(item => [item.ticker, item])).values());
+      const uniqueRules = Array.from(new Map(allRules.map(rule => [rule.pattern, rule])).values());
+      const uniqueSavingsPlans = Array.from(new Map(allSavingsPlans.map(plan => [plan.ticker, plan])).values());
+
+      return {
+        id: 'all',
+        name: 'Gesamtübersicht (Alle Portfolios)',
+        transactions: allTransactions,
+        watchlist: uniqueWatchlist,
+        savingsPlans: uniqueSavingsPlans,
+        mappingRules: uniqueRules
+      };
+    }
+
     const found = portfolios.find(p => p.id === currentPortfolioId) || portfolios[0];
     if (!found) {
       return { id: 'default', name: 'Haupt-Portfolio', transactions: [], watchlist: [], savingsPlans: [], mappingRules: INITIAL_MAPPING_RULES };
@@ -282,6 +303,10 @@ function App() {
 
 
   const setTransactions = (updater: Transaction[] | ((prev: Transaction[]) => Transaction[])) => {
+    if (currentPortfolioId === 'all') {
+      alert('Im Gesamtportfolio können Aktionen nicht direkt bearbeitet werden. Bitte wähle ein spezifisches Portfolio aus.');
+      return;
+    }
     setPortfolios(prev => prev.map(p => {
       if (p.id === currentPortfolio.id) {
         const nextTxs = typeof updater === 'function' ? updater(p.transactions || []) : updater;
@@ -292,6 +317,10 @@ function App() {
   };
 
   const setWatchlist = (updater: WatchlistItem[] | ((prev: WatchlistItem[]) => WatchlistItem[])) => {
+    if (currentPortfolioId === 'all') {
+      alert('In der Gesamtübersicht kann die Watchlist nicht direkt bearbeitet werden.');
+      return;
+    }
     setPortfolios(prev => prev.map(p => {
       if (p.id === currentPortfolio.id) {
         const nextWatch = typeof updater === 'function' ? updater(p.watchlist || []) : updater;
@@ -302,6 +331,10 @@ function App() {
   };
 
   const setSavingsPlans = (updater: SavingsPlan[] | ((prev: SavingsPlan[]) => SavingsPlan[])) => {
+    if (currentPortfolioId === 'all') {
+      alert('In der Gesamtübersicht können Sparpläne nicht direkt bearbeitet werden.');
+      return;
+    }
     setPortfolios(prev => prev.map(p => {
       if (p.id === currentPortfolio.id) {
         const nextPlans = typeof updater === 'function' ? updater(p.savingsPlans || []) : updater;
@@ -312,6 +345,10 @@ function App() {
   };
 
   const setMappingRules = (updater: AssetMappingRule[] | ((prev: AssetMappingRule[]) => AssetMappingRule[])) => {
+    if (currentPortfolioId === 'all') {
+      alert('In der Gesamtübersicht können PDF-Regeln nicht direkt bearbeitet werden.');
+      return;
+    }
     setPortfolios(prev => prev.map(p => {
       if (p.id === currentPortfolio.id) {
         const nextRules = typeof updater === 'function' ? updater(p.mappingRules || []) : updater;
@@ -735,6 +772,10 @@ function App() {
                     setCurrentPortfolioId(id);
                   }
                 } else if (e.target.value === 'DELETE_CURRENT') {
+                  if (currentPortfolioId === 'all') {
+                    alert('Das Gesamtportfolio kann nicht gelöscht werden!');
+                    return;
+                  }
                   if (portfolios.length <= 1) {
                     alert('Du musst mindestens ein Portfolio behalten!');
                     return;
@@ -754,6 +795,7 @@ function App() {
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
               <option value="" disabled>──────────</option>
+              <option value="all">🌐 Gesamtübersicht (Alle)</option>
               <option value="CREATE_NEW">+ Neues Portfolio...</option>
               <option value="DELETE_CURRENT">🗑️ Aktuelles Portfolio löschen</option>
             </select>
@@ -872,6 +914,7 @@ function App() {
             onClearPrefilledData={() => setPrefilledTx(null)}
             mappingRules={mappingRules}
             onAddRule={handleAddMappingRule}
+            isReadOnly={currentPortfolioId === 'all'}
           />
         )}
         {currentTab === 'strategy' && (
@@ -894,6 +937,7 @@ function App() {
             onAddWatchlist={handleAddWatchlistItem} 
             onRemoveWatchlist={handleRemoveWatchlistItem} 
             onQuickBuy={handleQuickBuy}
+            isReadOnly={currentPortfolioId === 'all'}
           />
         )}
         {currentTab === 'savings' && (
@@ -903,6 +947,7 @@ function App() {
             onAddSavingsPlan={handleAddSavingsPlan} 
             onDeleteSavingsPlan={handleDeleteSavingsPlan} 
             onToggleSavingsPlan={handleToggleSavingsPlan} 
+            isReadOnly={currentPortfolioId === 'all'}
           />
         )}
         {currentTab === 'mapping_rules' && (
@@ -910,6 +955,7 @@ function App() {
             rules={mappingRules}
             onAddRule={handleAddMappingRule}
             onRemoveRule={handleRemoveMappingRule}
+            isReadOnly={currentPortfolioId === 'all'}
           />
         )}
       </main>

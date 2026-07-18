@@ -12,6 +12,7 @@ interface TransactionsProps {
   onClearPrefilledData?: () => void;
   mappingRules?: AssetMappingRule[];
   onAddRule?: (rule: Omit<AssetMappingRule, 'id'>) => void;
+  isReadOnly?: boolean;
 }
 
 export const Transactions: React.FC<TransactionsProps> = ({
@@ -21,7 +22,8 @@ export const Transactions: React.FC<TransactionsProps> = ({
   prefilledData,
   onClearPrefilledData,
   mappingRules = [],
-  onAddRule
+  onAddRule,
+  isReadOnly = false
 }) => {
   // Manual transaction form state
   const [type, setType] = useState<Transaction['type']>('BUY');
@@ -183,6 +185,16 @@ export const Transactions: React.FC<TransactionsProps> = ({
     <div className="grid-main fade-in">
       {/* Left Column: Import / PDF Drop and Manual Entry Form */}
       <div className="sav-col-flex">
+        {isReadOnly && (
+          <div className="glass-panel text-muted-bg p-4" style={{ borderLeft: '4px solid var(--accent-purple)', background: 'rgba(168, 85, 247, 0.05)', marginBottom: '0.25rem' }}>
+            <h4 style={{ margin: 0, color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}>
+              🌐 Gesamtportfolio-Modus (Schreibgeschützt)
+            </h4>
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-color-muted)' }}>
+              In der Gesamtübersicht können keine Transaktionen direkt hinzugefügt, gelöscht oder importiert werden. Bitte wähle ein spezifisches Portfolio aus, um Änderungen vorzunehmen.
+            </p>
+          </div>
+        )}
         
         {/* PDF Import Zone */}
         <div className="glass-panel">
@@ -192,12 +204,13 @@ export const Transactions: React.FC<TransactionsProps> = ({
           </p>
 
           <div 
-            className={`dropzone ${dragActive ? 'active' : ''}`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            className={`dropzone ${dragActive && !isReadOnly ? 'active' : ''}`}
+            style={isReadOnly ? { opacity: 0.6, cursor: 'not-allowed', pointerEvents: 'none' } : undefined}
+            onDragEnter={isReadOnly ? undefined : handleDrag}
+            onDragLeave={isReadOnly ? undefined : handleDrag}
+            onDragOver={isReadOnly ? undefined : handleDrag}
+            onDrop={isReadOnly ? undefined : handleDrop}
+            onClick={isReadOnly ? undefined : () => fileInputRef.current?.click()}
           >
             <input 
               type="file" 
@@ -207,17 +220,18 @@ export const Transactions: React.FC<TransactionsProps> = ({
               title="Broker Abrechnungs-PDF auswählen"
               aria-label="Broker Abrechnungs-PDF auswählen"
               placeholder="PDF-Abrechnung hochladen"
-              onChange={handleFileInput}
+              onChange={isReadOnly ? undefined : handleFileInput}
+              disabled={isReadOnly}
             />
             <div className="dropzone-icon">
               <Upload size={24} />
             </div>
             <div className="tx-dropzone-center-text">
               <span className="tx-dropzone-text-main">
-                {parsingActive ? 'Lese PDF ein...' : 'Broker PDF auswählen oder reinziehen'}
+                {isReadOnly ? 'PDF-Import deaktiviert' : parsingActive ? 'Lese PDF ein...' : 'Broker PDF auswählen oder reinziehen'}
               </span>
               <span className="tx-dropzone-text-sub">
-                Unterstützt PDF-Abrechnungen
+                {isReadOnly ? 'In der Gesamtübersicht nicht verfügbar' : 'Unterstützt PDF-Abrechnungen'}
               </span>
             </div>
           </div>
@@ -233,12 +247,12 @@ export const Transactions: React.FC<TransactionsProps> = ({
               Abrechnung simulieren (Demo-Modus)
             </h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('TR'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>Trade Republic (Kauf)</button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('SCALABLE'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>Scalable Capital (Verkauf)</button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('ING'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>ING Sparplan (Kauf)</button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('COMDIRECT'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>comdirect (Kauf)</button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('DKB'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>DKB (Kauf)</button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); handleSimulateDemo('CONSORS'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem' }}>Consorsbank (Dividende)</button>
+              <button type="button" disabled={isReadOnly} onClick={(e) => { e.stopPropagation(); handleSimulateDemo('TR'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem', opacity: isReadOnly ? 0.5 : 1, cursor: isReadOnly ? 'not-allowed' : 'pointer' }}>Trade Republic (Kauf)</button>
+              <button type="button" disabled={isReadOnly} onClick={(e) => { e.stopPropagation(); handleSimulateDemo('SCALABLE'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem', opacity: isReadOnly ? 0.5 : 1, cursor: isReadOnly ? 'not-allowed' : 'pointer' }}>Scalable Capital (Verkauf)</button>
+              <button type="button" disabled={isReadOnly} onClick={(e) => { e.stopPropagation(); handleSimulateDemo('ING'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem', opacity: isReadOnly ? 0.5 : 1, cursor: isReadOnly ? 'not-allowed' : 'pointer' }}>ING Sparplan (Kauf)</button>
+              <button type="button" disabled={isReadOnly} onClick={(e) => { e.stopPropagation(); handleSimulateDemo('COMDIRECT'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem', opacity: isReadOnly ? 0.5 : 1, cursor: isReadOnly ? 'not-allowed' : 'pointer' }}>comdirect (Kauf)</button>
+              <button type="button" disabled={isReadOnly} onClick={(e) => { e.stopPropagation(); handleSimulateDemo('DKB'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem', opacity: isReadOnly ? 0.5 : 1, cursor: isReadOnly ? 'not-allowed' : 'pointer' }}>DKB (Kauf)</button>
+              <button type="button" disabled={isReadOnly} onClick={(e) => { e.stopPropagation(); handleSimulateDemo('CONSORS'); }} className="btn-secondary" style={{ padding: '0.5rem', fontSize: '0.75rem', opacity: isReadOnly ? 0.5 : 1, cursor: isReadOnly ? 'not-allowed' : 'pointer' }}>Consorsbank (Dividende)</button>
             </div>
           </div>
         </div>
@@ -257,6 +271,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   title="Transaktionstyp"
                   aria-label="Transaktionstyp"
                   onChange={(e) => setType(e.target.value as any)}
+                  disabled={isReadOnly}
                 >
                   <option value="BUY">Kauf</option>
                   <option value="SELL">Verkauf</option>
@@ -275,7 +290,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   value={category} 
                   title="Asset-Kategorie"
                   aria-label="Asset-Kategorie"
-                  disabled={type === 'DEPOSIT' || type === 'WITHDRAWAL' || type === 'STAKING'}
+                  disabled={isReadOnly || type === 'DEPOSIT' || type === 'WITHDRAWAL' || type === 'STAKING'}
                   onChange={(e) => setCategory(e.target.value as AssetCategory)}
                 >
                   <option value="Stock">Aktie</option>
@@ -297,6 +312,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                     value={ticker}
                     onChange={(e) => setTicker(e.target.value)}
                     required
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -310,6 +326,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -329,6 +346,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -344,6 +362,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     required
+                    disabled={isReadOnly}
                   />
                 </div>
               )}
@@ -357,6 +376,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   className="form-select" 
                   value={currency} 
                   onChange={(e) => setCurrency(e.target.value as any)}
+                  disabled={isReadOnly}
                 >
                   <option value="EUR">EUR (€)</option>
                   <option value="USD">USD ($)</option>
@@ -374,7 +394,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   placeholder="z.B. 1.08"
                   value={exchangeRate}
                   onChange={(e) => setExchangeRate(e.target.value)}
-                  disabled={currency === 'EUR'}
+                  disabled={isReadOnly || currency === 'EUR'}
                 />
               </div>
             </div>
@@ -391,6 +411,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                     placeholder="Gebühren"
                     value={fee}
                     onChange={(e) => setFee(e.target.value)}
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -404,6 +425,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                     placeholder="Steuern"
                     value={tax}
                     onChange={(e) => setTax(e.target.value)}
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -419,11 +441,12 @@ export const Transactions: React.FC<TransactionsProps> = ({
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
+                disabled={isReadOnly}
               />
             </div>
 
-            <button type="submit" className="btn tx-form-submit-btn-full">
-              <Plus size={16} /> Hinzufügen
+            <button type="submit" disabled={isReadOnly} className="btn tx-form-submit-btn-full" style={isReadOnly ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}>
+              <Plus size={16} /> {isReadOnly ? 'Schreibgeschützt' : 'Hinzufügen'}
             </button>
           </form>
         </div>
@@ -486,14 +509,16 @@ export const Transactions: React.FC<TransactionsProps> = ({
                         </span>
                       )}
                     </div>
-                    <button 
-                      onClick={() => onDeleteTransaction(tx.id)}
-                      className="tx-item-trash-btn"
-                      title="Transaktion löschen"
-                      aria-label="Transaktion löschen"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {!isReadOnly && (
+                      <button 
+                        onClick={() => onDeleteTransaction(tx.id)}
+                        className="tx-item-trash-btn"
+                        title="Transaktion löschen"
+                        aria-label="Transaktion löschen"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

@@ -8,6 +8,7 @@ interface WatchlistProps {
   onAddWatchlist: (item: Omit<WatchlistItem, 'id' | 'addedAt'>) => void;
   onRemoveWatchlist: (id: string) => void;
   onQuickBuy: (ticker: string, name: string, category: AssetCategory, price: number) => void;
+  isReadOnly?: boolean;
 }
 
 export const Watchlist: React.FC<WatchlistProps> = ({
@@ -15,7 +16,8 @@ export const Watchlist: React.FC<WatchlistProps> = ({
   currentPrices,
   onAddWatchlist,
   onRemoveWatchlist,
-  onQuickBuy
+  onQuickBuy,
+  isReadOnly = false
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [ticker, setTicker] = useState('');
@@ -51,13 +53,26 @@ export const Watchlist: React.FC<WatchlistProps> = ({
           <h2 className="wl-title-h2">Watchlist</h2>
           <p className="wl-subtitle">Beobachte interessante Assets und schlage beim richtigen Preis zu.</p>
         </div>
-        <button 
-          className="btn-primary wl-add-btn" 
-          onClick={() => setShowAddForm(!showAddForm)}
-        >
-          <Plus size={16} /> {showAddForm ? 'Schließen' : 'Asset hinzufügen'}
-        </button>
+        {!isReadOnly && (
+          <button 
+            className="btn-primary wl-add-btn" 
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            <Plus size={16} /> {showAddForm ? 'Schließen' : 'Asset hinzufügen'}
+          </button>
+        )}
       </div>
+
+      {isReadOnly && (
+        <div className="glass-panel text-muted-bg p-4 mb-4" style={{ borderLeft: '4px solid var(--accent-purple)', background: 'rgba(168, 85, 247, 0.05)' }}>
+          <h4 style={{ margin: 0, color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}>
+            🌐 Gesamtportfolio-Modus (Schreibgeschützt)
+          </h4>
+          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-color-muted)' }}>
+            Die Watchlist ist in der Gesamtübersicht schreibgeschützt. Wähle ein spezifisches Portfolio aus, um Werte zu bearbeiten oder zu kaufen.
+          </p>
+        </div>
+      )}
 
       {showAddForm && (
         <div className="glass-panel wl-add-form-panel">
@@ -160,14 +175,16 @@ export const Watchlist: React.FC<WatchlistProps> = ({
                       <h3 className="wl-card-ticker">{item.ticker}</h3>
                       <p className="wl-card-name">{item.name}</p>
                     </div>
-                    <button 
-                      onClick={() => onRemoveWatchlist(item.id)} 
-                      className="wl-card-trash-btn text-hover-rose"
-                      title="Aus Watchlist entfernen"
-                      aria-label="Aus Watchlist entfernen"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {!isReadOnly && (
+                      <button 
+                        onClick={() => onRemoveWatchlist(item.id)} 
+                        className="wl-card-trash-btn text-hover-rose"
+                        title="Aus Watchlist entfernen"
+                        aria-label="Aus Watchlist entfernen"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
 
                   <div className="wl-card-prices-grid">
@@ -202,17 +219,19 @@ export const Watchlist: React.FC<WatchlistProps> = ({
                     </div>
                   )}
 
-                  <button 
-                    className="btn-secondary wl-card-buy-btn" 
-                    onClick={() => onQuickBuy(item.ticker, item.name, item.category, currentPrice)}
-                    style={{ 
-                      background: isTargetReached ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)', 
-                      color: isTargetReached ? 'var(--status-positive)' : 'inherit', 
-                      border: isTargetReached ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)' 
-                    }}
-                  >
-                    <ShoppingCart size={14} /> Transaktion erfassen
-                  </button>
+                  {!isReadOnly && (
+                    <button 
+                      className="btn-secondary wl-card-buy-btn" 
+                      onClick={() => onQuickBuy(item.ticker, item.name, item.category, currentPrice)}
+                      style={{ 
+                        background: isTargetReached ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)', 
+                        color: isTargetReached ? 'var(--status-positive)' : 'inherit', 
+                        border: isTargetReached ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)' 
+                      }}
+                    >
+                      <ShoppingCart size={14} /> Transaktion erfassen
+                    </button>
+                  )}
                 </div>
               </div>
             );

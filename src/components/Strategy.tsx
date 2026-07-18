@@ -148,6 +148,63 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
     return insights;
   }, [holdings, currentAllocation]);
 
+  // Risk and Diversification Analysis Score calculation
+  const riskAnalysis = useMemo(() => {
+    let score = 100;
+    const warnings: string[] = [];
+    const positives: string[] = [];
+
+    if (holdings.length === 0) {
+      return { score: 0, warnings: ['Keine Anlagen vorhanden.'], positives: [] };
+    }
+
+    // Number of holdings
+    if (holdings.length < 3) {
+      score -= 30;
+      warnings.push('Extrem wenige Einzelpositionen. Erhöhte Abhängigkeit von einzelnen Unternehmen.');
+    } else if (holdings.length < 5) {
+      score -= 15;
+      warnings.push('Geringe Anzahl an Positionen. Bessere Streuung z.B. durch Welt-ETFs empfohlen.');
+    } else {
+      positives.push(`Gute Verteilung auf ${holdings.length} verschiedene Einzelwerte.`);
+    }
+
+    // Single asset concentration
+    const singleAssetLimit = 25;
+    const concentrationRisks = holdings.filter(h => h.portfolioWeight > singleAssetLimit);
+    if (concentrationRisks.length > 0) {
+      score -= 20;
+      concentrationRisks.forEach(r => {
+        warnings.push(`Klumpenrisiko: Position "${r.name}" (${r.ticker}) bildet ${r.portfolioWeight.toFixed(1)}% des Portfolios.`);
+      });
+    } else {
+      positives.push('Kein übermäßiges Klumpenrisiko bei Einzelwerten (< 25% pro Position).');
+    }
+
+    // Category concentration
+    const maxCatPct = Math.max(currentAllocation.Stock.pct, currentAllocation.ETF.pct, currentAllocation.Crypto.pct);
+    if (maxCatPct > 80) {
+      score -= 15;
+      warnings.push('Sehr hohe Konzentration in einer einzelnen Anlageklasse (> 80%).');
+    } else {
+      positives.push('Ausgewogene Aufteilung über verschiedene Anlageklassen.');
+    }
+
+    // Crypto risk
+    if (currentAllocation.Crypto.pct > 25) {
+      score -= 20;
+      warnings.push(`Hoher Krypto-Anteil (${currentAllocation.Crypto.pct.toFixed(1)}%). Diese Anlageklasse gilt als sehr volatil.`);
+    } else if (currentAllocation.Crypto.pct > 0 && currentAllocation.Crypto.pct <= 10) {
+      positives.push(`Gesunde Krypto-Beimischung (${currentAllocation.Crypto.pct.toFixed(1)}%).`);
+    }
+
+    return {
+      score: Math.max(0, Math.min(100, score)),
+      warnings,
+      positives
+    };
+  }, [holdings, currentAllocation]);
+
   // Rebalancing Purchase calculator
   const rebalancePlanner = useMemo(() => {
     if (extraInvestment <= 0) return { Stock: 0, ETF: 0, Crypto: 0 };
@@ -561,6 +618,79 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
             <p className="tx-dropzone-subtitle">
               Intelligente Analysen und Empfehlungen für deine Investmentstrategie.
             </p>
+
+            {/* Diversification & Risk Scoreboard */}
+            {holdings.length > 0 && (
+              <div className="glass-panel text-muted-bg p-4 mb-4" style={{ border: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                <h3 className="sav-panel-title" style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: 'var(--text-color)' }}>
+                  📊 Diversifikations- & Risiko-Score
+                </h3>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem 0' }}>
+                  <div style={{
+                    position: 'relative',
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: `conic-gradient(${riskAnalysis.score >= 70 ? 'var(--accent-emerald)' : riskAnalysis.score >= 40 ? 'var(--accent-gold)' : 'var(--accent-rose)'} ${riskAnalysis.score * 3.6}deg, rgba(255,255,255,0.05) 0deg)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 16px rgba(0, 0, 0, 0.2)'
+                  }}>
+                    <div style={{
+                      width: '52px',
+                      height: '52px',
+                      borderRadius: '50%',
+                      background: 'var(--card-background, #1a1b23)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      fontSize: '1.15rem',
+                      color: 'var(--text-color)'
+                    }}>
+                      {riskAnalysis.score}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-color)' }}>
+                      {riskAnalysis.score >= 80 ? 'Sehr gut diversifiziert' : riskAnalysis.score >= 60 ? 'Ausgewogen gestreut' : riskAnalysis.score >= 40 ? 'Erhöhte Risikokonzentration' : 'Kritisches Klumpenrisiko'}
+                    </h4>
+                    <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      Gewichtung und Verteilung.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Progress bar visual indicator */}
+                <div style={{ background: 'rgba(255,255,255,0.05)', height: '6px', borderRadius: '3px', overflow: 'hidden', marginBottom: '1.25rem' }}>
+                  <div style={{
+                    width: `${riskAnalysis.score}%`,
+                    height: '100%',
+                    background: riskAnalysis.score >= 70 ? 'var(--accent-emerald)' : riskAnalysis.score >= 40 ? 'var(--accent-gold)' : 'var(--accent-rose)',
+                    borderRadius: '3px',
+                    transition: 'width 0.8s ease-in-out'
+                  }} />
+                </div>
+
+                {/* Positives & Warnings Lists */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  {riskAnalysis.positives.map((p, idx) => (
+                    <div key={`p-${idx}`} style={{ display: 'flex', gap: '0.5rem', color: 'var(--accent-emerald)' }}>
+                      <span>✓</span>
+                      <span>{p}</span>
+                    </div>
+                  ))}
+                  {riskAnalysis.warnings.map((w, idx) => (
+                    <div key={`w-${idx}`} style={{ display: 'flex', gap: '0.5rem', color: 'var(--accent-gold)' }}>
+                      <span>⚠</span>
+                      <span>{w}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="sav-list-flex">
               {coachInsights.map((insight, idx) => (

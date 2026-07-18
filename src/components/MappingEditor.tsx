@@ -6,12 +6,14 @@ interface MappingEditorProps {
   rules: AssetMappingRule[];
   onAddRule: (rule: Omit<AssetMappingRule, 'id'>) => void;
   onRemoveRule: (id: string) => void;
+  isReadOnly?: boolean;
 }
 
 export const MappingEditor: React.FC<MappingEditorProps> = ({
   rules,
   onAddRule,
-  onRemoveRule
+  onRemoveRule,
+  isReadOnly = false
 }) => {
   const [pattern, setPattern] = useState('');
   const [ticker, setTicker] = useState('');
@@ -42,6 +44,17 @@ export const MappingEditor: React.FC<MappingEditorProps> = ({
         Definiere Regeln, um ISINs oder Textmuster aus PDF-Abrechnungen automatisch auf die richtigen Ticker und Kategorien in deinem Portfolio abzubilden.
       </p>
 
+      {isReadOnly && (
+        <div className="glass-panel text-muted-bg p-4 mb-4" style={{ borderLeft: '4px solid var(--accent-purple)', background: 'rgba(168, 85, 247, 0.05)' }}>
+          <h4 style={{ margin: 0, color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}>
+            🌐 Gesamtportfolio-Modus (Schreibgeschützt)
+          </h4>
+          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-color-muted)' }}>
+            Die PDF-Mappingregeln können in der Gesamtübersicht nicht bearbeitet werden. Wähle ein spezifisches Portfolio aus, um Regeln anzulegen oder zu löschen.
+          </p>
+        </div>
+      )}
+
       <div className="grid-main">
         {/* Left Column: Form */}
         <div className="sav-col-flex">
@@ -57,6 +70,7 @@ export const MappingEditor: React.FC<MappingEditorProps> = ({
                 value={pattern}
                 onChange={(e) => setPattern(e.target.value)}
                 required
+                disabled={isReadOnly}
               />
             </div>
 
@@ -69,6 +83,7 @@ export const MappingEditor: React.FC<MappingEditorProps> = ({
                 value={ticker}
                 onChange={(e) => setTicker(e.target.value)}
                 required
+                disabled={isReadOnly}
               />
             </div>
 
@@ -81,6 +96,7 @@ export const MappingEditor: React.FC<MappingEditorProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={isReadOnly}
               />
             </div>
 
@@ -90,6 +106,7 @@ export const MappingEditor: React.FC<MappingEditorProps> = ({
                 className="form-select"
                 value={category}
                 onChange={(e) => setCategory(e.target.value as AssetCategory)}
+                disabled={isReadOnly}
               >
                 <option value="Stock">Aktie</option>
                 <option value="ETF">ETF</option>
@@ -97,8 +114,8 @@ export const MappingEditor: React.FC<MappingEditorProps> = ({
               </select>
             </div>
 
-            <button type="submit" className="btn btn-primary w-full" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-              <Plus size={16} /> Regel hinzufügen
+            <button type="submit" disabled={isReadOnly} className="btn btn-primary w-full" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', opacity: isReadOnly ? 0.5 : 1, cursor: isReadOnly ? 'not-allowed' : 'pointer' }}>
+              <Plus size={16} /> {isReadOnly ? 'Schreibgeschützt' : 'Regel hinzufügen'}
             </button>
           </form>
         </div>
@@ -129,15 +146,17 @@ export const MappingEditor: React.FC<MappingEditorProps> = ({
                         </span>
                       </td>
                       <td>
-                        <button
-                          type="button"
-                          onClick={() => onRemoveRule(rule.id)}
-                          className="tx-item-trash-btn"
-                          title="Regel löschen"
-                          aria-label="Regel löschen"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveRule(rule.id)}
+                            className="tx-item-trash-btn"
+                            title="Regel löschen"
+                            aria-label="Regel löschen"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))

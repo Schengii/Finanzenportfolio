@@ -9,6 +9,7 @@ interface SavingsSimulatorProps {
   onAddSavingsPlan: (plan: Omit<SavingsPlan, 'id'>) => void;
   onDeleteSavingsPlan: (id: string) => void;
   onToggleSavingsPlan: (id: string) => void;
+  isReadOnly?: boolean;
 }
 
 export const SavingsSimulator: React.FC<SavingsSimulatorProps> = ({
@@ -16,7 +17,8 @@ export const SavingsSimulator: React.FC<SavingsSimulatorProps> = ({
   portfolioValue,
   onAddSavingsPlan,
   onDeleteSavingsPlan,
-  onToggleSavingsPlan
+  onToggleSavingsPlan,
+  isReadOnly = false
 }) => {
   // Sparplan Form State
   const [showAddForm, setShowAddForm] = useState(false);
@@ -124,17 +126,29 @@ export const SavingsSimulator: React.FC<SavingsSimulatorProps> = ({
         <div className="sav-col-flex">
           
           <div className="glass-panel">
+            {isReadOnly && (
+              <div className="glass-panel text-muted-bg p-4 mb-4" style={{ borderLeft: '4px solid var(--accent-purple)', background: 'rgba(168, 85, 247, 0.05)' }}>
+                <h4 style={{ margin: 0, color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}>
+                  🌐 Gesamtportfolio-Modus (Schreibgeschützt)
+                </h4>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-color-muted)' }}>
+                  Sparpläne können in der Gesamtübersicht nicht erstellt oder modifiziert werden. Wähle ein spezifisches Portfolio aus, um Änderungen vorzunehmen.
+                </p>
+              </div>
+            )}
             <div className="sav-panel-header">
               <h3 className="sav-panel-title">
                 <Calendar size={18} className="portfolio-select-icon" /> Aktive Sparpläne
               </h3>
-              <button 
-                className="btn-primary sav-panel-btn-neu" 
-                onClick={() => setShowAddForm(!showAddForm)}
-                aria-label={showAddForm ? 'Erstellungsformular schließen' : 'Neuen Sparplan erstellen'}
-              >
-                <Plus size={12} /> {showAddForm ? 'Zu' : 'Neu'}
-              </button>
+              {!isReadOnly && (
+                <button 
+                  className="btn-primary sav-panel-btn-neu" 
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  aria-label={showAddForm ? 'Erstellungsformular schließen' : 'Neuen Sparplan erstellen'}
+                >
+                  <Plus size={12} /> {showAddForm ? 'Zu' : 'Neu'}
+                </button>
+              )}
             </div>
 
             {showAddForm && (
@@ -203,12 +217,17 @@ export const SavingsSimulator: React.FC<SavingsSimulatorProps> = ({
                 {savingsPlans.map(plan => (
                   <div key={plan.id} className="sav-item-box">
                     <div className="sav-item-left">
-                      <button 
-                        onClick={() => onToggleSavingsPlan(plan.id)}
+                       <button 
+                        onClick={isReadOnly ? undefined : () => onToggleSavingsPlan(plan.id)}
                         className="sav-item-playpause"
-                        style={{ color: plan.isActive ? 'var(--status-positive)' : 'var(--text-muted)' }}
-                        title={plan.isActive ? 'Deaktivieren' : 'Aktivieren'}
+                        style={{ 
+                          color: plan.isActive ? 'var(--status-positive)' : 'var(--text-muted)',
+                          cursor: isReadOnly ? 'not-allowed' : 'pointer',
+                          opacity: isReadOnly ? 0.6 : 1
+                        }}
+                        title={isReadOnly ? 'Schreibgeschützt' : plan.isActive ? 'Deaktivieren' : 'Aktivieren'}
                         aria-label={plan.isActive ? 'Sparplan deaktivieren' : 'Sparplan aktivieren'}
+                        disabled={isReadOnly}
                       >
                         {plan.isActive ? <Play size={16} /> : <Pause size={16} />}
                       </button>
@@ -230,14 +249,16 @@ export const SavingsSimulator: React.FC<SavingsSimulatorProps> = ({
                       <span className="sav-item-amount" style={{ color: plan.isActive ? 'inherit' : 'var(--text-muted)' }}>
                         {plan.amount.toLocaleString('de-DE')} €
                       </span>
-                      <button 
-                        onClick={() => onDeleteSavingsPlan(plan.id)}
-                        className="sav-item-trash-btn text-hover-rose"
-                        title="Sparplan löschen"
-                        aria-label="Sparplan löschen"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {!isReadOnly && (
+                        <button 
+                          onClick={() => onDeleteSavingsPlan(plan.id)}
+                          className="sav-item-trash-btn text-hover-rose"
+                          title="Sparplan löschen"
+                          aria-label="Sparplan löschen"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
