@@ -59,9 +59,11 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
 
   // Current allocation calculations
   const currentAllocation = useMemo(() => {
-    const alloc = { Stock: 0, ETF: 0, Crypto: 0 };
+    const alloc: Record<string, number> = { Stock: 0, ETF: 0, Crypto: 0 };
     holdings.forEach(h => {
-      alloc[h.category] += h.currentValue;
+      if (alloc[h.category] !== undefined) {
+        alloc[h.category] += h.currentValue;
+      }
     });
 
     const stockPercent = totalValue > 0 ? (alloc.Stock / totalValue) * 100 : 0;

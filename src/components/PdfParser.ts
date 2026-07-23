@@ -3,6 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 // Use the CDN worker to avoid bundling issues with Vite
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
+import type { AssetMappingRule, AssetCategory } from '../types';
+
 export interface ParsedTransaction {
   type: 'BUY' | 'SELL' | 'DIVIDEND';
   date: string;
@@ -12,7 +14,7 @@ export interface ParsedTransaction {
   price: number;
   fee: number;
   tax: number;
-  category: 'Stock' | 'ETF' | 'Crypto';
+  category: AssetCategory;
 }
 
 // Mock text data representing statements from various brokers for demo simulation
@@ -22,10 +24,9 @@ export const MOCK_PDF_TEXTS = {
   ING: "ING-DiBa AG WERTPAPIERABRECHNUNG Ausführung Sparplan Kauf Vanguard FTSE All-World UCITS ETF ISIN: IE00B3RBWM25. Ausführung am 02.07.2026. Nominale: 10,5000 Stück. Kurs: 112,40 EUR. Kurswert: 1.180,20 EUR. Provision / Gebühr: 1,75 EUR. Endbetrag zu Ihren Lasten: 1.181,95 EUR.",
   COMDIRECT: "comdirect bank AG Wertpapiergeschäft Abrechnung Kauf Microsoft Corp. ISIN: US5949181045. Ausführungstag: 01.07.2026. Geschäft: 8 Stück zum Kurs von 415,50 EUR. Kurswert: 3.324,00 EUR. Provision: 4,90 EUR. Abwicklungsentgelt: 1,50 EUR. Endbetrag: 3.330,40 EUR.",
   DKB: "Deutsche Kreditbank AG Wertpapierabrechnung Kauf Allianz SE ISIN: DE0008404005. Ausführungstag: 30.06.2026. Stückzahl: 15 Stück. Kurs: 260,00 EUR. Kurswert: 3.900,00 EUR. Eigene Spesen / Grundprovision: 10,00 EUR. Endbetrag: 3.910,00 EUR.",
-  CONSORS: "Consorsbank BNP Paribas Wertpapierabrechnung Dividende Siemens AG ISIN: DE0007236101. Abrechnungstag: 25.06.2026. Ausschüttung pro Stück: 4,70 EUR für 10 Stück. Kurswert / Bruttobetrag: 47,00 EUR. Quellensteuer: 11,75 EUR. Solidaritätszuschlag: 0,64 EUR. Endbetrag zu Ihren Gunsten: 34,61 EUR."
+  CONSORS: "Consorsbank BNP Paribas Wertpapierabrechnung Dividende Siemens AG ISIN: DE0007236101. Abrechnungstag: 25.06.2026. Ausschüttung pro Stück: 4,70 EUR für 10 Stück. Kurswert / Bruttobetrag: 47,00 EUR. Quellensteuer: 11,75 EUR. Solidaritätszuschlag: 0,64 EUR. Endbetrag zu Ihren Gunsten: 34,61 EUR.",
+  FINANZEN_ZERO: "finanzen.net zero Wertpapierabrechnung Kauf Tesla Inc. ISIN: US88160R1014. Datum: 10.07.2026. Stückzahl: 12 Stk. Kurs: 220,00 EUR. Entgelt: 0,00 EUR. Endbetrag: 2.640,00 EUR."
 };
-
-import type { AssetMappingRule } from '../types';
 
 export async function parseBrokerPdf(file: File, rules?: AssetMappingRule[]): Promise<ParsedTransaction> {
   const arrayBuffer = await file.arrayBuffer();
@@ -64,6 +65,8 @@ export function parseBrokerText(text: string, rules?: AssetMappingRule[]): Parse
     result = parseDkb(text);
   } else if (text.includes('Consorsbank')) {
     result = parseConsorsbank(text);
+  } else if (text.includes('finanzen.net zero') || text.includes('finanzen.net')) {
+    result = parseFinanzenZero(text);
   } else {
     // Generic fallback parsing attempt based on keywords
     result = parseGeneric(text);
@@ -99,7 +102,7 @@ function parseTradeRepublic(text: string): ParsedTransaction {
   const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
 
   let name = 'Asset';
-  const nameMatch = text.match(/(?:Wertpapierabrechnung|Kauf|Verkauf|Dividende)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk\.)/i);
+  const nameMatch = text.match(/(?:Wertpapierabrechnung|Kauf|Verkauf|Dividende)\s+([A-Za-z0-9\s&.-]+?)\s+(?:ISIN|Stk\.)/i);
   if (nameMatch) {
     name = nameMatch[1].trim();
   } else {
@@ -165,7 +168,7 @@ function parseScalableCapital(text: string): ParsedTransaction {
   const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
 
   let name = 'Asset';
-  const nameMatch = text.match(/(?:Kauf|Verkauf|Dividende)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk\.|Stück)/i);
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Dividende)\s+([A-Za-z0-9\s&.-]+?)\s+(?:ISIN|Stk\.|Stück)/i);
   if (nameMatch) {
     name = nameMatch[1].trim();
   }
@@ -218,7 +221,7 @@ function parseIngDiba(text: string): ParsedTransaction {
   const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
 
   let name = 'ING Asset';
-  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Sparplan)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk|Stück|Nominale)/i);
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Sparplan)\s+([A-Za-z0-9\s&.-]+?)\s+(?:ISIN|Stk|Stück|Nominale)/i);
   if (nameMatch) name = nameMatch[1].trim();
 
   let amount = 1;
@@ -267,7 +270,7 @@ function parseComdirect(text: string): ParsedTransaction {
   const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
 
   let name = 'comdirect Asset';
-  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Wertpapiergeschäft|Erträgnisgutschrift)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk|Stück)/i);
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Wertpapiergeschäft|Erträgnisgutschrift)\s+([A-Za-z0-9\s&.-]+?)\s+(?:ISIN|Stk|Stück)/i);
   if (nameMatch) name = nameMatch[1].trim();
 
   let amount = 1;
@@ -316,7 +319,7 @@ function parseDkb(text: string): ParsedTransaction {
   const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
 
   let name = 'DKB Asset';
-  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk|Stück)/i);
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung)\s+([A-Za-z0-9\s&.-]+?)\s+(?:ISIN|Stk|Stück)/i);
   if (nameMatch) name = nameMatch[1].trim();
 
   let amount = 1;
@@ -365,7 +368,7 @@ function parseConsorsbank(text: string): ParsedTransaction {
   const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
 
   let name = 'Consorsbank Asset';
-  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Dividende|Erträgnis)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk|Stück)/i);
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Dividende|Erträgnis)\s+([A-Za-z0-9\s&.-]+?)\s+(?:ISIN|Stk|Stück)/i);
   if (nameMatch) name = nameMatch[1].trim();
 
   let amount = 1;
@@ -400,6 +403,37 @@ function parseConsorsbank(text: string): ParsedTransaction {
   return { type, date, ticker, name, amount, price, fee, tax, category };
 }
 
+function parseFinanzenZero(text: string): ParsedTransaction {
+  const isSell = text.includes('Verkauf');
+  const isDiv = text.includes('Dividende');
+  let type: 'BUY' | 'SELL' | 'DIVIDEND' = 'BUY';
+  if (isSell) type = 'SELL';
+  if (isDiv) type = 'DIVIDEND';
+
+  const dateMatch = text.match(/(\d{2}\.\d{2}\.\d{4})/);
+  const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+
+  const isinMatch = text.match(/\b([A-Z]{2}[A-Z0-9]{9}\d)\b/);
+  const ticker = isinMatch ? isinMatch[1] : 'UNKNOWN';
+
+  let name = 'Finanzen.net Zero Asset';
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Wertpapierabrechnung)\s+([A-Za-z0-9\s&.-]+?)\s+ISIN/i);
+  if (nameMatch) name = nameMatch[1].trim();
+
+  let amount = 1;
+  const amountMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(?:Stk|Stück)/i);
+  if (amountMatch) amount = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
+
+  let price = 0;
+  const priceMatch = text.match(/Kurs:\s*(\d+(?:[.,]\d+)?)/i);
+  if (priceMatch) price = parseFloat(priceMatch[1].replace(/\./g, '').replace(',', '.'));
+
+  let category: 'Stock' | 'ETF' | 'Crypto' = 'Stock';
+  if (name.toLowerCase().includes('etf') || name.toLowerCase().includes('msci')) category = 'ETF';
+
+  return { type, date, ticker, name, amount, price, fee: 0, tax: 0, category };
+}
+
 function parseGeneric(text: string): ParsedTransaction {
   const type = text.includes('Verkauf') || text.includes('SELL') ? 'SELL' : 
                text.includes('Dividende') || text.includes('DIVIDEND') ? 'DIVIDEND' : 'BUY';
@@ -411,7 +445,7 @@ function parseGeneric(text: string): ParsedTransaction {
   const ticker = isinMatch ? isinMatch[1] : 'GENERIC';
 
   let name = 'Imported Asset';
-  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Statement)\s+([A-Za-z0-9\s&.\-]+?)\s+(?:ISIN|Stk|Stück)/i);
+  const nameMatch = text.match(/(?:Kauf|Verkauf|Abrechnung|Statement)\s+([A-Za-z0-9\s&.-]+?)\s+(?:ISIN|Stk|Stück)/i);
   if (nameMatch) name = nameMatch[1].trim();
 
   let amount = 1;

@@ -8,15 +8,15 @@ import type { Transaction, Holding, PortfolioStats } from '../types';
 import { convertCurrency, calculateGermanTax } from './performanceUtils';
  
  interface DashboardProps {
-   stats: PortfolioStats;
-   holdings: Holding[];
-   transactions: Transaction[];
-   onExportAll: () => void;
-   onImportAll: (file: File) => void;
-   onExportCSV: () => void;
-   onImportCSV: (file: File) => void;
-   baseCurrency: 'EUR' | 'USD' | 'CHF';
- }
+  stats: PortfolioStats;
+  holdings: Holding[];
+  transactions: Transaction[];
+  onExportAll: () => void;
+  onImportAll: (file: File) => void;
+  onExportCSV: () => void;
+  onImportCSV: (file: File) => void;
+  baseCurrency: 'EUR' | 'USD' | 'CHF' | 'GBP';
+}
  
  export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transactions, onExportAll, onImportAll, onExportCSV, onImportCSV, baseCurrency }) => {
    const fileInputRef = useRef<HTMLInputElement>(null);

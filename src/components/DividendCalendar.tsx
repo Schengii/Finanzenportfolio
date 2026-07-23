@@ -7,7 +7,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recha
 interface DividendCalendarProps {
   transactions: Transaction[];
   holdings: Holding[];
-  baseCurrency: 'EUR' | 'USD' | 'CHF';
+  baseCurrency: 'EUR' | 'USD' | 'CHF' | 'GBP';
 }
 
 export const DividendCalendar: React.FC<DividendCalendarProps> = ({

@@ -1,15 +1,16 @@
-import type { Transaction } from '../types';
+import type { Transaction, Holding } from '../types';
 
 export const DEFAULT_EXCHANGE_RATES = {
   EUR: 1.0,
   USD: 1.08,
   CHF: 0.96,
+  GBP: 0.85,
 };
 
 export function convertCurrency(
   amount: number,
-  from: 'EUR' | 'USD' | 'CHF',
-  to: 'EUR' | 'USD' | 'CHF',
+  from: 'EUR' | 'USD' | 'CHF' | 'GBP',
+  to: 'EUR' | 'USD' | 'CHF' | 'GBP',
   rateMap: Record<string, number> = DEFAULT_EXCHANGE_RATES
 ): number {
   if (from === to) return amount;
@@ -549,5 +550,140 @@ export function calculateFXGainBreakdown(
     fxGainEur
   };
 }
+
+/**
+ * Calculates German Vorabpauschale estimation for ETFs under § 18 InvStG.
+ * Basiszins for 2024/2025: ~2.29%.
+ */
+export function calculateVorabpauschale(
+  holdings: Holding[],
+  basisZins: number = 0.0229
+): number {
+  let totalVorabpauschale = 0;
+
+  holdings.forEach(h => {
+    if (h.category === 'ETF' && h.currentValue > 0) {
+      // Basisertrag = Anschaffungswert * Basiszins * 0.70
+      const basisErtrag = h.totalCost * basisZins * 0.70;
+      // Vorabpauschale is limited by the actual price gain during the year if gain < basisErtrag
+      const priceGain = Math.max(0, h.totalGain);
+      const rawVorabpauschale = Math.min(basisErtrag, priceGain);
+      
+      // Teilfreistellung reduction (e.g. 30% for Aktien-ETF)
+      const exemptionFactor = h.teilfreistellungRate ?? 0.30;
+      const taxableVorabpauschale = rawVorabpauschale * (1 - exemptionFactor);
+
+      totalVorabpauschale += taxableVorabpauschale;
+    }
+  });
+
+  return totalVorabpauschale;
+}
+
+export interface SectorRegionAllocation {
+  sectors: { name: string; value: number; percentage: number }[];
+  regions: { name: string; value: number; percentage: number }[];
+}
+
+/**
+ * Aggregates portfolio holdings by Sector and Region.
+ */
+export function calculateSectorAndRegionBreakdown(
+  holdings: Holding[]
+): SectorRegionAllocation {
+  const totalValue = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+
+  const sectorMap: Record<string, number> = {};
+  const regionMap: Record<string, number> = {};
+
+  holdings.forEach(h => {
+    const sector = h.sector || 'Other';
+    const region = h.region || (h.category === 'Crypto' ? 'Global' : 'North America');
+
+    sectorMap[sector] = (sectorMap[sector] || 0) + h.currentValue;
+    regionMap[region] = (regionMap[region] || 0) + h.currentValue;
+  });
+
+  const sectors = Object.entries(sectorMap).map(([name, value]) => ({
+    name,
+    value,
+    percentage: totalValue > 0 ? (value / totalValue) * 100 : 0
+  })).sort((a, b) => b.value - a.value);
+
+  const regions = Object.entries(regionMap).map(([name, value]) => ({
+    name,
+    value,
+    percentage: totalValue > 0 ? (value / totalValue) * 100 : 0
+  })).sort((a, b) => b.value - a.value);
+
+  return { sectors, regions };
+}
+
+export interface DividendGrowthPoint {
+  period: string; // e.g. "2024" or "Q1 2024"
+  amount: number;
+  yoyGrowth?: number;
+}
+
+/**
+ * Calculates YoY and annual Dividend growth.
+ */
+export function calculateDividendGrowth(
+  transactions: Transaction[]
+): DividendGrowthPoint[] {
+  const divTxs = transactions.filter(t => t.type === 'DIVIDEND');
+  
+  const yearlyMap: Record<string, number> = {};
+
+  divTxs.forEach(tx => {
+    const year = tx.date.split('.')[2] || new Date(tx.date).getFullYear().toString();
+    const rate = tx.exchangeRate || 1.0;
+    const amountEur = (tx.amount * tx.price - tx.tax) / rate;
+    yearlyMap[year] = (yearlyMap[year] || 0) + amountEur;
+  });
+
+  const sortedYears = Object.keys(yearlyMap).sort();
+  
+  return sortedYears.map((year, idx) => {
+    const amount = yearlyMap[year];
+    const prevAmount = idx > 0 ? yearlyMap[sortedYears[idx - 1]] : undefined;
+    const yoyGrowth = prevAmount && prevAmount > 0 ? ((amount - prevAmount) / prevAmount) * 100 : undefined;
+
+    return {
+      period: year,
+      amount,
+      yoyGrowth
+    };
+  });
+}
+
+/**
+ * Generates normalized benchmark series (MSCI World, S&P 500, DAX, Bitcoin) for comparison.
+ */
+export function generateBenchmarkSeries(
+  dataPointsCount: number = 30
+): { name: string; ticker: string; color: string; points: number[] }[] {
+  // Generate realistic simulated benchmark trajectories starting at 100
+  const msciWorld: number[] = [100];
+  const sp500: number[] = [100];
+  const dax: number[] = [100];
+  const bitcoin: number[] = [100];
+
+  for (let i = 1; i < dataPointsCount; i++) {
+    const step = i / dataPointsCount;
+    msciWorld.push(100 + step * 8 + Math.sin(i * 0.4) * 1.5);
+    sp500.push(100 + step * 11 + Math.sin(i * 0.5) * 2.2);
+    dax.push(100 + step * 5 + Math.sin(i * 0.3) * 1.8);
+    bitcoin.push(100 + step * 24 + Math.sin(i * 0.7) * 6.5);
+  }
+
+  return [
+    { name: 'MSCI World', ticker: 'URTH', color: '#3b82f6', points: msciWorld },
+    { name: 'S&P 500', ticker: 'VOO', color: '#10b981', points: sp500 },
+    { name: 'DAX 40', ticker: 'DAX', color: '#f59e0b', points: dax },
+    { name: 'Bitcoin', ticker: 'BTC', color: '#ec4899', points: bitcoin }
+  ];
+}
+
 
 

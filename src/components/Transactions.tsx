@@ -57,7 +57,6 @@ export const Transactions: React.FC<TransactionsProps> = ({
     }
   }, [prefilledData, onClearPrefilledData]);
 
-  // Adjust form fields automatically based on transaction type
   useEffect(() => {
     if (type === 'DEPOSIT' || type === 'WITHDRAWAL') {
       setTicker('CASH');
@@ -66,12 +65,17 @@ export const Transactions: React.FC<TransactionsProps> = ({
       setCategory('Stock');
     } else if (type === 'STAKING') {
       setCategory('Crypto');
-      setPrice('1'); // Staking yields are typically entered as total coin rewards worth $X or 1
-      if (ticker === 'CASH') setTicker('');
-    } else if (ticker === 'CASH') {
-      setTicker('');
-      setName('');
-      setPrice('');
+      setPrice('1');
+      setTicker(t => (t === 'CASH' ? '' : t));
+    } else {
+      setTicker(t => {
+        if (t === 'CASH') {
+          setName('');
+          setPrice('');
+          return '';
+        }
+        return t;
+      });
     }
   }, [type]);
 
