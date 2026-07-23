@@ -20,6 +20,7 @@ export const Holdings: React.FC<HoldingsProps> = ({
   onBaseCurrencyChange
 }) => {
   const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Currency Formatter
   const formatVal = (value: number) => {
@@ -53,6 +54,14 @@ export const Holdings: React.FC<HoldingsProps> = ({
     });
   }, [holdings, baseCurrency]);
 
+  const filteredHoldings = useMemo(() => {
+    if (!searchQuery.trim()) return convertedHoldings;
+    const q = searchQuery.toLowerCase();
+    return convertedHoldings.filter(h =>
+      h.name.toLowerCase().includes(q) || h.ticker.toLowerCase().includes(q)
+    );
+  }, [convertedHoldings, searchQuery]);
+
   return (
     <div className="holdings-container">
       {/* Top Header Bar */}
@@ -63,6 +72,14 @@ export const Holdings: React.FC<HoldingsProps> = ({
         </div>
 
         <div className="controls-group">
+          <input
+            type="text"
+            placeholder="Asset suchen (Ticker/Name)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input-field px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+          />
+
           {/* Base Currency Switcher */}
           <div className="currency-selector">
             <span className="currency-label">Währung:</span>
@@ -90,9 +107,9 @@ export const Holdings: React.FC<HoldingsProps> = ({
       </div>
 
       {/* Holdings Table */}
-      {convertedHoldings.length === 0 ? (
+      {filteredHoldings.length === 0 ? (
         <div className="empty-state-card">
-          <p className="empty-text">Keine aktiven Positionen im aktuellen Portfolio vorhanden.</p>
+          <p className="empty-text">Keine passenden Positionen im aktuellen Portfolio vorhanden.</p>
         </div>
       ) : (
         <div className="table-container">
@@ -110,7 +127,7 @@ export const Holdings: React.FC<HoldingsProps> = ({
               </tr>
             </thead>
             <tbody>
-              {convertedHoldings.map((h) => (
+              {filteredHoldings.map((h) => (
                 <tr 
                   key={h.ticker} 
                   className="table-row-clickable"

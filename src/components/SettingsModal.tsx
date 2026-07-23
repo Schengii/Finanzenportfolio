@@ -150,6 +150,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
           </div>
 
+          {/* Theme Accent Color */}
+          <div className="flex justify-between items-center p-4 bg-slate-950/40 border border-slate-800 rounded-xl">
+            <div>
+              <span className="font-bold text-slate-200 block">Akzentfarbe</span>
+              <span className="text-slate-400 block">Haupt-Akzentfarbe für Buttons & Charts</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-emerald-500 cursor-pointer border-2 border-slate-700 hover:scale-110 transition-all" title="Smaragdgrün" />
+              <span className="w-5 h-5 rounded-full bg-indigo-500 cursor-pointer border-2 border-slate-700 hover:scale-110 transition-all" title="Indigo" />
+              <span className="w-5 h-5 rounded-full bg-amber-500 cursor-pointer border-2 border-slate-700 hover:scale-110 transition-all" title="Bernstein" />
+              <span className="w-5 h-5 rounded-full bg-cyan-500 cursor-pointer border-2 border-slate-700 hover:scale-110 transition-all" title="Cyan" />
+              <span className="w-5 h-5 rounded-full bg-rose-500 cursor-pointer border-2 border-slate-700 hover:scale-110 transition-all" title="Rosa" />
+            </div>
+          </div>
+
         </div>
 
         {/* Footer */}

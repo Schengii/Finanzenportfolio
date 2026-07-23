@@ -38,9 +38,22 @@ export const Transactions: React.FC<TransactionsProps> = ({
   const [currency, setCurrency] = useState<'EUR' | 'USD' | 'CHF'>('EUR');
   const [exchangeRate, setExchangeRate] = useState<string>('1.0');
 
+  // Search & Filter state
+  const [searchTx, setSearchTx] = useState('');
+  const [filterType, setFilterType] = useState<string>('ALL');
+
   // PDF Preview modal state
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [parsedTx, setParsedTx] = useState<Omit<Transaction, 'id'> | null>(null);
+
+  const filteredTransactions = React.useMemo(() => {
+    return transactions.filter(t => {
+      const matchType = filterType === 'ALL' || t.type === filterType;
+      const q = searchTx.toLowerCase();
+      const matchQuery = !q || t.name.toLowerCase().includes(q) || t.ticker.toLowerCase().includes(q) || t.date.includes(q);
+      return matchType && matchQuery;
+    });
+  }, [transactions, filterType, searchTx]);
 
   useEffect(() => {
     if (prefilledData) {
@@ -458,14 +471,42 @@ export const Transactions: React.FC<TransactionsProps> = ({
 
       {/* Right Column: Transaction List */}
       <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-        <h2 className="tx-list-title-h2">Aktivitäten-Protokoll</h2>
-        <p className="tx-list-subtitle">
-          Alle erfassten Transaktionen inkl. Ein- und Auszahlungen.
-        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          <div>
+            <h2 className="tx-list-title-h2">Aktivitäten-Protokoll</h2>
+            <p className="tx-list-subtitle">
+              Alle erfassten Transaktionen ({filteredTransactions.length}).
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Suchen (Name/Ticker)..."
+              value={searchTx}
+              onChange={(e) => setSearchTx(e.target.value)}
+              className="form-input"
+              style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', width: '140px' }}
+            />
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="form-select"
+              style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+            >
+              <option value="ALL">Alle Typen</option>
+              <option value="BUY">Kauf</option>
+              <option value="SELL">Verkauf</option>
+              <option value="DIVIDEND">Dividende</option>
+              <option value="DEPOSIT">Einzahlung</option>
+              <option value="WITHDRAWAL">Auszahlung</option>
+            </select>
+          </div>
+        </div>
 
         <div className="tx-list-scrollable">
-          {transactions.length > 0 ? (
-            transactions.map((tx) => {
+          {filteredTransactions.length > 0 ? (
+            filteredTransactions.map((tx) => {
               const isBuy = tx.type === 'BUY';
               const isDiv = tx.type === 'DIVIDEND';
               const isStaking = tx.type === 'STAKING';
