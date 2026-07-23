@@ -7,8 +7,11 @@ import {
   calculateGermanTax,
   calculateCryptoTaxFreeShares,
   calculateVorabpauschale,
-  calculateSectorAndRegionBreakdown
+  calculateSectorAndRegionBreakdown,
+  runMonteCarloSimulation,
+  runStressTestScenarios
 } from '../performanceUtils';
+import { parseUniversalCsv } from '../../services/universalCsvImporter';
 import type { Transaction, Holding } from '../../types';
 
 describe('performanceUtils Financial Calculations', () => {
@@ -190,5 +193,27 @@ describe('performanceUtils Financial Calculations', () => {
     expect(breakdown.sectors.length).toBe(2);
     expect(breakdown.regions.length).toBe(2);
     expect(breakdown.sectors[0].percentage).toBe(50);
+  });
+
+  it('runs Monte Carlo simulation with 1,000 trials', () => {
+    const mc = runMonteCarloSimulation(10000, 200, 10, 7.0, 15.0, 100);
+    expect(mc.percentile50.length).toBe(11);
+    expect(mc.finalMedian).toBeGreaterThan(10000);
+    expect(mc.finalHigh).toBeGreaterThan(mc.finalLow);
+  });
+
+  it('runs historical crisis stress tests', () => {
+    const tests = runStressTestScenarios(50000);
+    expect(tests.length).toBe(4);
+    expect(tests[0].scenarioName).toContain('2008');
+    expect(tests[0].portfolioLossEur).toBeGreaterThan(20000);
+  });
+
+  it('auto-detects and parses Universal CSV', () => {
+    const sampleCsv = `Datum;Typ;Wertpapiername;ISIN;Stückzahl;Kurs\n01.01.2026;Kauf;Apple Inc.;US0378331002;10;180,00`;
+    const res = parseUniversalCsv(sampleCsv);
+    expect(res.detectedFormat).toContain('Portfolio Performance');
+    expect(res.transactions.length).toBe(1);
+    expect(res.transactions[0].name).toBe('Apple Inc.');
   });
 });

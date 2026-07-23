@@ -12,6 +12,7 @@ export interface AssetMappingRule {
   category: AssetCategory;
   sector?: Sector;
   region?: Region;
+  broker?: string;
 }
 
 export interface Transaction {
@@ -20,15 +21,16 @@ export interface Transaction {
   date: string;
   ticker: string;
   name: string;
-  amount: number; // shares or units, or cash amount for deposit/withdrawal
-  price: number; // price per share, or 1 for cash
+  amount: number;
+  price: number;
   fee: number;
   tax: number;
   category: AssetCategory;
   sector?: Sector;
   region?: Region;
+  broker?: string;
   currency?: 'EUR' | 'USD' | 'CHF' | 'GBP';
-  exchangeRate?: number; // how many currency units per EUR, e.g. 1.08 USD per 1 EUR
+  exchangeRate?: number;
   notes?: string;
 }
 
@@ -50,21 +52,22 @@ export interface Holding {
   cryptoTaxFreeShares?: number;
   sector?: Sector;
   region?: Region;
-  teilfreistellungRate?: number; // e.g. 0.30 for 30% Equity ETF
+  broker?: string;
+  teilfreistellungRate?: number;
   notes?: string;
   tags?: string[];
 }
 
 export interface TargetAllocation {
   category: AssetCategory;
-  weight: number; // percentage (e.g. 70 for 70%)
+  weight: number;
 }
 
 export interface TaxLossPools {
-  stockLossPool: number; // Aktien-Verlusttopf
-  generalLossPool: number; // Sonstiger Verlusttopf
-  vorabpauschaleEstimate: number; // Expected Vorabpauschale
-  taxExemptionUsed: number; // Freistellungsauftrag genutzt
+  stockLossPool: number;
+  generalLossPool: number;
+  vorabpauschaleEstimate: number;
+  taxExemptionUsed: number;
   teilfreistellungTaxSaved: number;
 }
 
@@ -103,10 +106,11 @@ export interface SavingsPlan {
   ticker: string;
   name: string;
   category: AssetCategory;
-  amount: number; // monthly savings rate
+  amount: number;
   isActive: boolean;
   sector?: Sector;
   region?: Region;
+  broker?: string;
 }
 
 export interface Portfolio {
@@ -132,4 +136,22 @@ export interface MarketPriceData {
   price: number;
   change24h?: number;
   updatedAt: string;
+}
+
+export interface MonteCarloResult {
+  percentile10: number[];
+  percentile50: number[];
+  percentile90: number[];
+  years: number[];
+  finalMedian: number;
+  finalLow: number;
+  finalHigh: number;
+}
+
+export interface StressTestResult {
+  scenarioName: string;
+  dropPercent: number;
+  portfolioLossEur: number;
+  portfolioNewValueEur: number;
+  recoveryMonthsEstimate: number;
 }

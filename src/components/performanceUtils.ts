@@ -685,5 +685,97 @@ export function generateBenchmarkSeries(
   ];
 }
 
+import type { MonteCarloResult, StressTestResult } from '../types';
+
+/**
+ * Runs 1,000 statistical Monte Carlo simulation trials using Geometric Brownian Motion.
+ */
+export function runMonteCarloSimulation(
+  currentPortfolioValue: number,
+  monthlySavings: number,
+  years: number = 20,
+  expectedReturnPercent: number = 7.0,
+  volatilityPercent: number = 15.0,
+  trials: number = 1000
+): MonteCarloResult {
+  const mu = expectedReturnPercent / 100;
+  const sigma = volatilityPercent / 100;
+  const annualSavings = monthlySavings * 12;
+
+  // Box-Muller transform helper for standard normal random variables
+  const randNormal = () => {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  };
+
+  const simulationPaths: number[][] = Array.from({ length: trials }, () => []);
+
+  for (let t = 0; t < trials; t++) {
+    let value = currentPortfolioValue;
+    simulationPaths[t].push(value);
+
+    for (let y = 1; y <= years; y++) {
+      const z = randNormal();
+      // Annual return with drift and volatility
+      const annualReturnFactor = Math.exp((mu - 0.5 * sigma * sigma) + sigma * z);
+      value = value * annualReturnFactor + annualSavings;
+      simulationPaths[t].push(Math.max(0, value));
+    }
+  }
+
+  // Calculate percentiles year by year
+  const percentile10: number[] = [];
+  const percentile50: number[] = [];
+  const percentile90: number[] = [];
+  const yearLabels: number[] = Array.from({ length: years + 1 }, (_, i) => i);
+
+  for (let y = 0; y <= years; y++) {
+    const yearValues = simulationPaths.map(path => path[y]).sort((a, b) => a - b);
+    percentile10.push(yearValues[Math.floor(trials * 0.10)]);
+    percentile50.push(yearValues[Math.floor(trials * 0.50)]);
+    percentile90.push(yearValues[Math.floor(trials * 0.90)]);
+  }
+
+  return {
+    percentile10,
+    percentile50,
+    percentile90,
+    years: yearLabels,
+    finalMedian: percentile50[years],
+    finalLow: percentile10[years],
+    finalHigh: percentile90[years]
+  };
+}
+
+/**
+ * Runs historical crisis stress tests on current portfolio value.
+ */
+export function runStressTestScenarios(
+  currentPortfolioValue: number
+): StressTestResult[] {
+  const scenarios = [
+    { name: 'Finanzkrise 2008', drop: 0.455, recoveryMonths: 36 },
+    { name: 'Dotcom-Blase 2000', drop: 0.550, recoveryMonths: 48 },
+    { name: 'Corona-Crash 2020', drop: 0.339, recoveryMonths: 5 },
+    { name: 'Zinswende & Bärenmarkt 2022', drop: 0.248, recoveryMonths: 18 }
+  ];
+
+  return scenarios.map(scen => {
+    const loss = currentPortfolioValue * scen.drop;
+    const newValue = Math.max(0, currentPortfolioValue - loss);
+
+    return {
+      scenarioName: scen.name,
+      dropPercent: scen.drop * 100,
+      portfolioLossEur: loss,
+      portfolioNewValueEur: newValue,
+      recoveryMonthsEstimate: scen.recoveryMonths
+    };
+  });
+}
+
+
 
 

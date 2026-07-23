@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { 
    AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
    PieChart, Pie, Cell, BarChart, Bar
@@ -6,6 +6,9 @@ import {
 import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart as PieIcon, Award, Download, Upload, Database, Percent, Calendar as CalendarIcon } from 'lucide-react';
 import type { Transaction, Holding, PortfolioStats } from '../types';
 import { convertCurrency, calculateGermanTax } from './performanceUtils';
+import { PortfolioHeatmap } from './PortfolioHeatmap';
+import { FireFreedomWidget } from './FireFreedomWidget';
+import { HoldingDetailModal } from './HoldingDetailModal';
  
  interface DashboardProps {
   stats: PortfolioStats;
@@ -18,8 +21,9 @@ import { convertCurrency, calculateGermanTax } from './performanceUtils';
   baseCurrency: 'EUR' | 'USD' | 'CHF' | 'GBP';
 }
  
- export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transactions, onExportAll, onImportAll, onExportCSV, onImportCSV, baseCurrency }) => {
-   const fileInputRef = useRef<HTMLInputElement>(null);
+export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transactions, onExportAll, onImportAll, onExportCSV, onImportCSV, baseCurrency }) => {
+  const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
    const csvFileInputRef = useRef<HTMLInputElement>(null);
 
    // Chart Colors
@@ -586,6 +590,31 @@ import { convertCurrency, calculateGermanTax } from './performanceUtils';
            ))}
          </div>
        </div>
+
+       {/* Heatmap & FIRE Widget Row */}
+       <div className="mt-6 space-y-6">
+         <PortfolioHeatmap
+           holdings={holdings}
+           onSelectHolding={(h) => setSelectedHolding(h)}
+           baseCurrency={baseCurrency}
+         />
+
+         <FireFreedomWidget
+           portfolioValue={stats.totalValue}
+           annualDividends={stats.dividendsReceived}
+           baseCurrency={baseCurrency}
+         />
+       </div>
+
+       {/* Holding Detail Drawer Modal */}
+       {selectedHolding && (
+         <HoldingDetailModal
+           holding={selectedHolding}
+           transactions={transactions}
+           onClose={() => setSelectedHolding(null)}
+           baseCurrency={baseCurrency}
+         />
+       )}
      </div>
    );
  };

@@ -8,11 +8,14 @@ import { SavingsSimulator } from './components/SavingsSimulator';
 import { DividendCalendar } from './components/DividendCalendar';
 import { MappingEditor } from './components/MappingEditor';
 import { usePortfolio } from './context/PortfolioContext';
-import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar, Sun, Moon, Settings, Upload, FileText, RefreshCw } from 'lucide-react';
+import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar, Settings, Upload, FileText, RefreshCw, FileSpreadsheet, Sparkles } from 'lucide-react';
 import './App.css';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
+const StressTestModal = lazy(() => import('./components/StressTestModal').then(m => ({ default: m.StressTestModal })));
+const SettingsModal = lazy(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
+const CsvImportModal = lazy(() => import('./components/CsvImportModal').then(m => ({ default: m.CsvImportModal })));
 
 function App() {
   const {
@@ -24,6 +27,8 @@ function App() {
     setBaseCurrency,
     isDarkMode,
     setIsDarkMode,
+    activeBrokerFilter,
+    setActiveBrokerFilter,
     holdings,
     stats,
     switchPortfolio,
@@ -45,6 +50,9 @@ function App() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'dividend_calendar' | 'watchlist' | 'savings' | 'mapping_rules'>('dashboard');
   const [showBatchPdfModal, setShowBatchPdfModal] = useState(false);
   const [showTaxReportModal, setShowTaxReportModal] = useState(false);
+  const [showStressTestModal, setShowStressTestModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showCsvImportModal, setShowCsvImportModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleAddTransaction = (tx: any) => {
@@ -147,6 +155,22 @@ function App() {
           </button>
 
           <button
+            onClick={() => setShowCsvImportModal(true)}
+            className="theme-toggle-btn"
+            title="Universal CSV Auto-Detector Importer"
+          >
+            <FileSpreadsheet size={16} />
+          </button>
+
+          <button
+            onClick={() => setShowStressTestModal(true)}
+            className="theme-toggle-btn"
+            title="Monte Carlo & Stress-Testing"
+          >
+            <Sparkles size={16} />
+          </button>
+
+          <button
             onClick={() => setShowTaxReportModal(true)}
             className="theme-toggle-btn"
             title="Steuerberichts-PDF generieren"
@@ -154,13 +178,31 @@ function App() {
             <FileText size={16} />
           </button>
 
-          <button 
+          <button
+            onClick={() => setShowSettingsModal(true)}
             className="theme-toggle-btn"
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            title={isDarkMode ? 'Hellmodus' : 'Dunkelmodus'}
+            title="Einstellungen & Sicherheit (PIN)"
           >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            <Settings size={16} />
           </button>
+
+          <div className="portfolio-selector-container">
+            <select
+              value={activeBrokerFilter}
+              onChange={(e) => setActiveBrokerFilter(e.target.value)}
+              className="portfolio-select"
+              title="Nach Broker filtern"
+            >
+              <option value="ALL">Alle Broker</option>
+              <option value="Trade Republic">Trade Republic</option>
+              <option value="Scalable Capital">Scalable Capital</option>
+              <option value="ING">ING-DiBa</option>
+              <option value="Comdirect">Comdirect</option>
+              <option value="Consorsbank">Consorsbank</option>
+              <option value="Finanzen.net Zero">Finanzen.net ZERO</option>
+              <option value="Bitpanda">Bitpanda / Crypto</option>
+            </select>
+          </div>
 
           <div className="portfolio-selector-container">
             <FolderOpen size={16} className="portfolio-select-icon" />
@@ -342,6 +384,32 @@ function App() {
             onClose={() => setShowTaxReportModal(false)}
             portfolio={activePortfolio}
             taxExemptionLimit={1000}
+          />
+        )}
+        {showStressTestModal && (
+          <StressTestModal
+            isOpen={showStressTestModal}
+            onClose={() => setShowStressTestModal(false)}
+            currentPortfolioValue={stats.totalValue}
+            monthlySavings={150}
+            baseCurrency={baseCurrency}
+          />
+        )}
+        {showSettingsModal && (
+          <SettingsModal
+            isOpen={showSettingsModal}
+            onClose={() => setShowSettingsModal(false)}
+            baseCurrency={baseCurrency}
+            onBaseCurrencyChange={setBaseCurrency}
+            isDarkMode={isDarkMode}
+            onToggleDarkMode={setIsDarkMode}
+          />
+        )}
+        {showCsvImportModal && (
+          <CsvImportModal
+            isOpen={showCsvImportModal}
+            onClose={() => setShowCsvImportModal(false)}
+            onImportTransactions={(txs) => txs.forEach(addTransaction)}
           />
         )}
       </Suspense>

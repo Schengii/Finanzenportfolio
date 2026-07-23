@@ -12,6 +12,8 @@ interface PortfolioContextType {
   setBaseCurrency: (cur: 'EUR' | 'USD' | 'CHF' | 'GBP') => void;
   isDarkMode: boolean;
   setIsDarkMode: (dark: boolean) => void;
+  activeBrokerFilter: string;
+  setActiveBrokerFilter: (broker: string) => void;
   holdings: Holding[];
   stats: PortfolioStats;
   switchPortfolio: (id: string) => void;
@@ -145,6 +147,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [baseCurrency, setBaseCurrency] = useState<'EUR' | 'USD' | 'CHF' | 'GBP'>('EUR');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [activeBrokerFilter, setActiveBrokerFilter] = useState<string>('ALL');
   
   const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({
     AAPL: 191.45,
@@ -182,6 +185,12 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
+  // Filtered transactions by broker if set
+  const filteredTransactions = useMemo(() => {
+    if (activeBrokerFilter === 'ALL') return activePortfolio.transactions;
+    return activePortfolio.transactions.filter(t => t.broker === activeBrokerFilter);
+  }, [activePortfolio.transactions, activeBrokerFilter]);
+
   // Compute Holdings
   const holdings = useMemo(() => {
     const assetMap: Record<string, {
@@ -192,10 +201,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       totalCost: number;
       sector?: any;
       region?: any;
+      broker?: string;
       notes?: string;
     }> = {};
 
-    activePortfolio.transactions.forEach(tx => {
+    filteredTransactions.forEach(tx => {
       if (tx.type === 'DEPOSIT' || tx.type === 'WITHDRAWAL' || tx.ticker === 'CASH') return;
 
       if (!assetMap[tx.ticker]) {
@@ -207,6 +217,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           totalCost: 0,
           sector: tx.sector,
           region: tx.region,
+          broker: tx.broker,
           notes: tx.notes
         };
       }
@@ -254,7 +265,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         cryptoTaxFreeShares: cryptoTaxFree
       };
     });
-  }, [activePortfolio.transactions, currentPrices]);
+  }, [filteredTransactions, currentPrices, activePortfolio.transactions]);
 
   // Cash Balance
   const cashBalance = useMemo(() => {
@@ -487,6 +498,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setBaseCurrency,
       isDarkMode,
       setIsDarkMode,
+      activeBrokerFilter,
+      setActiveBrokerFilter,
       holdings,
       stats,
       switchPortfolio,
