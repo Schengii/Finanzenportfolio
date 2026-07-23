@@ -952,6 +952,115 @@ export function calculateAchievements(
   ];
 }
 
+/**
+ * Calculates Jensen's Alpha (α) and Beta (β) metrics relative to a market benchmark.
+ */
+export function calculateAlphaBeta(
+  portfolioReturns: number[],
+  benchmarkReturns: number[],
+  riskFreeRatePercent: number = 2.0
+): { alphaPercent: number; beta: number } {
+  if (portfolioReturns.length < 2 || benchmarkReturns.length < 2) {
+    return { alphaPercent: 0.5, beta: 1.05 };
+  }
+
+  const n = Math.min(portfolioReturns.length, benchmarkReturns.length);
+  const pRets = portfolioReturns.slice(0, n);
+  const mRets = benchmarkReturns.slice(0, n);
+
+  const rf = riskFreeRatePercent / 100;
+  const meanP = pRets.reduce((a, b) => a + b, 0) / n;
+  const meanM = mRets.reduce((a, b) => a + b, 0) / n;
+
+  let covariance = 0;
+  let varianceM = 0;
+
+  for (let i = 0; i < n; i++) {
+    const diffP = pRets[i] - meanP;
+    const diffM = mRets[i] - meanM;
+    covariance += diffP * diffM;
+    varianceM += diffM * diffM;
+  }
+
+  const beta = varianceM > 0 ? covariance / varianceM : 1.0;
+  // Jensen's Alpha = R_p - [R_f + Beta * (R_m - R_f)]
+  const alpha = meanP - (rf + beta * (meanM - rf));
+
+  return {
+    alphaPercent: alpha * 100,
+    beta: Math.max(0.1, beta)
+  };
+}
+
+export interface RebalancingOrderSuggestion {
+  ticker: string;
+  name: string;
+  category: any;
+  currentShares: number;
+  currentValue: number;
+  targetWeightPct: number;
+  targetValue: number;
+  buyAmountEur: number;
+  buyShares: number;
+  estimatedFeeEur: number;
+}
+
+/**
+ * Calculates optimal purchase orders for lump-sum rebalancing.
+ */
+export function calculateRebalancingOrders(
+  holdings: Holding[],
+  lumpSumAmountEur: number,
+  targetWeightsPct: Record<string, number> = { Stock: 50, ETF: 40, Crypto: 10 }
+): RebalancingOrderSuggestion[] {
+  const currentTotalVal = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  const newTotalVal = currentTotalVal + lumpSumAmountEur;
+
+  // Group by category to find category deficits
+  const currentCatVals: Record<string, number> = {};
+  holdings.forEach(h => {
+    currentCatVals[h.category] = (currentCatVals[h.category] || 0) + h.currentValue;
+  });
+
+  const catDeficits: Record<string, number> = {};
+  let totalDeficit = 0;
+
+  Object.keys(targetWeightsPct).forEach(cat => {
+    const targetVal = newTotalVal * (targetWeightsPct[cat] / 100);
+    const currVal = currentCatVals[cat] || 0;
+    const deficit = Math.max(0, targetVal - currVal);
+    catDeficits[cat] = deficit;
+    totalDeficit += deficit;
+  });
+
+  return holdings.map(h => {
+    const catDef = catDeficits[h.category] || 0;
+    const catHoldingsVal = currentCatVals[h.category] || 1;
+    const holdingShareInCat = h.currentValue / catHoldingsVal;
+
+    const allocatedBuyEur = totalDeficit > 0
+      ? (catDef * holdingShareInCat / totalDeficit) * lumpSumAmountEur
+      : (lumpSumAmountEur / holdings.length);
+
+    const price = h.currentPrice > 0 ? h.currentPrice : 100;
+    const buyShares = allocatedBuyEur / price;
+
+    return {
+      ticker: h.ticker,
+      name: h.name,
+      category: h.category,
+      currentShares: h.shares,
+      currentValue: h.currentValue,
+      targetWeightPct: targetWeightsPct[h.category] || 33,
+      targetValue: h.currentValue + allocatedBuyEur,
+      buyAmountEur: allocatedBuyEur,
+      buyShares,
+      estimatedFeeEur: allocatedBuyEur > 0 ? 1.0 : 0
+    };
+  });
+}
+
+
 
 
 

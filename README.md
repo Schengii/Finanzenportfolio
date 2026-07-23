@@ -1,6 +1,6 @@
 # 📈 FinanzPortfolio CoPilot
 
-> **Professioneller, datenschutzfreundlicher & hochleistungsfähiger Portfolio-Tracker & Finanzanalyst** auf Basis von React 19, TypeScript, Vite, Web Crypto API und Vitest.
+> **Professioneller, datenschutzfreundlicher & hochleistungsfähiger Portfolio-Tracker & Finanzanalyst** auf Basis von React 19, TypeScript, Vite, Web Crypto API, PWA und Vitest.
 
 ---
 
@@ -14,54 +14,55 @@
   - **Max Drawdown** (%) & **Sharpe Ratio** (Risikoadjustierte Rendite)
 - **Monatliche Performance-Matrix**: Historische Renditen pro Jahr und Monat im Hitmap-Stil.
 
-### 2. 🤖 KI-Depot-Check & Risikodiagnose (`PortfolioHealthAudit.tsx`)
+### 2. 📈 Benchmark-Vergleich & Alpha/Beta Engine (`BenchmarkComparison.tsx`)
+- **Benchmark-Vergleichskurven**: Vergleiche dein Portfolio mit **MSCI World**, **S&P 500**, **DAX 40** und **Bitcoin**.
+- **Alpha ($\alpha$)**: Misst deine echte Überrendite gegenüber dem Markt.
+- **Beta ($\beta$)**: Misst die Volatilität / Schwankungsintensität deines Portfolios relativ zum Markt.
+
+### 3. 🎯 Rebalancing-Auftragsplaner (`RebalancingOrderPlanner.tsx`)
+- Berechnet für Einmalkäufe (z.B. 2.500 €) die exakt benötigten Kauf-Beträge und Stückzahlen je Asset, um deine Soll-Allokation mit minimalen Ordergebühren wiederherzustellen.
+
+### 4. 📅 Ex-Tag Radar & 3-Jahre Dividenden-Prognose (`ExDateDividendRadar.tsx`)
+- **Ex-Tag Benachrichtigungs-Radar**: Übersicht anstehender Ex-Dividenden-Tage in den nächsten 30 Tagen.
+- **3-Jahre DGR Prognose**: Zukunfts-Dividendenrechner auf Basis historischer Erhöhungsraten (Dividend Growth Rate).
+
+### 5. 🤖 KI-Depot-Check & Risikodiagnose (`PortfolioHealthAudit.tsx`)
 - **Klumpenrisiko-Erkennung**: Automatische Warnung bei Positionen > 20% des Gesamtportfolios.
 - **ETF-Überschneidungs-Check (Overlap-Analyzer)**: Identifiziert doppelte US-Tech-Gewichtungen (z.B. MSCI World + S&P 500).
 - **Gebühren-Check**: Errechnet die durch Orderentgelte aufgelaufenen Kosten.
 - **Health Score (0 - 100)**: Ermittelt die Gesamtgesundheit des Depots auf einen Blick.
 
-### 3. 🗺️ Portfolio Treemap / Heatmap (`PortfolioHeatmap.tsx`)
-- Proportionale Rechteck-Visualisierung aller Assets.
-- Kachelgröße = Depotgewichtung (%).
-- Farbschema = Kursgewinn/Verlust (Smaragdgrün für Gewinne, Karminrot für Verluste).
-- Klick auf eine Kachel öffnet die tranchengenaue **Holding-Detailansicht**.
+### 6. 🗺️ Portfolio Treemap / Heatmap (`PortfolioHeatmap.tsx`)
+- Proportionale Rechteck-Visualisierung aller Assets. Kachelgröße = Depotgewichtung (%). Kachelfarbe = Kursgewinn/Verlust.
 
-### 4. 🎲 Monte-Carlo-Simulation & Historische Stress-Tests (`StressTestModal.tsx`)
-- **Monte-Carlo-Simulator (1.000 Pfade)**: Simulation künftiger Vermögensverläufe unter Berücksichtigung von Volatilität und Sparrate. Berechnet das 10. Perzentil (pessimistisch), 50. Perzentil (Median) und 90. Perzentil (optimistisch).
-- **Historische Stress-Tests**: Simuliert Auswirkungen bekannter Krisen auf den aktuellen Depotwert:
-  - *Finanzkrise 2008 (-45,5%)*
-  - *Dotcom-Blase 2000 (-55,0%)*
-  - *Corona-Crash 2020 (-33,9%)*
-  - *Zinswende & Bärenmarkt 2022 (-24,8%)*
+### 7. 🎲 Monte-Carlo-Simulation & Historische Stress-Tests (`StressTestModal.tsx`)
+- **Monte-Carlo-Simulator (1.000 Pfade)**: Simulation künftiger Vermögensverläufe (10., 50., 90. Perzentil).
+- **Historische Stress-Tests**: Simuliert Finanzkrise 2008 (-45,5%), Dotcom 2000 (-55%), Corona 2020 (-33,9%), Zinswende 2022 (-24,8%).
 
-### 5. 🌊 Performance-Attribution & DRIP Zinseszins (`PerformanceAttribution.tsx`)
-- **Wasserfall-Rendite-Zerlegung**: Zerlegt den Ertrag exakt in **Einzahlungen**, **Kursgewinne**, **Dividenden**, **Währungseinfluss (FX)**, **Ordergebühren** und **Steuern**.
-- **DRIP Zinseszins-Prognose**: Vergleicht die Zukunfts-Wertentwicklung mit und ohne automatische Reinvestition von Dividenden (Dividend Reinvestment Plan).
+### 8. 🌊 Performance-Attribution & DRIP Zinseszins (`PerformanceAttribution.tsx`)
+- **Wasserfall-Zerlegung**: Ertrag in Einzahlungen, Kursgewinne, Dividenden, FX, Gebühren und Steuern.
+- **DRIP Zinseszins-Prognose**: Mehrgewinn durch automatische Dividenden-Reinvestition (Dividend Reinvestment Plan).
 
-### 6. 🎯 Soll- vs. Ist-Allokation Radar-Chart (`AllocationRadarChart.tsx`)
-- Netzdiagramm (Spider Chart) zur Gegenüberstellung deiner Wunsch-Branchengewichtung (Technology, Financials, Healthcare etc.) mit dem Ist-Zustand.
+### 9. 🎯 Soll- vs. Ist-Allokation Radar-Chart (`AllocationRadarChart.tsx`)
+- Netzdiagramm (Spider Chart) zur Gegenüberstellung deiner Wunsch-Branchengewichtung mit dem Ist-Zustand.
 
-### 7. 🌴 FIRE & Dividenden-Freiheitsrechner (`FireFreedomWidget.tsx`)
-- Berechnet die erforderliche **FIRE-Zielsumme** (nach der 4%-Entnahmeregel).
-- Erfasst den Abdeckungsgrad deiner monatlichen Lebenshaltungskosten (Wocheneinkauf, Miete, Fixkosten) durch passive Dividenden.
+### 10. 🌴 FIRE & Dividenden-Freiheitsrechner (`FireFreedomWidget.tsx`)
+- Berechnet die erforderliche **FIRE-Zielsumme** (4%-Entnahmeregel) und den Abdeckungsgrad monatlicher Lebenshaltungskosten.
 
-### 8. 🌐 Gesamtvermögens-Übersicht (Net Worth Dashboard) (`NetWorthDashboard.tsx`)
-- Kumuliert alle Aktien/ETF/Krypto-Portfolios mit externen Sachwerten (Tagesgeld, Notgroschen, Immobilien) und zieht Verbindlichkeiten (Kredite) ab.
+### 11. 🌐 Gesamtvermögens-Übersicht (Net Worth Dashboard) (`NetWorthDashboard.tsx`)
+- Kumuliert Aktien/ETF/Krypto-Portfolios mit Tagesgeld, Notgroschen, Immobilien und zieht Verbindlichkeiten ab.
 
-### 9. ⚖️ Deutsche Steuerlogik (§ 20 & § 18 InvStG, EStG)
-- **FIFO-Prinzip (First-In, First-Out)** bei Teilverkäufen.
-- **Teilfreistellung (§ 20 InvStG)**: 30% Steuerfreistellung auf Gewinne und Dividenden von Aktien-ETFs.
-- **Vorabpauschale (§ 18 InvStG)**: Schätzung der jährlichen Vorabpauschale basierend auf dem Basiszins der Bundesbank.
-- **Krypto 1-Jahr Haltefrist (§ 23 EStG)**: Automatischer Tracker für steuerfreie Krypto-Bestände nach 365 Tagen.
-- **Druckfertige Steuerbescheinigung (`TaxReportModal.tsx`)**: Aufbereitung aller relevanten Daten für Anlage KAP / KAP-INV.
+### 12. 📄 PDF & Druckberichts-Generator (`PdfExportModal.tsx`)
+- Druckfertiges PDF-Export-Tool für Jahresberichte und Steuerbescheinigungen.
 
-### 10. 🏦 Multi-Broker Tagging & Universal CSV/PDF Import
-- Transaktions-Tagging nach Brokern (`Trade Republic`, `Scalable Capital`, `ING`, `Comdirect`, `Consorsbank`, `Finanzen.net ZERO`, `Bitpanda`).
-- **Universal CSV Importer (`universalCsvImporter.ts`)**: Auto-Erkennung von Exporte aus Portfolio Performance, Parqet, Scalable, Trade Republic und CoinTracking.
-- **Batch PDF Importer (`BatchPdfUploadModal.tsx`)**: Drag & Drop Zone für mehrere PDF-Bankabrechnungen gleichzeitig.
+### 13. 📱 PWA Mobile App Support (Progressive Web App)
+- Service Worker (`sw.js`) und Web App Manifest (`manifest.json`) für **1-Klick Installation** auf iOS- und Android-Homescreens inklusive Offline-Caching.
 
-### 11. 🔒 Web Crypto API Tresor & Sicherheit (`cryptoStorage.ts`)
-- Lokale AES-GCM 256-Bit Verschlüsselung deiner Portfoliodaten via Master-PIN / Passwort.
+### 14. ⚖️ Deutsche Steuerlogik (§ 20 & § 18 InvStG, EStG)
+- **FIFO-Prinzip**, **Teilfreistellung (30%)**, **Vorabpauschale**, **Krypto 1-Jahr Haltefrist (§ 23 EStG)** und **Anlage KAP Report (`TaxReportModal.tsx`)**.
+
+### 15. 🔒 Web Crypto API Tresor (`cryptoStorage.ts`)
+- Lokale AES-GCM 256-Bit Verschlüsselung aller Depotdaten via Master-PIN.
 
 ---
 
@@ -71,9 +72,9 @@
 |---|---|
 | **Frontend Framework** | React 19, TypeScript |
 | **Build Tool & Bundler** | Vite 8.1 |
-| **Styling & Components** | Vanilla CSS, Lucide Icons, Tailwind-Utilities |
-| **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Treemap) |
-| **Testing** | Vitest, Testing Library React, JSDOM |
+| **Mobile & PWA** | Web App Manifest, Service Worker Caching |
+| **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
+| **Testing** | Vitest (13 Automated Unit Tests), Testing Library React, JSDOM |
 | **Linting & Code Quality** | Oxlint |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM) |
 
@@ -81,79 +82,19 @@
 
 ## 🚦 Entwicklungs- & Testbefehle
 
-### Repository klonen und Abhängigkeiten installieren
 ```bash
+# Abhängigkeiten installieren
 npm install
-```
 
-### Entwicklungs-Server starten
-```bash
+# Entwicklungs-Server starten
 npm run dev
-```
 
-### Automatisierte Vitest Unit-Tests ausführen
-```bash
+# Automatisierte Vitest Unit-Tests ausführen (13 Tests)
 npm run test
-```
 
-### Code-Linter (Oxlint) ausführen
-```bash
+# Code-Linter (Oxlint) ausführen
 npm run lint
-```
 
-### Produktions-Build erstellen
-```bash
+# Produktions-Build erstellen
 npm run build
 ```
-
----
-
-## 📁 Projekt-Struktur
-
-```
-Finanzenportfolio/
-├── src/
-│   ├── components/
-│   │   ├── AchievementBadges.tsx       # Gamification & Badges
-│   │   ├── AllocationRadarChart.tsx    # Soll- vs. Ist-Radar-Chart
-│   │   ├── BatchPdfUploadModal.tsx     # Stapel-PDF Import
-│   │   ├── CsvImportModal.tsx          # Universal CSV Import
-│   │   ├── Dashboard.tsx               # Haupt-Dashboard
-│   │   ├── DividendCalendar.tsx        # Dividenden-Kalender & Forecast
-│   │   ├── FireFreedomWidget.tsx       # FIRE & Dividenden-Freiheitsrechner
-│   │   ├── HoldingDetailModal.tsx      # Detail-Drawer & FX-Zerlegung
-│   │   ├── Holdings.tsx                # Bestandsübersicht & Filter
-│   │   ├── NetWorthDashboard.tsx       # Gesamtvermögens-Übersicht
-│   │   ├── PerformanceAttribution.tsx  # Wasserfall-Chart & DRIP Zinseszins
-│   │   ├── PdfParser.ts                # PDF Parser Engine
-│   │   ├── performanceUtils.ts         # Finanzmathematik & Steuer-Engine
-│   │   ├── PortfolioHealthAudit.tsx    # KI-Depot-Check & Risikodiagnose
-│   │   ├── PortfolioHeatmap.tsx        # Treemap / Heatmap Visualisierung
-│   │   ├── SavingsSimulator.tsx        # Sparplan-Rechner
-│   │   ├── SettingsModal.tsx           # Einstellungen & Master-PIN Tresor
-│   │   ├── Strategy.tsx                # Rebalancing & Soll-Allokation
-│   │   ├── StressTestModal.tsx         # Monte Carlo & Krisen-Simulations-Modal
-│   │   ├── TaxReportModal.tsx          # Druckfertige Steuerbescheinigung
-│   │   ├── Transactions.tsx            # Transaktions-Tabelle & Buchung
-│   │   ├── Watchlist.tsx               # Beobachtungsliste & QuickBuy
-│   │   └── __tests__/
-│   │       └── performanceUtils.test.ts # Automated Vitest Suite (11 Tests)
-│   ├── context/
-│   │   └── PortfolioContext.tsx        # Globaler State & Broker-Filter
-│   ├── services/
-│   │   ├── cryptoStorage.ts            # AES-GCM Web Crypto API Wrapper
-│   │   ├── marketDataApi.ts            # CoinGecko, EZB & Yahoo Live API
-│   │   └── universalCsvImporter.ts     # Universal CSV Auto-Detector
-│   ├── App.tsx                         # Layout & Tab-Steuerung
-│   ├── main.tsx                        # Provider Wrapper & Entry Point
-│   └── types.ts                        # TypeScript Interfaces & Datenmodelle
-├── vitest.config.ts                    # Vitest Konfiguration
-├── package.json                        # Abhängigkeiten & Scripts
-└── README.md                           # Dokumentation
-```
-
----
-
-## 📜 Lizenz & Datenschutz
-
-Dieses Projekt läuft **100% lokal im Browser**. Es werden keine Daten an externe Server gesendet (außer optionalen, öffentlichen Preis-Abfragen an CoinGecko / EZB). Mit dem Master-PIN Tresor bleiben alle Depotdaten lokal verschlüsselt.

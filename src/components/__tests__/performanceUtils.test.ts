@@ -9,7 +9,9 @@ import {
   calculateVorabpauschale,
   calculateSectorAndRegionBreakdown,
   runMonteCarloSimulation,
-  runStressTestScenarios
+  runStressTestScenarios,
+  calculateAlphaBeta,
+  calculateRebalancingOrders
 } from '../performanceUtils';
 import { parseUniversalCsv } from '../../services/universalCsvImporter';
 import type { Transaction, Holding } from '../../types';
@@ -215,5 +217,36 @@ describe('performanceUtils Financial Calculations', () => {
     expect(res.detectedFormat).toContain('Portfolio Performance');
     expect(res.transactions.length).toBe(1);
     expect(res.transactions[0].name).toBe('Apple Inc.');
+  });
+
+  it('calculates Alpha and Beta metrics', () => {
+    const pRets = [0.02, 0.03, -0.01, 0.04];
+    const mRets = [0.015, 0.02, -0.012, 0.03];
+    const metrics = calculateAlphaBeta(pRets, mRets, 2.0);
+    expect(metrics.beta).toBeGreaterThan(0);
+  });
+
+  it('calculates optimal rebalancing orders for lump sum deposit', () => {
+    const holdings: Holding[] = [
+      {
+        ticker: 'AAPL',
+        name: 'Apple Inc.',
+        category: 'Stock',
+        shares: 10,
+        averageBuyPrice: 150,
+        currentPrice: 200,
+        totalCost: 1500,
+        currentValue: 2000,
+        totalGain: 500,
+        totalGainPercent: 33.3,
+        portfolioWeight: 100,
+        yieldOnCost: 1
+      }
+    ];
+
+    const orders = calculateRebalancingOrders(holdings, 1000, { Stock: 100 });
+    expect(orders.length).toBe(1);
+    expect(orders[0].buyAmountEur).toBe(1000);
+    expect(orders[0].buyShares).toBe(5);
   });
 });

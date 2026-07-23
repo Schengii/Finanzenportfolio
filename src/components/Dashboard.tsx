@@ -14,6 +14,9 @@ import { PerformanceAttribution } from './PerformanceAttribution';
 import { AllocationRadarChart } from './AllocationRadarChart';
 import { NetWorthDashboard } from './NetWorthDashboard';
 import { AchievementBadges } from './AchievementBadges';
+import { BenchmarkComparison } from './BenchmarkComparison';
+import { RebalancingOrderPlanner } from './RebalancingOrderPlanner';
+import { ExDateDividendRadar } from './ExDateDividendRadar';
 import { usePortfolio } from '../context/PortfolioContext';
  
  interface DashboardProps {
@@ -609,6 +612,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
          <PortfolioHeatmap
            holdings={holdings}
            onSelectHolding={(h) => setSelectedHolding(h)}
+           baseCurrency={baseCurrency}
+         />
+
+         <BenchmarkComparison
+           portfolioReturnPercent={stats.totalGainsPercent}
+         />
+
+         <RebalancingOrderPlanner
+           holdings={holdings}
+           baseCurrency={baseCurrency}
+         />
+
+         <ExDateDividendRadar
+           holdings={holdings}
+           transactions={transactions}
            baseCurrency={baseCurrency}
          />
 

@@ -16,6 +16,7 @@ const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m =
 const StressTestModal = lazy(() => import('./components/StressTestModal').then(m => ({ default: m.StressTestModal })));
 const SettingsModal = lazy(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
 const CsvImportModal = lazy(() => import('./components/CsvImportModal').then(m => ({ default: m.CsvImportModal })));
+const PdfExportModal = lazy(() => import('./components/PdfExportModal').then(m => ({ default: m.PdfExportModal })));
 
 function App() {
   const {
@@ -53,6 +54,7 @@ function App() {
   const [showStressTestModal, setShowStressTestModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
+  const [showPdfExportModal, setShowPdfExportModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleAddTransaction = (tx: any) => {
@@ -171,9 +173,9 @@ function App() {
           </button>
 
           <button
-            onClick={() => setShowTaxReportModal(true)}
+            onClick={() => setShowPdfExportModal(true)}
             className="theme-toggle-btn"
-            title="Steuerberichts-PDF generieren"
+            title="PDF Bericht drucken / speichern"
           >
             <FileText size={16} />
           </button>
@@ -410,6 +412,14 @@ function App() {
             isOpen={showCsvImportModal}
             onClose={() => setShowCsvImportModal(false)}
             onImportTransactions={(txs) => txs.forEach(addTransaction)}
+          />
+        )}
+        {showPdfExportModal && (
+          <PdfExportModal
+            isOpen={showPdfExportModal}
+            onClose={() => setShowPdfExportModal(false)}
+            portfolio={activePortfolio}
+            baseCurrency={baseCurrency}
           />
         )}
       </Suspense>
