@@ -9,6 +9,12 @@ import { convertCurrency, calculateGermanTax } from './performanceUtils';
 import { PortfolioHeatmap } from './PortfolioHeatmap';
 import { FireFreedomWidget } from './FireFreedomWidget';
 import { HoldingDetailModal } from './HoldingDetailModal';
+import { PortfolioHealthAudit } from './PortfolioHealthAudit';
+import { PerformanceAttribution } from './PerformanceAttribution';
+import { AllocationRadarChart } from './AllocationRadarChart';
+import { NetWorthDashboard } from './NetWorthDashboard';
+import { AchievementBadges } from './AchievementBadges';
+import { usePortfolio } from '../context/PortfolioContext';
  
  interface DashboardProps {
   stats: PortfolioStats;
@@ -22,6 +28,7 @@ import { HoldingDetailModal } from './HoldingDetailModal';
 }
  
 export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transactions, onExportAll, onImportAll, onExportCSV, onImportCSV, baseCurrency }) => {
+  const { portfolios } = usePortfolio();
   const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
    const csvFileInputRef = useRef<HTMLInputElement>(null);
@@ -593,9 +600,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
 
        {/* Heatmap & FIRE Widget Row */}
        <div className="mt-6 space-y-6">
+         <PortfolioHealthAudit
+           holdings={holdings}
+           transactions={transactions}
+           baseCurrency={baseCurrency}
+         />
+
          <PortfolioHeatmap
            holdings={holdings}
            onSelectHolding={(h) => setSelectedHolding(h)}
+           baseCurrency={baseCurrency}
+         />
+
+         <PerformanceAttribution
+           transactions={transactions}
+           holdings={holdings}
+           baseCurrency={baseCurrency}
+         />
+
+         <AllocationRadarChart
+           holdings={holdings}
+         />
+
+         <NetWorthDashboard
+           portfolios={portfolios}
            baseCurrency={baseCurrency}
          />
 
@@ -603,6 +631,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
            portfolioValue={stats.totalValue}
            annualDividends={stats.dividendsReceived}
            baseCurrency={baseCurrency}
+         />
+
+         <AchievementBadges
+           stats={stats}
+           holdings={holdings}
+           transactions={transactions}
          />
        </div>
 

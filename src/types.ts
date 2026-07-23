@@ -155,3 +155,34 @@ export interface StressTestResult {
   portfolioNewValueEur: number;
   recoveryMonthsEstimate: number;
 }
+
+export interface HealthAuditIssue {
+  id: string;
+  type: 'WARNING' | 'CRITICAL' | 'INFO';
+  title: string;
+  description: string;
+  suggestion: string;
+  affectedTickers?: string[];
+}
+
+export interface AchievementBadge {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  category: 'INVESTOR' | 'DIVIDEND' | 'TAX' | 'MILESTONE';
+  isUnlocked: boolean;
+  unlockedAt?: string;
+  progressPercent: number;
+}
+
+export interface AttributionBreakdown {
+  startingValue: number;
+  capitalGains: number;
+  dividendsReceived: number;
+  fxGain: number;
+  feesPaid: number;
+  taxesPaid: number;
+  finalValue: number;
+}
+

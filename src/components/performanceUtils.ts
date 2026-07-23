@@ -776,6 +776,183 @@ export function runStressTestScenarios(
   });
 }
 
+import type { HealthAuditIssue, AchievementBadge, AttributionBreakdown, PortfolioStats } from '../types';
+
+/**
+ * AI Health Audit & Diagnostics engine for concentration risks, overlaps, and fee analysis.
+ */
+export function analyzePortfolioHealth(
+  holdings: Holding[],
+  transactions: Transaction[]
+): HealthAuditIssue[] {
+  const issues: HealthAuditIssue[] = [];
+
+  const totalValue = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  if (totalValue === 0) return issues;
+
+  // 1. Concentration Risk (>20% single position)
+  holdings.forEach(h => {
+    const pct = (h.currentValue / totalValue) * 100;
+    if (pct > 20 && h.category !== 'ETF') {
+      issues.push({
+        id: `conc-${h.ticker}`,
+        type: 'CRITICAL',
+        title: `Klumpenrisiko in ${h.name} (${h.ticker})`,
+        description: `Position macht ${pct.toFixed(1)}% des Gesamtportfolios aus. Hohe Volatilität bei Einzelwerten.`,
+        suggestion: `Überlege einen Teilgewinn mitzunehmen oder Sparraten stärker in breit gestreute ETFs zu lenken.`,
+        affectedTickers: [h.ticker]
+      });
+    }
+  });
+
+  // 2. ETF Overlap Warning (e.g., MSCI World + S&P 500)
+  const etfs = holdings.filter(h => h.category === 'ETF');
+  const hasMsciWorld = etfs.some(e => e.name.toLowerCase().includes('msci world') || e.ticker.includes('EUNL'));
+  const hasSp500 = etfs.some(e => e.name.toLowerCase().includes('s&p 500') || e.ticker.includes('VOO') || e.ticker.includes('SXXP'));
+
+  if (hasMsciWorld && hasSp500) {
+    issues.push({
+      id: 'overlap-etf',
+      type: 'WARNING',
+      title: 'ETF-Überschneidung (MSCI World + S&P 500)',
+      description: 'Der MSCI World enthält bereits zu ca. 70% US-Aktien aus dem S&P 500 (Apple, Microsoft, Nvidia).',
+      suggestion: 'Eine Kombination führt zu einer unbeabsichtigten Übergewichtung von US Big-Tech.',
+      affectedTickers: etfs.map(e => e.ticker)
+    });
+  }
+
+  // 3. High Fee Warning
+  const totalFees = transactions.reduce((sum, t) => sum + (t.fee || 0), 0);
+  const totalCost = holdings.reduce((sum, h) => sum + h.totalCost, 0);
+  if (totalCost > 0 && (totalFees / totalCost) > 0.015) {
+    issues.push({
+      id: 'high-fees',
+      type: 'WARNING',
+      title: 'Erhöhte Transaktionsgebühren',
+      description: `Bisher wurden ${(totalFees).toFixed(2)} € an Ordergebühren gezahlt (${((totalFees / totalCost) * 100).toFixed(2)}% des Einzahlungsbetrags).`,
+      suggestion: 'Nutze gebührenfreie Neobroker Sparpläne (z.B. Trade Republic oder Scalable Capital 0 € Order).',
+    });
+  }
+
+  // 4. Diversification Info
+  const categoriesCount = new Set(holdings.map(h => h.category)).size;
+  if (categoriesCount < 2) {
+    issues.push({
+      id: 'low-div',
+      type: 'INFO',
+      title: 'Eingeschränkte Asset-Klassen Diversifikation',
+      description: `Dein Portfolio besteht aktuell nur aus 1 Asset-Klasse.`,
+      suggestion: 'Erwäge zur Risikoreduzierung eine Mischung aus Aktien, ETFs, Anleihen oder Krypto.',
+    });
+  }
+
+  return issues;
+}
+
+/**
+ * Calculates performance attribution waterfall breakdown (Gains, Dividends, FX, Fees, Taxes).
+ */
+export function calculatePerformanceAttribution(
+  transactions: Transaction[],
+  holdings: Holding[]
+): AttributionBreakdown {
+  let startingCost = 0;
+  let dividendsReceived = 0;
+  let feesPaid = 0;
+  let taxesPaid = 0;
+
+  transactions.forEach(t => {
+    const rate = t.exchangeRate || 1.0;
+    if (t.type === 'BUY') {
+      startingCost += (t.amount * t.price) / rate;
+    }
+    if (t.type === 'DIVIDEND') {
+      dividendsReceived += (t.amount * t.price - t.tax) / rate;
+    }
+    feesPaid += (t.fee || 0) / rate;
+    taxesPaid += (t.tax || 0) / rate;
+  });
+
+  const finalValue = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  const totalGains = holdings.reduce((sum, h) => sum + h.totalGain, 0);
+  
+  // Approximate FX vs Capital gain breakdown
+  const fxGain = holdings.reduce((sum, h) => sum + (h.fxGainEur || 0), 0);
+  const capitalGains = Math.max(0, totalGains - fxGain);
+
+  return {
+    startingValue: startingCost,
+    capitalGains,
+    dividendsReceived,
+    fxGain,
+    feesPaid,
+    taxesPaid,
+    finalValue
+  };
+}
+
+/**
+ * Calculates Gamification Achievement Badges unlocking state.
+ */
+export function calculateAchievements(
+  stats: PortfolioStats,
+  holdings: Holding[],
+  transactions: Transaction[]
+): AchievementBadge[] {
+  const divCount = transactions.filter(t => t.type === 'DIVIDEND').length;
+  const hasCryptoTaxFree = holdings.some(h => (h.cryptoTaxFreeShares || 0) > 0);
+  const monthlyDivs = (stats.dividendsReceived || 0) / 12;
+
+  return [
+    {
+      id: 'badge-1',
+      title: 'Erste Dividende',
+      description: 'Empfange deine allererste Passiv-Dividenden-Auszahlung',
+      icon: '🥉',
+      category: 'DIVIDEND',
+      isUnlocked: divCount > 0,
+      progressPercent: Math.min(100, (divCount / 1) * 100)
+    },
+    {
+      id: 'badge-2',
+      title: '100 € / Monat Passiv',
+      description: 'Erreiche durchschnittlich 100 € Dividenden pro Monat',
+      icon: '🥈',
+      category: 'DIVIDEND',
+      isUnlocked: monthlyDivs >= 100,
+      progressPercent: Math.min(100, (monthlyDivs / 100) * 100)
+    },
+    {
+      id: 'badge-3',
+      title: 'Steuerfrei Halter (Krypto)',
+      description: 'Halte Krypto über 365 Tage nach deutschem EStG steuerfrei',
+      icon: '🥇',
+      category: 'TAX',
+      isUnlocked: hasCryptoTaxFree,
+      progressPercent: hasCryptoTaxFree ? 100 : 0
+    },
+    {
+      id: 'badge-4',
+      title: '100k Club',
+      description: 'Überschreite die Schwelle von 100.000 € Portfolio-Wert',
+      icon: '🚀',
+      category: 'MILESTONE',
+      isUnlocked: stats.totalValue >= 100000,
+      progressPercent: Math.min(100, (stats.totalValue / 100000) * 100)
+    },
+    {
+      id: 'badge-5',
+      title: 'Diversifikations-Profi',
+      description: 'Besitze Holdings in allen 3 Hauptkategorien (Aktien, ETFs, Krypto)',
+      icon: '💎',
+      category: 'INVESTOR',
+      isUnlocked: new Set(holdings.map(h => h.category)).size >= 3,
+      progressPercent: Math.min(100, (new Set(holdings.map(h => h.category)).size / 3) * 100)
+    }
+  ];
+}
+
+
 
 
 
