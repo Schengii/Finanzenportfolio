@@ -11,7 +11,8 @@ import {
   runMonteCarloSimulation,
   runStressTestScenarios,
   calculateAlphaBeta,
-  calculateRebalancingOrders
+  calculateRebalancingOrders,
+  calculateTaxLossHarvestingSuggestions
 } from '../performanceUtils';
 import { parseUniversalCsv } from '../../services/universalCsvImporter';
 import type { Transaction, Holding } from '../../types';
@@ -248,5 +249,42 @@ describe('performanceUtils Financial Calculations', () => {
     expect(orders.length).toBe(1);
     expect(orders[0].buyAmountEur).toBe(1000);
     expect(orders[0].buyShares).toBe(5);
+  });
+
+  it('calculates tax loss harvesting and exemption allowance suggestions', () => {
+    const holdings: Holding[] = [
+      {
+        ticker: 'AAPL',
+        name: 'Apple Inc.',
+        category: 'Stock',
+        shares: 10,
+        averageBuyPrice: 100,
+        currentPrice: 150,
+        totalCost: 1000,
+        currentValue: 1500,
+        totalGain: 500,
+        totalGainPercent: 50,
+        portfolioWeight: 50,
+        yieldOnCost: 2
+      },
+      {
+        ticker: 'TSLA',
+        name: 'Tesla Inc.',
+        category: 'Stock',
+        shares: 5,
+        averageBuyPrice: 200,
+        currentPrice: 100,
+        totalCost: 1000,
+        currentValue: 500,
+        totalGain: -500,
+        totalGainPercent: -50,
+        portfolioWeight: 50,
+        yieldOnCost: 0
+      }
+    ];
+
+    const res = calculateTaxLossHarvestingSuggestions(holdings, 1000, 200);
+    expect(res.unusedExemptionEur).toBe(800);
+    expect(res.suggestions.length).toBeGreaterThan(0);
   });
 });

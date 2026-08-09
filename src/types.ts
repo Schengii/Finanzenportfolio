@@ -17,7 +17,7 @@ export interface AssetMappingRule {
 
 export interface Transaction {
   id: string;
-  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL' | 'STAKING';
+  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL' | 'STAKING' | 'OPTION_PREMIUM' | 'OPTION_EXPIRE' | 'OPTION_ASSIGN';
   date: string;
   ticker: string;
   name: string;
@@ -32,6 +32,9 @@ export interface Transaction {
   currency?: 'EUR' | 'USD' | 'CHF' | 'GBP';
   exchangeRate?: number;
   notes?: string;
+  strikePrice?: number;
+  expirationDate?: string;
+  optionType?: 'CALL' | 'PUT';
 }
 
 export interface Holding {
@@ -185,4 +188,27 @@ export interface AttributionBreakdown {
   taxesPaid: number;
   finalValue: number;
 }
+
+export interface EsgScoreResult {
+  overallScore: number;
+  environmentalScore: number;
+  socialScore: number;
+  governanceScore: number;
+  ratingGrade: 'AAA' | 'AA' | 'A' | 'BBB' | 'BB' | 'B' | 'CCC';
+  controversies: string[];
+}
+
+export interface OptionTrade {
+  id: string;
+  ticker: string;
+  underlyingName: string;
+  optionType: 'CALL' | 'PUT';
+  strikePrice: number;
+  expirationDate: string;
+  contracts: number;
+  premiumPerShare: number;
+  totalPremiumEur: number;
+  status: 'OPEN' | 'EXPIRED' | 'ASSIGNED' | 'CLOSED';
+}
+
 

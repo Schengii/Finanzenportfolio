@@ -18,13 +18,13 @@
 
 ## 💡 Über das Projekt
 
-Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier- und Krypto-Portfolios. 
+Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier-, Krypto- und Derivate-Portfolios. 
 
 ### Warum FinanzPortfolio CoPilot?
 - 🔒 **100% Datenschutz**: Keine Speicherung deiner Finanzdaten auf externen Servern. Alle Transaktionen bleiben ausschließlich lokal in deinem Browser.
 - ⚡ **Web Crypto Tresor**: AES-GCM 256-Bit Verschlüsselung aller Depotdaten via Master-PIN.
 - 📱 **Mobile First PWA**: 1-Klick-Installation auf iOS und Android inklusive Offline-Verfügbarkeit.
-- 📈 **Profianalysen**: TTWRR, IRR, Sharpe Ratio, Max Drawdown, Alpha/Beta Benchmark-Engine, Monte-Carlo-Simulationen und automatischer Rebalancing-Auftragsplaner.
+- 📈 **Profianalysen**: TTWRR, IRR, Sharpe Ratio, Max Drawdown, Alpha/Beta Benchmark-Engine, Monte-Carlo-Simulationen, ESG Audit und Option Income Tracker.
 
 ---
 
@@ -36,28 +36,39 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 - **Professionelle Renditemetriken**: TTWRR (zeitgewichtet), IRR (geldgewichtet), Sharpe Ratio & Volatilität.
 - **Monatliche Performance-Matrix**: Historische Renditen pro Jahr und Monat im Heatmap-Stil.
 
-### 2. 💱 Multi-Währungsumrechnung (FX-Engine)
+### 2. 👨‍👩‍👧‍👦 Konsolidierte Familien- & Multi-Depot Gesamtansicht
+- **1-Klick Zusammenführung**: Schalte im Header auf *"👨‍👩‍👧‍👦 Familien-Gesamtsicht (Alle Depots)"*, um alle Einzeldepots (z.B. Partner-Depot, Junior-Depot, Firmendepot) kumuliert in einem Gesamt-Dashboard zu analysieren.
+
+### 3. ⚖️ Steuer-Optimierungs-Engine & Tax-Loss Harvesting (`TaxLossHarvestingModal.tsx`)
+- **Freibetrag-Ausschöpfer**: Automatische Berechnung von Gewinn-Verkäufen vor Jahresende zur vollen Ausnutzung des Sparer-Pauschbetrags (1.000 € / 2.000 €).
+- **Tax-Loss Harvesting**: Identifiziert Positionen mit Buchverlusten zur Verrechnung mit realisierten Kapitalerträgen.
+
+### 4. 📅 iCal (.ics) Dividenden-Kalender Export (`icalExporter.ts`)
+- **1-Klick Kalender-Export**: Exportiere alle erhaltenen und anstehenden Dividenden-Termine als `.ics` Datei direkt in deinen Apple Calendar, Google Calendar oder Outlook.
+
+### 5. 🌿 ESG & Nachhaltigkeits-Score Audit (`EsgAuditWidget.tsx`)
+- **Nachhaltigkeits-Score**: Automatische Bewertung deines Portfolios in den Bereichen Umwelt (E), Soziales (S) und Governance (G) mit Rating-Stufen (AAA bis CCC).
+- **Kontroversen-Prüfung**: Erkennt Rüstungs-, Tabak- oder Fossile-Brennstoff-Anteile im Depot.
+
+### 6. 💵 Options Income Tracker & Wheel Strategy (`OptionIncomeTracker.tsx`)
+- **Prämien-Dashboard**: Erfassung und Analyse von vereinbarten Optionsprämien für Cash-Secured Puts & Covered Calls inklusive Ertragsrendite und Verfallskalender.
+
+### 7. 💱 Multi-Währungsumrechnung (FX-Engine)
 - Echtzeit-Umrechnung zwischen **EUR, USD, CHF und GBP** unter Anwendung tagesaktueller Devisenkurse.
 
-### 3. 📈 Benchmark-Vergleich & Alpha/Beta Engine
+### 8. 📈 Benchmark-Vergleich & Alpha/Beta Engine
 - Vergleiche dein Portfolio direkt mit **MSCI World**, **S&P 500**, **DAX 40** und **Bitcoin**.
-- Errechnet deine Alpha ($\alpha$) Überrendite und dein Beta ($\beta$) Marktrisiko.
 
-### 4. 🎯 Rebalancing-Auftragsplaner
+### 9. 🎯 Rebalancing-Auftragsplaner
 - Berechnet für Einmalkäufe (z.B. 2.500 €) die exakt benötigten Kauf-Beträge und Stückzahlen je Asset, um deine Soll-Allokation kostenminimal wiederherzustellen.
 
-### 5. 📄 Universal CSV & Portfolio Performance (PP) Import/Export
+### 10. 📄 Universal CSV & Portfolio Performance (PP) Import/Export
 - **Portfolio Performance (PP)**: Vollständige Kompatibilität zum Import und Export im standardisierten PP-CSV/JSON-Format.
-- **Auto-Detection**: Erkennt Formate von PP, Parqet, Trade Republic und allgemeinen Broker-CSVs automatisch.
 
-### 6. 📑 Erweiterte PDF-Abrechnungs-Parser
+### 11. 📑 Erweiterte PDF-Abrechnungs-Parser
 - Automatische Erkennung von Kauf-, Verkauf- und Dividendenbelegen von **Trade Republic**, **Scalable Capital**, **ING-DiBa**, **comdirect**, **DKB**, **Consorsbank**, **finanzen.net zero**, **Flatex**, **Smartbroker+**, **Revolut** und **eToro**.
 
-### 7. ⚖️ Deutsche Steuerlogik (§ 20 & § 18 InvStG, EStG)
-- **Vorabpauschale-Rechner**: Exakte Ermittlung des Basisertrags und der steuerpflichtigen Vorabpauschale gem. § 18 InvStG (Basiszins 2,29% + 30% Teilfreistellung).
-- **Anlage KAP Report**: PDF-Druckbericht für realisierte Gewinne (FIFO), Verluste, Freibetrag (1.000 €) und Quellensteuern.
-
-### 8. 🔒 Web Crypto Master-PIN Tresor
+### 12. 🔒 Web Crypto Master-PIN Tresor
 - Lokale **AES-GCM 256-Bit** Verschlüsselung aller Depotdaten. Ein Master-PIN Unlock Screen sperrt unbefugte Zugriffe beim Start ab.
 
 ---
@@ -65,20 +76,18 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 ## 🚀 Schnellanleitung (Anleitung zur Nutzung)
 
 ### Schritt 1: Depot anlegen oder importieren
-- Starte die App und nutze das **Portfolio-Dropdown** oben rechts, um ein neues Portfolio zu erstellen.
+- Starte die App und nutze das **Portfolio-Dropdown** oben rechts, um ein neues Portfolio zu erstellen oder schalte auf die **Familien-Gesamtsicht**.
 - Nutze das **CSV-Import-Icon** oder den **Stapel PDF-Upload**, um bestehende Abrechnungen direkt einzulesen.
 
-### Schritt 2: Transaktionen verwalten
-- Im Tab **Aktivitäten** kannst du manuelle Käufe, Verkäufe, Einzahlungen oder Dividenden erfassen.
-- Nutze die Such- und Filterleiste nach Ticker, Broker oder Transaktionstyp.
+### Schritt 2: Steueroptimierung & Freibetrag prüfen
+- Klicke auf das **Waage-Icon** in der Kopfzeile, um die Steuer-Optimierungs-Engine zu starten.
+- Erhalte exakte Verkaufsempfehlungen zum Erreichen des 1.000 € / 2.000 € Freibetrags.
 
-### Schritt 3: Strategie & Rebalancing festlegen
-- Richte im Tab **Strategie** deine Ziel-Allokation (z.B. 60% Aktien, 30% ETFs, 10% Krypto) ein.
-- Lass dir vom **Rebalancing-Auftragsplaner** exakte Orderempfehlungen für frisches Kapital errechnen.
+### Schritt 3: Option Income & Wheel-Strategie buchen
+- Wechsle in den Tab **Optionen**, um verkaufte Put/Call Kontrakte und vereinnahmte Prämien zu dokumentieren.
 
-### Schritt 4: Tresor-Verschlüsselung aktivieren
-- Öffne die **Einstellungen** (Zahnrad-Icon).
-- Gib eine Master-PIN ein und klicke auf **Aktivieren**. Ab sofort sind deine Daten AES-GCM 256-Bit verschlüsselt.
+### Schritt 4: Dividenden in den eigenen Kalender exportieren
+- Im Tab **Zahltage** klicke auf **"Kalender Export (.ics)"**, um alle Termine mit Apple/Google Calendar zu synchronisieren.
 
 ---
 
@@ -106,7 +115,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (13 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (14 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -121,7 +130,7 @@ Alle eingegebenen Daten werden verschlüsselt im `localStorage` deines Browsers 
 
 ---
 
-## 🚦 Entwicklungs- & Testbefehle
+## 营业 🚦 Entwicklungs- & Testbefehle
 
 ```bash
 # 1. Abhängigkeiten installieren
@@ -130,7 +139,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (13 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (14 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen

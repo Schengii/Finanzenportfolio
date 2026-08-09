@@ -192,7 +192,19 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsVaultLocked(false);
   };
 
-  const activePortfolio = useMemo(() => {
+  const activePortfolio = useMemo<Portfolio>(() => {
+    if (activePortfolioId === 'FAMILY_ALL') {
+      const allTxs = portfolios.flatMap(p => p.transactions || []);
+      const allWatchlist = portfolios.flatMap(p => p.watchlist || []);
+      const allSavings = portfolios.flatMap(p => p.savingsPlans || []);
+      return {
+        id: 'FAMILY_ALL',
+        name: '👨‍👩‍👧‍👦 Familien-Gesamtsicht (Alle Portfolios)',
+        transactions: allTxs,
+        watchlist: allWatchlist,
+        savingsPlans: allSavings
+      };
+    }
     return portfolios.find(p => p.id === activePortfolioId) || portfolios[0] || DEFAULT_PORTFOLIO;
   }, [portfolios, activePortfolioId]);
 

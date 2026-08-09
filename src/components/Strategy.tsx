@@ -5,6 +5,8 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
 
+import { EsgAuditWidget } from './EsgAuditWidget';
+
 interface StrategyProps {
   holdings: Holding[];
   totalValue: number;
@@ -832,6 +834,11 @@ export const Strategy: React.FC<StrategyProps> = ({ holdings, totalValue }) => {
           </div>
         </div>
       )}
+
+      {/* ESG & Sustainability Audit Section */}
+      <div style={{ marginTop: '2rem' }}>
+        <EsgAuditWidget holdings={holdings} />
+      </div>
     </div>
   );
 };

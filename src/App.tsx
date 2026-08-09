@@ -19,6 +19,9 @@ const CsvImportModal = lazy(() => import('./components/CsvImportModal').then(m =
 const PdfExportModal = lazy(() => import('./components/PdfExportModal').then(m => ({ default: m.PdfExportModal })));
 
 import { VaultUnlockModal } from './components/VaultUnlockModal';
+import { TaxLossHarvestingModal } from './components/TaxLossHarvestingModal';
+import { OptionIncomeTracker } from './components/OptionIncomeTracker';
+import { Scale, DollarSign } from 'lucide-react';
 
 function App() {
   const {
@@ -53,9 +56,10 @@ function App() {
     importBackup
   } = usePortfolio();
 
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'dividend_calendar' | 'watchlist' | 'savings' | 'mapping_rules'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'dividend_calendar' | 'watchlist' | 'savings' | 'options' | 'mapping_rules'>('dashboard');
   const [showBatchPdfModal, setShowBatchPdfModal] = useState(false);
   const [showTaxReportModal, setShowTaxReportModal] = useState(false);
+  const [showTaxHarvestingModal, setShowTaxHarvestingModal] = useState(false);
   const [showStressTestModal, setShowStressTestModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
@@ -184,6 +188,13 @@ function App() {
           >
             <FileText size={16} />
           </button>
+          <button
+            onClick={() => setShowTaxHarvestingModal(true)}
+            className="theme-toggle-btn"
+            title="Steuer-Optimierung (Freibetrag & Tax Loss Harvesting)"
+          >
+            <Scale size={16} />
+          </button>
 
           <button
             onClick={() => setShowSettingsModal(true)}
@@ -230,6 +241,7 @@ function App() {
               }}
               className="portfolio-select"
             >
+              <option value="FAMILY_ALL">👨‍👩‍👧‍👦 Familien-Gesamtsicht (Alle Depots)</option>
               {portfolios.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
@@ -261,6 +273,9 @@ function App() {
           </button>
           <button className={`nav-tab ${currentTab === 'savings' ? 'active' : ''}`} onClick={() => setCurrentTab('savings')}>
             <Calendar size={16} /> Sparpläne
+          </button>
+          <button className={`nav-tab ${currentTab === 'options' ? 'active' : ''}`} onClick={() => setCurrentTab('options')}>
+            <DollarSign size={16} /> Optionen
           </button>
           <button className={`nav-tab ${currentTab === 'mapping_rules' ? 'active' : ''}`} onClick={() => setCurrentTab('mapping_rules')}>
             <Settings size={16} /> PDF-Regeln
@@ -366,6 +381,13 @@ function App() {
             onToggleSavingsPlan={toggleSavingsPlan} 
           />
         )}
+        {currentTab === 'options' && (
+          <OptionIncomeTracker 
+            transactions={activePortfolio.transactions || []}
+            onAddTransaction={handleAddTransaction}
+            baseCurrency={baseCurrency}
+          />
+        )}
         {currentTab === 'mapping_rules' && (
           <MappingEditor 
             rules={activePortfolio.mappingRules || []}
@@ -391,6 +413,15 @@ function App() {
             onClose={() => setShowTaxReportModal(false)}
             portfolio={activePortfolio}
             taxExemptionLimit={1000}
+          />
+        )}
+        {showTaxHarvestingModal && (
+          <TaxLossHarvestingModal
+            isOpen={showTaxHarvestingModal}
+            onClose={() => setShowTaxHarvestingModal(false)}
+            holdings={holdings}
+            usedExemptionEur={stats.taxExemptionUsed}
+            baseCurrency={baseCurrency}
           />
         )}
         {showStressTestModal && (

@@ -617,6 +617,85 @@ export function calculateVorabpauschaleDetails(
   };
 }
 
+export interface TaxHarvestingSuggestion {
+  ticker: string;
+  name: string;
+  action: 'SELL_GAIN_HARVEST' | 'SELL_LOSS_HARVEST';
+  currentShares: number;
+  suggestedSharesToSell: number;
+  estimatedRealizedGainOrLossEur: number;
+  reason: string;
+}
+
+/**
+ * Calculates Tax Loss Harvesting and Tax-Free Exemption Allowance suggestions.
+ */
+export function calculateTaxLossHarvestingSuggestions(
+  holdings: Holding[],
+  targetExemptionEur: number = 1000,
+  alreadyUsedExemptionEur: number = 0
+): {
+  unusedExemptionEur: number;
+  suggestions: TaxHarvestingSuggestion[];
+  totalPotentialTaxSavedEur: number;
+} {
+  const unusedExemptionEur = Math.max(0, targetExemptionEur - alreadyUsedExemptionEur);
+  const suggestions: TaxHarvestingSuggestion[] = [];
+  let potentialGainHarvested = 0;
+
+  // 1. Gain Harvesting (Ausschöpfung des Sparer-Pauschbetrags)
+  if (unusedExemptionEur > 0) {
+    const gainPositions = holdings.filter(h => h.totalGain > 10 && h.shares > 0);
+    let remainingAllowanceToFill = unusedExemptionEur;
+
+    for (const pos of gainPositions) {
+      if (remainingAllowanceToFill <= 5) break;
+
+      const gainPerShare = pos.totalGain / pos.shares;
+      if (gainPerShare <= 0) continue;
+
+      const sharesToSell = Math.min(pos.shares, Math.ceil(remainingAllowanceToFill / gainPerShare));
+      const harvestedGain = Math.min(remainingAllowanceToFill, sharesToSell * gainPerShare);
+
+      suggestions.push({
+        ticker: pos.ticker,
+        name: pos.name,
+        action: 'SELL_GAIN_HARVEST',
+        currentShares: pos.shares,
+        suggestedSharesToSell: sharesToSell,
+        estimatedRealizedGainOrLossEur: harvestedGain,
+        reason: `Verkauf von ${sharesToSell} Stück schöpft ${harvestedGain.toFixed(2)} € des steuerfreien Freibetrags aus.`
+      });
+
+      remainingAllowanceToFill -= harvestedGain;
+      potentialGainHarvested += harvestedGain;
+    }
+  }
+
+  // 2. Loss Harvesting (Verlustverrechnung)
+  const lossPositions = holdings.filter(h => h.totalGain < -10 && h.shares > 0);
+  for (const pos of lossPositions) {
+    suggestions.push({
+      ticker: pos.ticker,
+      name: pos.name,
+      action: 'SELL_LOSS_HARVEST',
+      currentShares: pos.shares,
+      suggestedSharesToSell: pos.shares,
+      estimatedRealizedGainOrLossEur: pos.totalGain,
+      reason: `Verkauf realisiert ${Math.abs(pos.totalGain).toFixed(2)} € Verlust zur Verrechnung mit Gewinnen.`
+    });
+  }
+
+  const totalPotentialTaxSavedEur = (potentialGainHarvested + lossPositions.reduce((acc, p) => acc + Math.abs(p.totalGain), 0)) * 0.26375;
+
+  return {
+    unusedExemptionEur,
+    suggestions,
+    totalPotentialTaxSavedEur
+  };
+}
+
+
 export interface SectorRegionAllocation {
   sectors: { name: string; value: number; percentage: number }[];
   regions: { name: string; value: number; percentage: number }[];
