@@ -551,6 +551,12 @@ export function calculateFXGainBreakdown(
   };
 }
 
+export interface VorabpauschaleResult {
+  totalVorabpauschale: number;
+  taxLiabilityEur: number;
+  breakdown: Array<{ ticker: string; name: string; vorabpauschale: number }>;
+}
+
 /**
  * Calculates German Vorabpauschale estimation for ETFs under § 18 InvStG.
  * Basiszins for 2024/2025: ~2.29%.
@@ -578,6 +584,37 @@ export function calculateVorabpauschale(
   });
 
   return totalVorabpauschale;
+}
+
+export function calculateVorabpauschaleDetails(
+  holdings: Holding[],
+  basisZins: number = 0.0229
+): VorabpauschaleResult {
+  let totalVorabpauschale = 0;
+  const breakdown: Array<{ ticker: string; name: string; vorabpauschale: number }> = [];
+
+  holdings.forEach(h => {
+    if (h.category === 'ETF' && h.currentValue > 0) {
+      const basisErtrag = h.totalCost * basisZins * 0.70;
+      const priceGain = Math.max(0, h.totalGain);
+      const rawVorabpauschale = Math.min(basisErtrag, priceGain);
+      const exemptionFactor = h.teilfreistellungRate ?? 0.30;
+      const taxableVorabpauschale = rawVorabpauschale * (1 - exemptionFactor);
+
+      totalVorabpauschale += taxableVorabpauschale;
+      breakdown.push({
+        ticker: h.ticker,
+        name: h.name,
+        vorabpauschale: taxableVorabpauschale
+      });
+    }
+  });
+
+  return {
+    totalVorabpauschale,
+    taxLiabilityEur: totalVorabpauschale * 0.26375,
+    breakdown
+  };
 }
 
 export interface SectorRegionAllocation {
@@ -1059,6 +1096,8 @@ export function calculateRebalancingOrders(
     };
   });
 }
+
+
 
 
 

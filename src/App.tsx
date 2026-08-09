@@ -18,6 +18,8 @@ const SettingsModal = lazy(() => import('./components/SettingsModal').then(m => 
 const CsvImportModal = lazy(() => import('./components/CsvImportModal').then(m => ({ default: m.CsvImportModal })));
 const PdfExportModal = lazy(() => import('./components/PdfExportModal').then(m => ({ default: m.PdfExportModal })));
 
+import { VaultUnlockModal } from './components/VaultUnlockModal';
+
 function App() {
   const {
     portfolios,
@@ -30,6 +32,9 @@ function App() {
     setIsDarkMode,
     activeBrokerFilter,
     setActiveBrokerFilter,
+    isVaultLocked,
+    unlockVault,
+    resetVault,
     holdings,
     stats,
     switchPortfolio,
@@ -423,6 +428,13 @@ function App() {
           />
         )}
       </Suspense>
+
+      {/* Security Master PIN Unlock Modal */}
+      <VaultUnlockModal
+        isOpen={isVaultLocked}
+        onUnlocked={unlockVault}
+        onResetVault={resetVault}
+      />
     </div>
   );
 }

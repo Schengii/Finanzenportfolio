@@ -166,3 +166,32 @@ function parseCsvLine(line: string): string[] {
   const delimiter = line.includes(';') ? ';' : ',';
   return line.split(delimiter).map(col => col.replace(/^"(.*)"$/, '$1').trim());
 }
+
+export function exportToPortfolioPerformanceCsv(transactions: Transaction[]): string {
+  const headers = ['Datum', 'Typ', 'Wertpapiername', 'ISIN/Ticker', 'Stück', 'Kurs', 'Gebühren', 'Steuern', 'Währung'];
+  const lines = [headers.join(';')];
+
+  transactions.forEach(tx => {
+    let typeStr = 'Kauf';
+    if (tx.type === 'SELL') typeStr = 'Verkauf';
+    else if (tx.type === 'DIVIDEND') typeStr = 'Dividende';
+    else if (tx.type === 'DEPOSIT') typeStr = 'Einzahlung';
+    else if (tx.type === 'WITHDRAWAL') typeStr = 'Auszahlung';
+
+    const row = [
+      tx.date,
+      typeStr,
+      `"${tx.name.replace(/"/g, '""')}"`,
+      tx.ticker,
+      tx.amount.toString().replace('.', ','),
+      tx.price.toString().replace('.', ','),
+      (tx.fee || 0).toString().replace('.', ','),
+      (tx.tax || 0).toString().replace('.', ','),
+      tx.currency || 'EUR'
+    ];
+    lines.push(row.join(';'));
+  });
+
+  return lines.join('\n');
+}
+

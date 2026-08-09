@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Portfolio } from '../types';
-import { calculateGermanTax, calculateVorabpauschale } from './performanceUtils';
+import { calculateGermanTax, calculateVorabpauschaleDetails } from './performanceUtils';
 import { FileText, Printer, X } from 'lucide-react';
 
 interface TaxReportModalProps {
@@ -20,7 +20,7 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
 
   const currentYear = new Date().getFullYear();
   const taxResult = calculateGermanTax(portfolio.transactions, taxExemptionLimit);
-  const vorabpauschale = calculateVorabpauschale(
+  const vorabpauschaleRes = calculateVorabpauschaleDetails(
     portfolio.transactions.map(t => ({
       ticker: t.ticker,
       name: t.name,
@@ -38,6 +38,7 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
     })),
     0.0229
   );
+  const vorabpauschale = vorabpauschaleRes.totalVorabpauschale;
 
   const handlePrint = () => {
     window.print();

@@ -8,12 +8,16 @@ interface PortfolioContextType {
   activePortfolio: Portfolio;
   activePortfolioId: string;
   currentPrices: Record<string, number>;
+  fxRates: Record<string, number>;
   baseCurrency: 'EUR' | 'USD' | 'CHF' | 'GBP';
   setBaseCurrency: (cur: 'EUR' | 'USD' | 'CHF' | 'GBP') => void;
   isDarkMode: boolean;
   setIsDarkMode: (dark: boolean) => void;
   activeBrokerFilter: string;
   setActiveBrokerFilter: (broker: string) => void;
+  isVaultLocked: boolean;
+  unlockVault: (unlockedPortfolios: Portfolio[]) => void;
+  resetVault: () => void;
   holdings: Holding[];
   stats: PortfolioStats;
   switchPortfolio: (id: string) => void;
@@ -129,6 +133,10 @@ const DEFAULT_PORTFOLIO: Portfolio = {
 };
 
 export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isVaultLocked, setIsVaultLocked] = useState<boolean>(() => {
+    return Boolean(localStorage.getItem('finanz_encrypted_vault'));
+  });
+
   const [portfolios, setPortfolios] = useState<Portfolio[]>(() => {
     const saved = localStorage.getItem('finanz_portfolios');
     if (saved) {
@@ -149,6 +157,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [activeBrokerFilter, setActiveBrokerFilter] = useState<string>('ALL');
   
+  const [fxRates, setFxRates] = useState<Record<string, number>>({
+    EUR: 1.0,
+    USD: 1.08,
+    CHF: 0.96,
+    GBP: 0.85
+  });
+
   const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({
     AAPL: 191.45,
     EUNL: 87.65,
@@ -158,12 +173,24 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Save to localStorage
   useEffect(() => {
-    localStorage.setItem('finanz_portfolios', JSON.stringify(portfolios));
-  }, [portfolios]);
+    if (!isVaultLocked) {
+      localStorage.setItem('finanz_portfolios', JSON.stringify(portfolios));
+    }
+  }, [portfolios, isVaultLocked]);
 
   useEffect(() => {
     localStorage.setItem('finanz_active_portfolio', activePortfolioId);
   }, [activePortfolioId]);
+
+  const unlockVault = (unlockedPortfolios: Portfolio[]) => {
+    setPortfolios(unlockedPortfolios);
+    setIsVaultLocked(false);
+  };
+
+  const resetVault = () => {
+    localStorage.removeItem('finanz_encrypted_vault');
+    setIsVaultLocked(false);
+  };
 
   const activePortfolio = useMemo(() => {
     return portfolios.find(p => p.id === activePortfolioId) || portfolios[0] || DEFAULT_PORTFOLIO;
@@ -172,7 +199,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Live Prices refresh handler
   const refreshPrices = async () => {
     const cryptoPrices = await fetchLiveCryptoPrices();
-    const fxRates = await fetchLiveExchangeRates();
+    const fx = await fetchLiveExchangeRates();
+    setFxRates(fx);
     
     const tickers = Array.from(new Set(activePortfolio.transactions.map(t => t.ticker))).filter(t => t !== 'CASH');
     const stockPrices = await fetchLiveStockPrices(tickers);
@@ -181,7 +209,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ...prev,
       ...cryptoPrices,
       ...stockPrices,
-      ...fxRates
+      ...fx
     }));
   };
 
@@ -494,12 +522,16 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       activePortfolio,
       activePortfolioId,
       currentPrices,
+      fxRates,
       baseCurrency,
       setBaseCurrency,
       isDarkMode,
       setIsDarkMode,
       activeBrokerFilter,
       setActiveBrokerFilter,
+      isVaultLocked,
+      unlockVault,
+      resetVault,
       holdings,
       stats,
       switchPortfolio,

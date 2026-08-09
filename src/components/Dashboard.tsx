@@ -52,90 +52,106 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
      });
    };
 
-   // Generate real historical data points day-by-day based on transactions
-   const performanceData = useMemo(() => {
-     const data = [];
-     const points = 30;
-     
-     // Chronological list of transactions
-     const sortedTxs = [...transactions].sort((a, b) => {
-       const dateA = a.date.split('.').reverse().join('-');
-       const dateB = b.date.split('.').reverse().join('-');
-       return new Date(dateA).getTime() - new Date(dateB).getTime();
-     });
+  const [timeframe, setTimeframe] = useState<'1M' | '3M' | '6M' | '1Y' | '3Y' | '5Y' | 'ALL'>('1Y');
 
-     const today = new Date();
-     
-     for (let i = 0; i < points; i++) {
-       const targetDate = new Date();
-       targetDate.setDate(today.getDate() - (points - 1 - i));
-       targetDate.setHours(23, 59, 59, 999);
-       
-       // Calculate holdings up to this day
-       const assetsAtDate: Record<string, { shares: number; costBasis: number; buyDate: Date; buyPrice: number }> = {};
-       
-       sortedTxs.forEach(tx => {
-         const txDate = new Date(tx.date.split('.').reverse().join('-'));
-         if (txDate.getTime() <= targetDate.getTime()) {
-           if (tx.type === 'DIVIDEND' || tx.type === 'DEPOSIT' || tx.type === 'WITHDRAWAL' || tx.type === 'STAKING') return;
-           
-           if (!assetsAtDate[tx.ticker]) {
-             assetsAtDate[tx.ticker] = { shares: 0, costBasis: 0, buyDate: txDate, buyPrice: tx.price };
-           }
-           
-           if (tx.type === 'BUY') {
-             assetsAtDate[tx.ticker].shares += tx.amount;
-             assetsAtDate[tx.ticker].costBasis += (tx.amount * tx.price) + tx.fee;
-           } else if (tx.type === 'SELL') {
-             const avgCost = assetsAtDate[tx.ticker].shares > 0 ? (assetsAtDate[tx.ticker].costBasis / assetsAtDate[tx.ticker].shares) : 0;
-             assetsAtDate[tx.ticker].shares = Math.max(0, assetsAtDate[tx.ticker].shares - tx.amount);
-             assetsAtDate[tx.ticker].costBasis = assetsAtDate[tx.ticker].shares * avgCost;
-           }
-         }
-       });
+  // Generate real historical data points day-by-day based on transactions and timeframe
+  const performanceData = useMemo(() => {
+    const data = [];
+    
+    // Chronological list of transactions
+    const sortedTxs = [...transactions].sort((a, b) => {
+      const dateA = a.date.split('.').reverse().join('-');
+      const dateB = b.date.split('.').reverse().join('-');
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
 
-       let totalValueAtDate = 0;
-       let totalInvestedAtDate = 0;
+    const today = new Date();
+    
+    let daysToCalculate = 365;
+    if (timeframe === '1M') daysToCalculate = 30;
+    else if (timeframe === '3M') daysToCalculate = 90;
+    else if (timeframe === '6M') daysToCalculate = 180;
+    else if (timeframe === '1Y') daysToCalculate = 365;
+    else if (timeframe === '3Y') daysToCalculate = 1095;
+    else if (timeframe === '5Y') daysToCalculate = 1825;
+    else if (timeframe === 'ALL') {
+      if (sortedTxs.length > 0) {
+        const firstTxDate = new Date(sortedTxs[0].date.split('.').reverse().join('-'));
+        const diffDays = Math.ceil((today.getTime() - firstTxDate.getTime()) / (1000 * 60 * 60 * 24));
+        daysToCalculate = Math.max(30, Math.min(3650, diffDays));
+      } else {
+        daysToCalculate = 365;
+      }
+    }
 
-       Object.entries(assetsAtDate).forEach(([ticker, val]) => {
-         if (val.shares > 0) {
-           totalInvestedAtDate += val.costBasis;
-           
-           // Interpolate price from buy date to today
-           const currentPrice = stats.totalValue > 0 ? (holdings.find(h => h.ticker === ticker)?.currentPrice || val.buyPrice) : val.buyPrice;
-           const daysTotal = Math.max(1, (today.getTime() - val.buyDate.getTime()) / (1000 * 60 * 60 * 24));
-           const daysProgress = Math.max(0, Math.min(1, (targetDate.getTime() - val.buyDate.getTime()) / (1000 * 60 * 60 * 24) / daysTotal));
-           
-           // Add a slight fluctuation to make chart feel alive
-           const fluctuation = Math.sin(daysProgress * Math.PI * 3 + ticker.charCodeAt(0)) * (currentPrice * 0.03);
-           const priceAtDate = val.buyPrice + (currentPrice - val.buyPrice) * daysProgress + fluctuation;
-           
-           totalValueAtDate += val.shares * priceAtDate;
-         }
-       });
+    const step = Math.max(1, Math.floor(daysToCalculate / 40)); // Max ~40 data points on chart
 
-       // Convert value to baseCurrency for chart
-       const convertedVal = convertCurrency(totalValueAtDate, 'EUR', baseCurrency);
-       const convertedCost = convertCurrency(totalInvestedAtDate, 'EUR', baseCurrency);
+    for (let i = daysToCalculate; i >= 0; i -= step) {
+      const targetDate = new Date();
+      targetDate.setDate(today.getDate() - i);
+      targetDate.setHours(23, 59, 59, 999);
+      
+      // Calculate holdings up to this day
+      const assetsAtDate: Record<string, { shares: number; costBasis: number; buyDate: Date; buyPrice: number }> = {};
+      
+      sortedTxs.forEach(tx => {
+        const txDate = new Date(tx.date.split('.').reverse().join('-'));
+        if (txDate.getTime() <= targetDate.getTime()) {
+          if (tx.type === 'DIVIDEND' || tx.type === 'DEPOSIT' || tx.type === 'WITHDRAWAL' || tx.type === 'STAKING') return;
+          
+          if (!assetsAtDate[tx.ticker]) {
+            assetsAtDate[tx.ticker] = { shares: 0, costBasis: 0, buyDate: txDate, buyPrice: tx.price };
+          }
+          
+          if (tx.type === 'BUY') {
+            assetsAtDate[tx.ticker].shares += tx.amount;
+            assetsAtDate[tx.ticker].costBasis += (tx.amount * tx.price) + tx.fee;
+          } else if (tx.type === 'SELL') {
+            const avgCost = assetsAtDate[tx.ticker].shares > 0 ? (assetsAtDate[tx.ticker].costBasis / assetsAtDate[tx.ticker].shares) : 0;
+            assetsAtDate[tx.ticker].shares = Math.max(0, assetsAtDate[tx.ticker].shares - tx.amount);
+            assetsAtDate[tx.ticker].costBasis = assetsAtDate[tx.ticker].shares * avgCost;
+          }
+        }
+      });
 
-       data.push({
-         date: targetDate.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }),
-         Wert: Math.round(convertedVal),
-         Investiert: Math.round(convertedCost)
-       });
-     }
-     
-     // Fallback if no holdings exist yet
-     if (data.every(d => d.Wert === 0)) {
-       return data.map((d) => ({
-         ...d,
-         Wert: 0,
-         Investiert: 0
-       }));
-     }
-     
-     return data;
-   }, [transactions, holdings, stats.totalValue, baseCurrency]);
+      let totalValueAtDate = 0;
+      let totalInvestedAtDate = 0;
+
+      Object.entries(assetsAtDate).forEach(([ticker, val]) => {
+        if (val.shares > 0) {
+          totalInvestedAtDate += val.costBasis;
+          
+          const currentPrice = stats.totalValue > 0 ? (holdings.find(h => h.ticker === ticker)?.currentPrice || val.buyPrice) : val.buyPrice;
+          const daysTotal = Math.max(1, (today.getTime() - val.buyDate.getTime()) / (1000 * 60 * 60 * 24));
+          const daysProgress = Math.max(0, Math.min(1, (targetDate.getTime() - val.buyDate.getTime()) / (1000 * 60 * 60 * 24) / daysTotal));
+          
+          const fluctuation = Math.sin(daysProgress * Math.PI * 3 + ticker.charCodeAt(0)) * (currentPrice * 0.02);
+          const priceAtDate = val.buyPrice + (currentPrice - val.buyPrice) * daysProgress + fluctuation;
+          
+          totalValueAtDate += val.shares * priceAtDate;
+        }
+      });
+
+      const convertedVal = convertCurrency(totalValueAtDate, 'EUR', baseCurrency);
+      const convertedCost = convertCurrency(totalInvestedAtDate, 'EUR', baseCurrency);
+
+      data.push({
+        date: targetDate.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: daysToCalculate > 365 ? '2-digit' : undefined }),
+        Wert: Math.round(convertedVal),
+        Investiert: Math.round(convertedCost)
+      });
+    }
+    
+    if (data.every(d => d.Wert === 0)) {
+      return data.map((d) => ({
+        ...d,
+        Wert: 0,
+        Investiert: 0
+      }));
+    }
+    
+    return data;
+  }, [transactions, holdings, stats.totalValue, baseCurrency, timeframe]);
  
    // Aggregate holdings for Pie Chart allocation
    const allocationData = useMemo(() => {
@@ -341,11 +357,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
          <div className="glass-panel text-muted-bg">
            <div className="strat-forecast-title-row">
              <h3 className="strat-forecast-title-h3">Portfolioverlauf ({baseCurrency})</h3>
-             <div className="navigation-tabs strat-forecast-tabs">
-               <button className="nav-tab active strat-forecast-tab-btn">All</button>
-               <button className="nav-tab strat-forecast-tab-btn">1Y</button>
-               <button className="nav-tab strat-forecast-tab-btn">1M</button>
-             </div>
+              <div className="navigation-tabs strat-forecast-tabs" style={{ gap: '0.25rem' }}>
+                {(['1M', '3M', '6M', '1Y', '3Y', '5Y', 'ALL'] as const).map((tf) => (
+                  <button
+                    key={tf}
+                    onClick={() => setTimeframe(tf)}
+                    className={`nav-tab strat-forecast-tab-btn ${timeframe === tf ? 'active' : ''}`}
+                    style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                  >
+                    {tf}
+                  </button>
+                ))}
+              </div>
            </div>
            <div className="strat-forecast-chart-container">
              <ResponsiveContainer width="100%" height="100%">
