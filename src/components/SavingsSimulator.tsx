@@ -404,12 +404,14 @@ export const SavingsSimulator: React.FC<SavingsSimulatorProps> = ({
                 <p className="sav-sim-stat-value" style={{ color: 'var(--status-positive)' }}>+{endStats.totalInterests.toLocaleString('de-DE')} €</p>
               </div>
               <div>
-                <span className="sav-sim-stat-label">Endkapital (Konstant)</span>
+                <span className="sav-sim-stat-label">Endkapital (Nominal)</span>
                 <p className="sav-sim-stat-value" style={{ color: 'var(--accent-blue)' }}>{endStats.totalValue.toLocaleString('de-DE')} €</p>
               </div>
               <div>
-                <span className="sav-sim-stat-label">Endkapital (+Gehaltssprung)</span>
-                <p className="sav-sim-stat-value" style={{ color: '#10b981', fontWeight: 'bold' }}>{endStats.dynamicValue.toLocaleString('de-DE')} €</p>
+                <span className="sav-sim-stat-label">Reale Kaufkraft (2% Inflation)</span>
+                <p className="sav-sim-stat-value" style={{ color: '#f59e0b', fontWeight: 'bold' }}>
+                  {Math.round(endStats.totalValue / Math.pow(1.02, years)).toLocaleString('de-DE')} €
+                </p>
               </div>
             </div>
 

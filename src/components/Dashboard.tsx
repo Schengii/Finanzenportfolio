@@ -3,7 +3,7 @@ import {
    AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
    PieChart, Pie, Cell, BarChart, Bar
  } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart as PieIcon, Award, Download, Upload, Database, Percent, Calendar as CalendarIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart as PieIcon, Award, Download, Upload, Database, Percent, Calendar as CalendarIcon, Sliders } from 'lucide-react';
 import type { Transaction, Holding, PortfolioStats } from '../types';
 import { convertCurrency, calculateGermanTax } from './performanceUtils';
 import { PortfolioHeatmap } from './PortfolioHeatmap';
@@ -25,6 +25,7 @@ import { CryptoStakingTaxWidget } from './CryptoStakingTaxWidget';
 import { FxHedgingWidget } from './FxHedgingWidget';
 import { DividendSeasonalityWidget } from './DividendSeasonalityWidget';
 import { BondDurationWidget } from './BondDurationWidget';
+import { DashboardCustomizerModal, DEFAULT_DASHBOARD_WIDGETS, type DashboardWidgetConfig } from './DashboardCustomizerModal';
 import { usePortfolio } from '../context/PortfolioContext';
  
  interface DashboardProps {
@@ -61,6 +62,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
    };
 
   const [timeframe, setTimeframe] = useState<'1M' | '3M' | '6M' | '1Y' | '3Y' | '5Y' | 'ALL'>('1Y');
+  const [showCustomizerModal, setShowCustomizerModal] = useState(false);
+  const [widgetConfigs, setWidgetConfigs] = useState<DashboardWidgetConfig[]>(() => {
+    const saved = localStorage.getItem('finanz_dashboard_widgets');
+    return saved ? JSON.parse(saved) : DEFAULT_DASHBOARD_WIDGETS;
+  });
+
+  const isWidgetVisible = (id: string) => {
+    const w = widgetConfigs.find(item => item.id === id);
+    return w ? w.isVisible : true;
+  };
+
+  const handleToggleWidget = (id: string) => {
+    const updated = widgetConfigs.map(w => w.id === id ? { ...w, isVisible: !w.isVisible } : w);
+    setWidgetConfigs(updated);
+    localStorage.setItem('finanz_dashboard_widgets', JSON.stringify(updated));
+  };
+
+  const handleApplyPreset = (preset: 'ALL' | 'DIVIDENDS' | 'GROWTH' | 'SECURITY') => {
+    const updated = widgetConfigs.map(w => {
+      if (preset === 'ALL') return { ...w, isVisible: true };
+      if (preset === 'DIVIDENDS') return { ...w, isVisible: w.category === 'DIVIDENDS' || w.category === 'ALL' };
+      if (preset === 'GROWTH') return { ...w, isVisible: w.category === 'GROWTH' || w.category === 'ALL' };
+      if (preset === 'SECURITY') return { ...w, isVisible: w.category === 'SECURITY' || w.category === 'ALL' };
+      return w;
+    });
+    setWidgetConfigs(updated);
+    localStorage.setItem('finanz_dashboard_widgets', JSON.stringify(updated));
+  };
 
   // Generate real historical data points day-by-day based on transactions and timeframe
   const performanceData = useMemo(() => {
@@ -632,23 +661,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
          </div>
        </div>
 
-       {/* Heatmap & FIRE Widget Row */}
-       <div className="mt-6 space-y-6">
-         <PortfolioHealthAudit
-           holdings={holdings}
-           transactions={transactions}
-           baseCurrency={baseCurrency}
-         />
+        {/* Heatmap & FIRE Widget Row */}
+        <div className="mt-6 space-y-6">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+            <div>
+              <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Dashboard-Analysen & Module</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                ({widgetConfigs.filter(w => w.isVisible).length} von {widgetConfigs.length} aktiv)
+              </span>
+            </div>
+            <button
+              onClick={() => setShowCustomizerModal(true)}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.35rem 0.75rem' }}
+            >
+              <Sliders size={14} /> Ansicht anpassen / Fokus-Modi
+            </button>
+          </div>
 
-         <PortfolioHeatmap
-           holdings={holdings}
-           onSelectHolding={(h) => setSelectedHolding(h)}
-           baseCurrency={baseCurrency}
-         />
+          {isWidgetVisible('health_audit') && (
+            <PortfolioHealthAudit
+              holdings={holdings}
+              transactions={transactions}
+              baseCurrency={baseCurrency}
+            />
+          )}
 
-         <BenchmarkComparison
-           portfolioReturnPercent={stats.totalGainsPercent}
-         />
+          {isWidgetVisible('heatmap') && (
+            <PortfolioHeatmap
+              holdings={holdings}
+              onSelectHolding={(h) => setSelectedHolding(h)}
+              baseCurrency={baseCurrency}
+            />
+          )}
+
+          {isWidgetVisible('benchmark') && (
+            <BenchmarkComparison
+              portfolioReturnPercent={stats.totalGainsPercent}
+            />
+          )}
 
          <RebalancingOrderPlanner
            holdings={holdings}
@@ -732,15 +783,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
          />
        </div>
 
-       {/* Holding Detail Drawer Modal */}
-       {selectedHolding && (
-         <HoldingDetailModal
-           holding={selectedHolding}
-           transactions={transactions}
-           onClose={() => setSelectedHolding(null)}
-           baseCurrency={baseCurrency}
-         />
-       )}
-     </div>
-   );
- };
+        {/* Holding Detail Modal */}
+        {selectedHolding && (
+          <HoldingDetailModal
+            holding={selectedHolding}
+            transactions={transactions}
+            onClose={() => setSelectedHolding(null)}
+            baseCurrency={baseCurrency}
+          />
+        )}
+
+        {/* Dashboard Customizer Modal */}
+        <DashboardCustomizerModal
+          isOpen={showCustomizerModal}
+          onClose={() => setShowCustomizerModal(false)}
+          widgets={widgetConfigs}
+          onToggleWidget={handleToggleWidget}
+          onApplyPreset={handleApplyPreset}
+        />
+      </div>
+    );
+  };

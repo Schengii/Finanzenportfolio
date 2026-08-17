@@ -305,7 +305,9 @@ import {
   calculateCryptoFifoTranches,
   calculateFxHedgingAnalysis,
   calculateDividendSeasonalityProfile,
-  calculateBondDurationSensitivity
+  calculateBondDurationSensitivity,
+  exportRebalancingOrdersToCsv,
+  calculatePurchasingPowerTarget
 } from '../performanceUtils';
 import { parsePortfolioPerformanceCsv, exportToPortfolioPerformanceCsv } from '../../services/portfolioPerformanceImporter';
 import { lookupIsinMetadata } from '../../services/isinMetadataService';
@@ -781,6 +783,35 @@ describe('New Major Financial Utilities & Extensions', () => {
     expect(res.bondHoldingsValueEur).toBe(500);
     expect(res.estimatedPriceChangePercent).toBe(-6.5);
     expect(Math.abs(res.estimatedValueImpactEur)).toBeLessThanOrEqual(33);
+  });
+
+  it('exports Rebalancing Orders to standard CSV format', () => {
+    const orders = [
+      {
+        ticker: 'MSFT',
+        name: 'Microsoft Corp.',
+        buyAmountEur: 1000,
+        buyShares: 2.5,
+        estimatedFeeEur: 1.0,
+        category: 'Stock',
+        currentShares: 10,
+        currentValue: 4000,
+        targetWeightPct: 20.0,
+        targetValue: 5000
+      }
+    ];
+
+    const csv = exportRebalancingOrdersToCsv(orders as any, 'EUR');
+    expect(csv).toContain('Ticker;Name;Kaufbetrag');
+    expect(csv).toContain('MSFT;"Microsoft Corp.";1000.00;2.5000;1.00');
+  });
+
+  it('calculates Purchasing Power Target and time to goal', () => {
+    const res = calculatePurchasingPowerTarget(1000000, 100000, 1000, 7.0, 2.0);
+    expect(res.isGoalReached).toBe(true);
+    expect(res.yearsToTarget).toBeLessThan(35);
+    expect(res.realPurchasingPowerEur).toBeLessThan(1000000);
+    expect(res.purchasingPowerLossPercent).toBeGreaterThan(0);
   });
 });
 

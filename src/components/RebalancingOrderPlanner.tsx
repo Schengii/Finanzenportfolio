@@ -93,19 +93,39 @@ export const RebalancingOrderPlanner: React.FC<RebalancingOrderPlannerProps> = (
       </div>
 
       {/* Footer Actions */}
-      <div className="flex justify-between items-center text-xs pt-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs pt-2">
         <span className="text-slate-400">
           Gesamte geschätzte Ordergebühren: <strong className="text-slate-200">{totalFeeEstimate.toFixed(2)} €</strong>
         </span>
 
-        {onExecuteRebalancingBuys && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => onExecuteRebalancingBuys(orderSuggestions)}
-            className="px-5 py-2 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg transition-all flex items-center gap-2"
+            onClick={() => {
+              const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(
+                "Ticker;Name;Kaufbetrag;Stuecke;Gebuehr\n" +
+                orderSuggestions.map(o => `${o.ticker};"${o.name}";${o.buyAmountEur.toFixed(2)};${o.buyShares.toFixed(4)};${o.estimatedFeeEur.toFixed(2)}`).join('\n')
+              );
+              const link = document.createElement("a");
+              link.setAttribute("href", csvContent);
+              link.setAttribute("download", `rebalancing_orders_${new Date().toISOString().slice(0,10)}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition-all font-semibold"
           >
-            <ShoppingCart className="w-4 h-4" /> Käufe im Depot ausführen
+            📥 Order-CSV Export
           </button>
-        )}
+
+          {onExecuteRebalancingBuys && (
+            <button
+              onClick={() => onExecuteRebalancingBuys(orderSuggestions)}
+              className="px-5 py-2 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg transition-all flex items-center gap-2"
+            >
+              <ShoppingCart className="w-4 h-4" /> Käufe ausführen
+            </button>
+          )}
+        </div>
       </div>
 
     </div>

@@ -116,6 +116,15 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 ### 26. 🏛️ Anleihen-Duration & Zinsänderungsrisiko (`BondDurationWidget.tsx`)
 - **Modified Duration Calculator**: Quantifizierung von Kursverlusten bzw. -gewinnen bei Zinsänderungen ($\Delta y = \pm 100$ bis $\pm 300$ BP).
 
+### 27. 📥 Rebalancing-Order Multi-Format Export (`RebalancingOrderPlanner.tsx`)
+- **1-Klick CSV Order-Export**: Direkte Generierung von standardisierten Orderlisten zur einfachen Ausführung bei Neo- und Direktbrokern.
+
+### 28. 🎛️ Dashboard-Widget Customizer & Fokus-Modi (`DashboardCustomizerModal.tsx`)
+- **Modulare Ansichtssteuerung**: Individuelles Ein-/Ausblenden von Modulen sowie 1-Klick Presets für *Dividenden-Fokus*, *Growth-Fokus* und *Allwetter/Sicherheit*.
+
+### 29. 🎯 Reale Kaufkraft- & Inflationsziel-Berechnung (`SavingsSimulator.tsx`)
+- **Inflationsbereinigte Freiheitsprognose**: Exakter Ausweis des realen Kaufkraftwerts des Endkapitals unter Berücksichtigung von Inflationsraten.
+
 ---
 
 ## 🛠️ Technologie-Stack & Architektur
@@ -126,7 +135,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (32 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (34 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -142,7 +151,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (32 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (34 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen

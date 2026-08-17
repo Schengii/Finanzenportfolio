@@ -2191,6 +2191,65 @@ export function calculateBondDurationSensitivity(
   };
 }
 
+/**
+ * Rebalancing Orders CSV & Batch Text Exporter
+ */
+export function exportRebalancingOrdersToCsv(orders: RebalancingOrderSuggestion[], baseCurrency: string = 'EUR'): string {
+  const header = `Ticker;Name;Kaufbetrag (${baseCurrency});Stuecke;Gebuehr (${baseCurrency})`;
+  const rows = orders.map(o => {
+    return `${o.ticker};"${o.name}";${o.buyAmountEur.toFixed(2)};${o.buyShares.toFixed(4)};${o.estimatedFeeEur.toFixed(2)}`;
+  });
+  return [header, ...rows].join('\n');
+}
+
+/**
+ * Purchasing Power & Freedom Goal Target Calculator
+ */
+export interface PurchasingPowerTargetResult {
+  yearsToTarget: number;
+  nominalEndCapitalEur: number;
+  realPurchasingPowerEur: number;
+  purchasingPowerLossPercent: number;
+  isGoalReached: boolean;
+}
+
+export function calculatePurchasingPowerTarget(
+  targetCapitalEur: number = 1000000,
+  initialCapitalEur: number = 50000,
+  monthlySavingsEur: number = 500,
+  expectedReturnPercent: number = 7.0,
+  inflationRatePercent: number = 2.0,
+  maxYears: number = 50
+): PurchasingPowerTargetResult {
+  let val = initialCapitalEur;
+  let yearsToTarget = maxYears;
+  let isGoalReached = false;
+
+  const monthlyReturn = Math.pow(1 + expectedReturnPercent / 100, 1 / 12) - 1;
+
+  for (let m = 1; m <= maxYears * 12; m++) {
+    val = (val + monthlySavingsEur) * (1 + monthlyReturn);
+    if (val >= targetCapitalEur && !isGoalReached) {
+      yearsToTarget = Math.round((m / 12) * 10) / 10;
+      isGoalReached = true;
+      break;
+    }
+  }
+
+  const inflationFactor = Math.pow(1 + inflationRatePercent / 100, yearsToTarget);
+  const realPurchasingPowerEur = Math.round(targetCapitalEur / inflationFactor);
+  const purchasingPowerLossPercent = Math.round((1 - (realPurchasingPowerEur / targetCapitalEur)) * 1000) / 10;
+
+  return {
+    yearsToTarget,
+    nominalEndCapitalEur: Math.round(targetCapitalEur),
+    realPurchasingPowerEur,
+    purchasingPowerLossPercent,
+    isGoalReached
+  };
+}
+
+
 
 
 
