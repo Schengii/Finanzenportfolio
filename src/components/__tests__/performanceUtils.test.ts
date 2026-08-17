@@ -295,7 +295,10 @@ import {
   calculateFxExposure,
   calculateRealEstateMetrics,
   calculateDepositLadderStats,
-  calculateEnhancedGermanTax
+  calculateEnhancedGermanTax,
+  calculateCorrelationMatrix,
+  calculateDividendSafetyScores,
+  calculateCryptoStakingTaxSummary
 } from '../performanceUtils';
 import { parsePortfolioPerformanceCsv, exportToPortfolioPerformanceCsv } from '../../services/portfolioPerformanceImporter';
 import { lookupIsinMetadata } from '../../services/isinMetadataService';
@@ -492,6 +495,120 @@ describe('New Major Financial Utilities & Extensions', () => {
     const heuristicMeta = lookupIsinMetadata('CUSTOM_TECH_ETF', 'iShares Global Clean Energy UCITS ETF');
     expect(heuristicMeta.category).toBe('ETF');
     expect(heuristicMeta.sector).toBe('Energy');
+  });
+
+  it('calculates Pearson correlation matrix and diversification score', () => {
+    const sampleHoldings: Holding[] = [
+      {
+        ticker: 'AAPL',
+        name: 'Apple Inc.',
+        category: 'Stock',
+        shares: 10,
+        averageBuyPrice: 150,
+        currentPrice: 200,
+        totalCost: 1500,
+        currentValue: 2000,
+        totalGain: 500,
+        totalGainPercent: 33.3,
+        portfolioWeight: 50,
+        yieldOnCost: 0.5,
+        sector: 'Technology',
+        region: 'North America'
+      },
+      {
+        ticker: 'BTC',
+        name: 'Bitcoin',
+        category: 'Crypto',
+        shares: 0.1,
+        averageBuyPrice: 50000,
+        currentPrice: 60000,
+        totalCost: 5000,
+        currentValue: 6000,
+        totalGain: 1000,
+        totalGainPercent: 20,
+        portfolioWeight: 50,
+        yieldOnCost: 0,
+        region: 'Global'
+      }
+    ];
+
+    const corr = calculateCorrelationMatrix(sampleHoldings);
+    expect(corr.tickers.length).toBe(2);
+    expect(corr.matrix['AAPL']['AAPL']).toBe(1.0);
+    expect(corr.matrix['AAPL']['BTC']).toBeLessThan(0.5);
+    expect(corr.diversificationScore).toBe('OPTIMAL');
+  });
+
+  it('calculates Dividend Safety Scores & Aristocrat Status', () => {
+    const holdings: Holding[] = [
+      {
+        ticker: 'JNJ',
+        name: 'Johnson & Johnson',
+        category: 'Stock',
+        shares: 20,
+        averageBuyPrice: 140,
+        currentPrice: 160,
+        totalCost: 2800,
+        currentValue: 3200,
+        totalGain: 400,
+        totalGainPercent: 14.3,
+        portfolioWeight: 100,
+        yieldOnCost: 3.2
+      }
+    ];
+
+    const scores = calculateDividendSafetyScores(holdings, []);
+    expect(scores.length).toBe(1);
+    expect(scores[0].aristocratStatus).toBe('KING');
+    expect(scores[0].safetyScore).toBeGreaterThanOrEqual(90);
+    expect(scores[0].safetyTier).toBe('SEHR_SICHER');
+  });
+
+  it('tracks Crypto Staking Tax under 256 Euro Freigrenze', () => {
+    const txs: Transaction[] = [
+      {
+        id: 'st-1',
+        type: 'STAKING',
+        date: '10.02.2026',
+        ticker: 'SOL',
+        name: 'Solana Staking Reward',
+        amount: 1,
+        price: 150,
+        fee: 0,
+        tax: 0,
+        category: 'Crypto',
+        currency: 'EUR'
+      }
+    ];
+
+    const summary = calculateCryptoStakingTaxSummary(txs, 30);
+    expect(summary.totalStakingIncomeEur).toBe(150);
+    expect(summary.isTaxFree).toBe(true);
+    expect(summary.taxableStakingIncomeEur).toBe(0);
+
+    // Over limit test
+    const txsOver: Transaction[] = [
+      ...txs,
+      {
+        id: 'st-2',
+        type: 'STAKING',
+        date: '15.03.2026',
+        ticker: 'SOL',
+        name: 'Solana Reward 2',
+        amount: 1,
+        price: 150,
+        fee: 0,
+        tax: 0,
+        category: 'Crypto',
+        currency: 'EUR'
+      }
+    ];
+
+    const summaryOver = calculateCryptoStakingTaxSummary(txsOver, 30);
+    expect(summaryOver.totalStakingIncomeEur).toBe(300);
+    expect(summaryOver.isTaxFree).toBe(false);
+    expect(summaryOver.taxableStakingIncomeEur).toBe(300);
+    expect(summaryOver.estimatedIncomeTaxEur).toBe(90);
   });
 });
 

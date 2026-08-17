@@ -15,7 +15,8 @@ import { RealEstateTracker } from './components/RealEstateTracker';
 import { DepositLadderWidget } from './components/DepositLadderWidget';
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { OrderAssistantModal } from './components/OrderAssistantModal';
-import { Cloud, ShoppingCart } from 'lucide-react';
+import { QrSyncModal } from './components/QrSyncModal';
+import { Cloud, ShoppingCart, QrCode } from 'lucide-react';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
@@ -72,6 +73,7 @@ function App() {
   const [showPdfExportModal, setShowPdfExportModal] = useState(false);
   const [showCloudSyncModal, setShowCloudSyncModal] = useState(false);
   const [showOrderAssistantModal, setShowOrderAssistantModal] = useState(false);
+  const [showQrSyncModal, setShowQrSyncModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleAddTransaction = (tx: any) => {
@@ -156,6 +158,14 @@ function App() {
 
         {/* Action Controls & Switcher */}
         <div className="header-controls-group">
+          <button
+            onClick={() => setShowQrSyncModal(true)}
+            className="theme-toggle-btn"
+            title="Air-Gapped Offline QR-Code Vault Transfer"
+          >
+            <QrCode size={16} />
+          </button>
+
           <button
             onClick={() => setShowOrderAssistantModal(true)}
             className="theme-toggle-btn"
@@ -540,6 +550,16 @@ function App() {
           savingsPlans={activePortfolio.savingsPlans || []}
           holdings={holdings}
           baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Air-Gapped QR-Code Sync Modal */}
+      {showQrSyncModal && (
+        <QrSyncModal
+          isOpen={showQrSyncModal}
+          onClose={() => setShowQrSyncModal(false)}
+          portfolios={portfolios}
+          onImportDecrypted={importBackup}
         />
       )}
 

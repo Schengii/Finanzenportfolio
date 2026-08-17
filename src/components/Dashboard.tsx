@@ -19,6 +19,9 @@ import { RebalancingOrderPlanner } from './RebalancingOrderPlanner';
 import { ExDateDividendRadar } from './ExDateDividendRadar';
 import { DripAnalysisWidget } from './DripAnalysisWidget';
 import { FxExposureWidget } from './FxExposureWidget';
+import { CorrelationMatrixWidget } from './CorrelationMatrixWidget';
+import { DividendSafetyScoreWidget } from './DividendSafetyScoreWidget';
+import { CryptoStakingTaxWidget } from './CryptoStakingTaxWidget';
 import { usePortfolio } from '../context/PortfolioContext';
  
  interface DashboardProps {
@@ -651,6 +654,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
 
          <ExDateDividendRadar
            holdings={holdings}
+           transactions={transactions}
+           baseCurrency={baseCurrency}
+         />
+
+         <CorrelationMatrixWidget
+           holdings={holdings}
+           baseCurrency={baseCurrency}
+         />
+
+         <DividendSafetyScoreWidget
+           holdings={holdings}
+           transactions={transactions}
+           baseCurrency={baseCurrency}
+         />
+
+         <CryptoStakingTaxWidget
            transactions={transactions}
            baseCurrency={baseCurrency}
          />
