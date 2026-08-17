@@ -308,7 +308,10 @@ import {
   calculateBondDurationSensitivity,
   exportRebalancingOrdersToCsv,
   calculatePurchasingPowerTarget,
-  calculateAssetClassCumulativeReturns
+  calculateAssetClassCumulativeReturns,
+  calculateEmergencyFundStatus,
+  compareTwoPortfolios,
+  calculateNextTarget2ExecutionDates
 } from '../performanceUtils';
 import { getEcbReferenceRate, convertWithEcbRate } from '../../services/fxRatesService';
 import { parsePortfolioPerformanceCsv, exportToPortfolioPerformanceCsv } from '../../services/portfolioPerformanceImporter';
@@ -860,6 +863,30 @@ describe('New Major Financial Utilities & Extensions', () => {
     expect(timeline[0].dateLabel).toBe('Start');
     expect(timeline[4].Aktien).toBe(33.3);
     expect(timeline[4].ETFs).toBe(20.0);
+  });
+
+  it('calculates Emergency Fund & Liquidity status', () => {
+    const fund = calculateEmergencyFundStatus(2000, 6000, 3);
+    expect(fund.targetAmountEur).toBe(6000);
+    expect(fund.coveredMonths).toBe(3.0);
+    expect(fund.progressPercent).toBe(100);
+    expect(fund.status).toBe('HEALTHY');
+  });
+
+  it('compares two portfolios side-by-side', () => {
+    const holdingsA: Holding[] = [{ ticker: 'A', name: 'Alpha', category: 'Stock', shares: 1, averageBuyPrice: 100, currentPrice: 150, totalCost: 100, currentValue: 150, totalGain: 50, totalGainPercent: 50, portfolioWeight: 100, yieldOnCost: 0 }];
+    const holdingsB: Holding[] = [{ ticker: 'B', name: 'Beta', category: 'Stock', shares: 1, averageBuyPrice: 100, currentPrice: 120, totalCost: 100, currentValue: 120, totalGain: 20, totalGainPercent: 20, portfolioWeight: 100, yieldOnCost: 0 }];
+
+    const comp = compareTwoPortfolios(holdingsA, holdingsB);
+    expect(comp.outperformer).toBe('A');
+    expect(comp.outperformancePercent).toBe(30.0);
+  });
+
+  it('calculates Target2 bank holiday & weekend shifts for savings plans', () => {
+    const dates = calculateNextTarget2ExecutionDates(1, 3);
+    expect(dates.length).toBe(3);
+    expect(dates[0].intendedDate).toBeDefined();
+    expect(dates[0].actualExecutionDate).toBeDefined();
   });
 });
 

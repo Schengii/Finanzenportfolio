@@ -26,6 +26,8 @@ import { FxHedgingWidget } from './FxHedgingWidget';
 import { DividendSeasonalityWidget } from './DividendSeasonalityWidget';
 import { BondDurationWidget } from './BondDurationWidget';
 import { AssetClassPerformanceChart } from './AssetClassPerformanceChart';
+import { EmergencyFundWidget } from './EmergencyFundWidget';
+import { Target2CalendarWidget } from './Target2CalendarWidget';
 import { DashboardCustomizerModal, DEFAULT_DASHBOARD_WIDGETS, type DashboardWidgetConfig } from './DashboardCustomizerModal';
 import { usePortfolio } from '../context/PortfolioContext';
  
@@ -762,6 +764,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
               baseCurrency={baseCurrency}
             />
           )}
+
+          <EmergencyFundWidget
+            holdings={holdings}
+            baseCurrency={baseCurrency}
+          />
+
+          <Target2CalendarWidget />
 
          <PerformanceAttribution
            transactions={transactions}

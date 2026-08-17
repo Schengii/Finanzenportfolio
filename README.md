@@ -134,6 +134,15 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 ### 32. 💶 EZB-Referenzkurs Historie & FX-Engine (`fxRatesService.ts`)
 - **Offizielle EZB-Tageskurse**: Integrierter lokaler Cache für historische Währungsumrechnungen (USD, CHF, GBP zu EUR) bei Transaktionsbuchungen.
 
+### 33. 🛡️ Dynamischer Notgroschen- & Liquiditäts-Assistent (`EmergencyFundWidget.tsx`)
+- **3-6 Monats-Liquiditätsradar**: Berechnung des idealen Sicherheitspuffers basierend auf Lebenshaltungskosten mit Abgleich der Cash- & Geldmarktreserven.
+
+### 34. ⚖️ Side-by-Side Dual Portfolio Vergleichsmodus (`DualPortfolioCompareModal.tsx`)
+- **Multi-Depot Matrix**: Gegenüberstellung zweier Portfolios oder Strategien nach Performance, Risiko, Rendite und Einstandswert.
+
+### 35. 🗓️ Target2-Bankfeiertage & Sparplan-Ausführungskalender (`Target2CalendarWidget.tsx`)
+- **Feiertags-Verschiebungs-Radar**: Erkennt Wochenend- und europäische Target2-Bankfeiertags-Verschiebungen für den 1. und 15. des Monats.
+
 ---
 
 ## 🛠️ Technologie-Stack & Architektur
@@ -144,7 +153,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (36 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (39 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -160,7 +169,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (36 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (39 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen

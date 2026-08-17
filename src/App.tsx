@@ -18,7 +18,8 @@ import { OrderAssistantModal } from './components/OrderAssistantModal';
 import { QrSyncModal } from './components/QrSyncModal';
 import { CryptoTaxLossHarvestingModal } from './components/CryptoTaxLossHarvestingModal';
 import { PdfFactsheetExporter } from './components/PdfFactsheetExporter';
-import { Cloud, ShoppingCart, QrCode, Coins } from 'lucide-react';
+import { DualPortfolioCompareModal } from './components/DualPortfolioCompareModal';
+import { Cloud, ShoppingCart, QrCode, Coins, Columns } from 'lucide-react';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
@@ -78,6 +79,7 @@ function App() {
   const [showQrSyncModal, setShowQrSyncModal] = useState(false);
   const [showCryptoTaxModal, setShowCryptoTaxModal] = useState(false);
   const [showFactsheetModal, setShowFactsheetModal] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleAddTransaction = (tx: any) => {
@@ -162,6 +164,14 @@ function App() {
 
         {/* Action Controls & Switcher */}
         <div className="header-controls-group">
+          <button
+            onClick={() => setShowCompareModal(true)}
+            className="theme-toggle-btn"
+            title="Side-by-Side Dual Portfolio-Vergleich"
+          >
+            <Columns size={16} />
+          </button>
+
           <button
             onClick={() => setShowCryptoTaxModal(true)}
             className="theme-toggle-btn"
@@ -601,6 +611,16 @@ function App() {
           onClose={() => setShowFactsheetModal(false)}
           portfolio={activePortfolio}
           holdings={holdings}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Dual Portfolio Comparison Modal */}
+      {showCompareModal && (
+        <DualPortfolioCompareModal
+          isOpen={showCompareModal}
+          onClose={() => setShowCompareModal(false)}
+          portfolios={portfolios}
           baseCurrency={baseCurrency}
         />
       )}

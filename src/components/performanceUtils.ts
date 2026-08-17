@@ -29,6 +29,59 @@ export function parseDateString(dateStr: string): Date {
   return new Date(dateStr); // Fallback
 }
 
+export function calculateHoldingsFromTransactions(transactions: Transaction[], prices: Record<string, number> = {}): Holding[] {
+  const assetMap: Record<string, { ticker: string; name: string; category: any; shares: number; totalCost: number }> = {};
+
+  transactions.forEach(tx => {
+    if (tx.type === 'DEPOSIT' || tx.type === 'WITHDRAWAL' || tx.type === 'DIVIDEND' || tx.type === 'STAKING') return;
+    if (!assetMap[tx.ticker]) {
+      assetMap[tx.ticker] = {
+        ticker: tx.ticker,
+        name: tx.name,
+        category: tx.category || 'Stock',
+        shares: 0,
+        totalCost: 0
+      };
+    }
+
+    if (tx.type === 'BUY') {
+      assetMap[tx.ticker].shares += tx.amount;
+      assetMap[tx.ticker].totalCost += (tx.amount * tx.price + tx.fee);
+    } else if (tx.type === 'SELL') {
+      const avgCost = assetMap[tx.ticker].shares > 0 ? assetMap[tx.ticker].totalCost / assetMap[tx.ticker].shares : 0;
+      assetMap[tx.ticker].shares = Math.max(0, assetMap[tx.ticker].shares - tx.amount);
+      assetMap[tx.ticker].totalCost = Math.max(0, assetMap[tx.ticker].totalCost - avgCost * tx.amount);
+    }
+  });
+
+  const totalPortfolioValue = Object.values(assetMap).reduce((sum, a) => sum + a.shares * (prices[a.ticker] || (a.shares > 0 ? a.totalCost / a.shares : 0)), 0);
+
+  return Object.values(assetMap)
+    .filter(a => a.shares > 0.00001)
+    .map(a => {
+      const avgBuy = a.shares > 0 ? a.totalCost / a.shares : 0;
+      const currentPrice = prices[a.ticker] || avgBuy;
+      const currentValue = a.shares * currentPrice;
+      const totalGain = currentValue - a.totalCost;
+      const totalGainPercent = a.totalCost > 0 ? (totalGain / a.totalCost) * 100 : 0;
+
+      return {
+        ticker: a.ticker,
+        name: a.name,
+        category: a.category,
+        shares: a.shares,
+        averageBuyPrice: avgBuy,
+        currentPrice,
+        totalCost: a.totalCost,
+        currentValue,
+        totalGain,
+        totalGainPercent,
+        portfolioWeight: totalPortfolioValue > 0 ? (currentValue / totalPortfolioValue) * 100 : 0,
+        yieldOnCost: 0
+      };
+    });
+}
+
 /**
  * Calculates the Internal Rate of Return (IRR / Interner Zinsfuß) using Newton-Raphson method.
  * Cash flows:
@@ -2285,6 +2338,147 @@ export function calculateAssetClassCumulativeReturns(
     { dateLabel: 'Aktuell', Aktien: stockRet, ETFs: etfRet, Krypto: cryptoRet, Rohstoffe: metalRet }
   ];
 }
+
+/**
+ * Emergency Fund & Liquidity Assistant
+ */
+export interface EmergencyFundResult {
+  monthlyExpensesEur: number;
+  targetMonths: number;
+  targetAmountEur: number;
+  currentCashEur: number;
+  coveredMonths: number;
+  progressPercent: number;
+  status: 'CRITICAL' | 'WARNING' | 'HEALTHY' | 'SURPLUS';
+}
+
+export function calculateEmergencyFundStatus(
+  monthlyExpensesEur: number = 2000,
+  currentCashEur: number = 6000,
+  targetMonths: number = 3
+): EmergencyFundResult {
+  const targetAmountEur = monthlyExpensesEur * targetMonths;
+  const coveredMonths = monthlyExpensesEur > 0 ? Math.round((currentCashEur / monthlyExpensesEur) * 10) / 10 : 0;
+  const progressPercent = targetAmountEur > 0 ? Math.min(150, Math.round((currentCashEur / targetAmountEur) * 100)) : 100;
+
+  let status: EmergencyFundResult['status'] = 'HEALTHY';
+  if (coveredMonths < 1) status = 'CRITICAL';
+  else if (coveredMonths < targetMonths) status = 'WARNING';
+  else if (coveredMonths > targetMonths * 1.5) status = 'SURPLUS';
+
+  return {
+    monthlyExpensesEur,
+    targetMonths,
+    targetAmountEur,
+    currentCashEur,
+    coveredMonths,
+    progressPercent,
+    status
+  };
+}
+
+/**
+ * Dual Portfolio Side-by-Side Comparison
+ */
+export interface PortfolioComparisonResult {
+  totalValueA: number;
+  totalValueB: number;
+  totalCostA: number;
+  totalCostB: number;
+  returnPercentA: number;
+  returnPercentB: number;
+  outperformer: 'A' | 'B' | 'EQUAL';
+  outperformancePercent: number;
+  holdingsCountA: number;
+  holdingsCountB: number;
+}
+
+export function compareTwoPortfolios(
+  holdingsA: Holding[],
+  holdingsB: Holding[]
+): PortfolioComparisonResult {
+  const totalValueA = holdingsA.reduce((sum, h) => sum + h.currentValue, 0);
+  const totalCostA = holdingsA.reduce((sum, h) => sum + h.totalCost, 0);
+  const returnPercentA = totalCostA > 0 ? ((totalValueA - totalCostA) / totalCostA) * 100 : 0;
+
+  const totalValueB = holdingsB.reduce((sum, h) => sum + h.currentValue, 0);
+  const totalCostB = holdingsB.reduce((sum, h) => sum + h.totalCost, 0);
+  const returnPercentB = totalCostB > 0 ? ((totalValueB - totalCostB) / totalCostB) * 100 : 0;
+
+  let outperformer: 'A' | 'B' | 'EQUAL' = 'EQUAL';
+  if (returnPercentA > returnPercentB) outperformer = 'A';
+  else if (returnPercentB > returnPercentA) outperformer = 'B';
+
+  const outperformancePercent = Math.round(Math.abs(returnPercentA - returnPercentB) * 10) / 10;
+
+  return {
+    totalValueA: Math.round(totalValueA),
+    totalValueB: Math.round(totalValueB),
+    totalCostA: Math.round(totalCostA),
+    totalCostB: Math.round(totalCostB),
+    returnPercentA: Math.round(returnPercentA * 10) / 10,
+    returnPercentB: Math.round(returnPercentB * 10) / 10,
+    outperformer,
+    outperformancePercent,
+    holdingsCountA: holdingsA.length,
+    holdingsCountB: holdingsB.length
+  };
+}
+
+/**
+ * European Target2 Bank Holidays & Savings Execution Date Adjuster
+ */
+export interface Target2DateResult {
+  intendedDate: string;
+  actualExecutionDate: string;
+  isDelayedByWeekendOrHoliday: boolean;
+  reason?: string;
+}
+
+export function calculateNextTarget2ExecutionDates(
+  dayOfMonth: 1 | 15 = 1,
+  monthsAhead: number = 3
+): Target2DateResult[] {
+  const results: Target2DateResult[] = [];
+  const now = new Date();
+
+  // Target2 official closing days: New Year (1.1.), Good Friday, Easter Monday, Labour Day (1.5.), Christmas (25.12., 26.12.)
+  const isTarget2Holiday = (d: Date) => {
+    const m = d.getMonth(); // 0-indexed
+    const day = d.getDate();
+    if (m === 0 && day === 1) return true;
+    if (m === 4 && day === 1) return true;
+    if (m === 11 && (day === 25 || day === 26)) return true;
+    return false;
+  };
+
+  for (let i = 0; i < monthsAhead; i++) {
+    let target = new Date(now.getFullYear(), now.getMonth() + i, dayOfMonth);
+    const intendedStr = target.toLocaleDateString('de-DE');
+
+    let isDelayed = false;
+    let reason = '';
+
+    // If weekend (0=Sun, 6=Sat) or holiday, move to next business day
+    while (target.getDay() === 0 || target.getDay() === 6 || isTarget2Holiday(target)) {
+      isDelayed = true;
+      if (target.getDay() === 6) reason = 'Samstag';
+      else if (target.getDay() === 0) reason = 'Sonntag';
+      else reason = 'Target2-Bankfeiertag';
+      target.setDate(target.getDate() + 1);
+    }
+
+    results.push({
+      intendedDate: intendedStr,
+      actualExecutionDate: target.toLocaleDateString('de-DE'),
+      isDelayedByWeekendOrHoliday: isDelayed,
+      reason: isDelayed ? reason : undefined
+    });
+  }
+
+  return results;
+}
+
 
 
 
