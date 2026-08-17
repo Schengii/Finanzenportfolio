@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Portfolio } from '../types';
-import { calculateGermanTax, calculateVorabpauschaleDetails } from './performanceUtils';
+import { calculateEnhancedGermanTax, calculateVorabpauschaleDetails } from './performanceUtils';
 import { FileText, Printer, X } from 'lucide-react';
 
 interface TaxReportModalProps {
@@ -18,8 +18,21 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  const [personalTaxRate, setPersonalTaxRate] = useState<number>(18);
+  const [enableGuenstiger, setEnableGuenstiger] = useState<boolean>(true);
+  const [hasChurchTax, setHasChurchTax] = useState<boolean>(false);
+
   const currentYear = new Date().getFullYear();
-  const taxResult = calculateGermanTax(portfolio.transactions, taxExemptionLimit);
+
+  const enhancedTax = calculateEnhancedGermanTax(
+    portfolio.transactions,
+    taxExemptionLimit,
+    portfolio.taxLossPools?.stockLossPool || 0,
+    portfolio.taxLossPools?.generalLossPool || 0,
+    enableGuenstiger ? personalTaxRate : undefined,
+    hasChurchTax
+  );
+
   const vorabpauschaleRes = calculateVorabpauschaleDetails(
     portfolio.transactions.map(t => ({
       ticker: t.ticker,
@@ -45,119 +58,150 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100 print:bg-white print:text-black print:border-none print:shadow-none print:max-w-none">
+    <div className="modal-overlay" style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+      backdropFilter: 'blur(4px)', padding: '1rem'
+    }}>
+      <div style={{
+        background: 'var(--card-bg, #0f172a)', border: '1px solid var(--border-color)', borderRadius: '16px',
+        maxWidth: '800px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', overflow: 'hidden'
+      }}>
         
-        {/* Header (Hidden in Print) */}
-        <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/50 print:hidden">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl">
-              <FileText className="w-5 h-5" />
+        {/* Header */}
+        <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.5rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '8px' }}>
+              <FileText size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-bold">Steuerbescheinigungs-Report ({currentYear})</h3>
-              <p className="text-xs text-slate-400">Übersicht für die deutsche Anlage KAP / KAP-INV</p>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold' }}>Steuer- & Verlusttöpfe Report ({currentYear})</h3>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Anlage KAP / KAP-INV (§ 20 Abs. 6 EStG Verlustverrechnung & Günstigerprüfung)</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition-colors"
-            >
-              <Printer className="w-4 h-4" /> Drucken / PDF Export
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={handlePrint} className="btn btn-secondary" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Printer size={14} /> Drucken / PDF
             </button>
-            <button onClick={onClose} className="p-2 hover:bg-slate-800 text-slate-400 rounded-xl">
-              <X className="w-5 h-5" />
+            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <X size={20} />
             </button>
           </div>
         </div>
 
-        {/* Printable Content Body */}
-        <div className="p-8 flex-1 overflow-y-auto space-y-6 print:p-0 print:overflow-visible">
+        {/* Content Body */}
+        <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
-          {/* Printable Header */}
-          <div className="border-b border-slate-800 pb-6 print:border-black">
-            <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-2xl font-black text-slate-100 print:text-black">Depot-Steuerbescheinigung</h1>
-                <p className="text-xs text-slate-400 print:text-gray-600 mt-1">
-                  Portfolio: <strong className="text-slate-200 print:text-black">{portfolio.name}</strong> • Steuerjahr: {currentYear}
-                </p>
-              </div>
-              <div className="text-right text-xs text-slate-400 print:text-gray-600">
-                <p>Erstellt am: {new Date().toLocaleDateString('de-DE')}</p>
-                <p className="font-mono mt-0.5">Finanzenportfolio DE Steuer-Engine</p>
-              </div>
+          {/* Interactive Günstigerprüfung & KiSt config */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <input
+                  type="checkbox"
+                  checked={enableGuenstiger}
+                  onChange={e => setEnableGuenstiger(e.target.checked)}
+                />
+                Günstigerprüfung anwenden
+              </label>
+              {enableGuenstiger && (
+                <div style={{ marginTop: '0.3rem' }}>
+                  <input
+                    type="number"
+                    value={personalTaxRate}
+                    onChange={e => setPersonalTaxRate(Number(e.target.value))}
+                    min="0"
+                    max="45"
+                    style={{ width: '80px', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.4rem' }}>% persönlicher Steuersatz</span>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Summary Table */}
-          <div className="grid grid-cols-2 gap-4 print:grid-cols-2">
-            <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl print:bg-gray-50 print:border-gray-300">
-              <span className="text-xs text-slate-400 print:text-gray-600 font-semibold block">Realisierte Brutto-Gewinne (FIFO)</span>
-              <span className="text-xl font-black text-slate-100 print:text-black mt-1 block">
-                {taxResult.realizedGainsRaw.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-              </span>
-              <span className="text-[10px] text-slate-500 print:text-gray-500 mt-1 block">Vor Teilfreistellung & Haltefristen</span>
-            </div>
-
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl print:bg-emerald-50 print:border-emerald-200">
-              <span className="text-xs text-emerald-400 print:text-emerald-800 font-semibold block">Steuerpflichtiger Ertrag (Netto)</span>
-              <span className="text-xl font-black text-emerald-300 print:text-emerald-900 mt-1 block">
-                {taxResult.taxableGains.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-              </span>
-              <span className="text-[10px] text-emerald-400/70 print:text-emerald-700 mt-1 block">Nach ETF 30% Teilfreistellung & Krypto 1J Haltedauer</span>
-            </div>
-          </div>
-
-          {/* Detailed Tax Breakdown */}
-          <div className="space-y-3">
-            <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400 print:text-black">Steuerliche Aufschlüsselung (§ 20 EStG & § 18 InvStG)</h4>
-            
-            <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/40 print:border-gray-300 print:bg-white">
-              <div className="divide-y divide-slate-800/60 print:divide-gray-200 text-xs">
-                <div className="p-3.5 flex justify-between items-center">
-                  <span className="text-slate-300 print:text-black font-medium">Eingerichteter Freistellungsauftrag</span>
-                  <span className="font-semibold text-slate-200 print:text-black">{taxExemptionLimit.toFixed(2)} €</span>
-                </div>
-                <div className="p-3.5 flex justify-between items-center">
-                  <span className="text-slate-300 print:text-black font-medium">Verbrauchter Sparer-Pauschbetrag</span>
-                  <span className="font-semibold text-emerald-400 print:text-emerald-700">
-                    {Math.min(taxExemptionLimit, taxResult.taxableGains).toFixed(2)} €
-                  </span>
-                </div>
-                <div className="p-3.5 flex justify-between items-center">
-                  <span className="text-slate-300 print:text-black font-medium">Verbleibender Freistellungsauftrag</span>
-                  <span className="font-semibold text-slate-200 print:text-black">{taxResult.taxExemptionRemaining.toFixed(2)} €</span>
-                </div>
-                <div className="p-3.5 flex justify-between items-center bg-slate-900/40 print:bg-gray-100">
-                  <span className="text-slate-300 print:text-black font-semibold">Geschätzte Abgeltungsteuer (25% + Soli)</span>
-                  <span className="font-bold text-amber-400 print:text-amber-900">
-                    {taxResult.withholdingTaxEstimate.toFixed(2)} €
-                  </span>
-                </div>
-                <div className="p-3.5 flex justify-between items-center">
-                  <span className="text-slate-300 print:text-black font-medium">Vorabpauschale Schätzung (§ 18 InvStG)</span>
-                  <span className="font-semibold text-blue-400 print:text-blue-800">{vorabpauschale.toFixed(2)} €</span>
-                </div>
+            <div>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <input
+                  type="checkbox"
+                  checked={hasChurchTax}
+                  onChange={e => setHasChurchTax(e.target.checked)}
+                />
+                Kirchensteuerpflichtig (8% / 9%)
+              </label>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                Autom. Berücksichtigung in Formel
               </div>
             </div>
           </div>
 
-          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl text-[11px] text-slate-400 leading-relaxed print:border-gray-300 print:text-gray-600">
-            <strong>Hinweis:</strong> Dieser Report ist eine simulierte Steuerberechnung zur Orientierung für die Steuererklärung (Anlage KAP). Bei ausländischen Brokern ohne automatischen Abzug (z.B. Interactive Brokers, Revolut) müssen Kapitalerträge manuell in der Steuererklärung angegeben werden.
+          {/* Loss Pools (§ 20 Abs. 6 EStG) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '1rem', borderRadius: '10px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 'bold' }}>📉 Aktien-Verlusttopf (§ 20 Abs. 6 S. 4 EStG)</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#ef4444', marginTop: '0.25rem' }}>
+                {enhancedTax.stockLossPoolRemainingEur.toFixed(2)} €
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                Ausschließlich mit Gewinnen aus Aktienverkäufen verrechenbar.
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '1rem', borderRadius: '10px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#3b82f6', fontWeight: 'bold' }}>📊 Sonstiger Verlusttopf (ETFs, Zinsen, Krypto)</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#3b82f6', marginTop: '0.25rem' }}>
+                {enhancedTax.generalLossPoolRemainingEur.toFixed(2)} €
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                Verrechenbar mit ETFs, Fonds, Dividenden und Zinsen.
+              </div>
+            </div>
           </div>
 
+          {/* Detailed Tax Breakdown Table */}
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+            <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', fontWeight: 'bold', fontSize: '0.85rem' }}>
+              Steuerberechnung & Freibeträge
+            </div>
+            <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Sparer-Pauschbetrag</span>
+                <strong>{taxExemptionLimit.toFixed(2)} €</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Zu versteuernde Erträge (nach Teilfreistellung)</span>
+                <strong style={{ color: '#10b981' }}>{enhancedTax.taxableGainsFinalEur.toFixed(2)} €</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                <span>Standard-Abgeltungsteuer (25% + Soli)</span>
+                <strong>{enhancedTax.abgeltungsteuerStandardEur.toFixed(2)} €</strong>
+              </div>
+              {enhancedTax.guenstigerpruefungTaxEur !== undefined && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981', fontWeight: 'bold' }}>
+                  <span>Steuer nach Günstigerprüfung ({personalTaxRate}%)</span>
+                  <span>{enhancedTax.guenstigerpruefungTaxEur.toFixed(2)} € (Ersparnis: {enhancedTax.taxSavingViaGuenstigerpruefungEur.toFixed(2)} €)</span>
+                </div>
+              )}
+              {hasChurchTax && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a855f7' }}>
+                  <span>Kirchensteuer (geschätzt)</span>
+                  <span>{enhancedTax.churchTaxEstimateEur.toFixed(2)} €</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                <span>Geschätzte Vorabpauschale 2025/2026 (§ 18 InvStG)</span>
+                <strong style={{ color: '#3b82f6' }}>{vorabpauschale.toFixed(2)} €</strong>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Footer (Hidden in Print) */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex justify-end print:hidden">
-          <button onClick={onClose} className="px-5 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-semibold transition-colors">
+        {/* Footer */}
+        <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={onClose}>
             Schließen
           </button>
         </div>
-
       </div>
     </div>
   );

@@ -17,6 +17,8 @@ import { AchievementBadges } from './AchievementBadges';
 import { BenchmarkComparison } from './BenchmarkComparison';
 import { RebalancingOrderPlanner } from './RebalancingOrderPlanner';
 import { ExDateDividendRadar } from './ExDateDividendRadar';
+import { DripAnalysisWidget } from './DripAnalysisWidget';
+import { FxExposureWidget } from './FxExposureWidget';
 import { usePortfolio } from '../context/PortfolioContext';
  
  interface DashboardProps {
@@ -653,6 +655,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
            baseCurrency={baseCurrency}
          />
 
+         <DripAnalysisWidget
+           holdings={holdings}
+           transactions={transactions}
+           baseCurrency={baseCurrency}
+         />
+
+         <FxExposureWidget
+           holdings={holdings}
+           transactions={transactions}
+           baseCurrency={baseCurrency}
+         />
+
          <PerformanceAttribution
            transactions={transactions}
            holdings={holdings}
@@ -669,8 +683,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
          />
 
          <FireFreedomWidget
-           portfolioValue={stats.totalValue}
-           annualDividends={stats.dividendsReceived}
+           totalValue={stats.totalValue}
+           monthlyDividends={stats.dividendsReceived / 12}
            baseCurrency={baseCurrency}
          />
 

@@ -1,6 +1,6 @@
-export type AssetCategory = 'Stock' | 'ETF' | 'Crypto' | 'Bond' | 'Cash' | 'RealEstate' | 'P2P';
+export type AssetCategory = 'Stock' | 'ETF' | 'Crypto' | 'Bond' | 'Cash' | 'RealEstate' | 'P2P' | 'PreciousMetal';
 
-export type Sector = 'Technology' | 'Healthcare' | 'Financials' | 'Consumer' | 'Industrials' | 'Energy' | 'Utilities' | 'Real Estate' | 'Other';
+export type Sector = 'Technology' | 'Healthcare' | 'Financials' | 'Consumer' | 'Industrials' | 'Energy' | 'Utilities' | 'Real Estate' | 'Materials' | 'Communication' | 'Other';
 
 export type Region = 'North America' | 'Europe' | 'Emerging Markets' | 'Asia Pacific' | 'Global' | 'Other';
 
@@ -17,7 +17,7 @@ export interface AssetMappingRule {
 
 export interface Transaction {
   id: string;
-  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL' | 'STAKING' | 'OPTION_PREMIUM' | 'OPTION_EXPIRE' | 'OPTION_ASSIGN';
+  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL' | 'STAKING' | 'OPTION_PREMIUM' | 'OPTION_EXPIRE' | 'OPTION_ASSIGN' | 'INTEREST' | 'RENT_INCOME' | 'MAINTENANCE_EXPENSE';
   date: string;
   ticker: string;
   name: string;
@@ -56,9 +56,109 @@ export interface Holding {
   sector?: Sector;
   region?: Region;
   broker?: string;
+  currency?: 'EUR' | 'USD' | 'CHF' | 'GBP';
   teilfreistellungRate?: number;
   notes?: string;
   tags?: string[];
+}
+
+export interface RealEstateAsset {
+  id: string;
+  name: string;
+  purchaseDate: string;
+  purchasePriceEur: number;
+  currentMarketValueEur: number;
+  monthlyRentalIncomeEur: number;
+  monthlyOperatingCostsEur: number;
+  loanBalanceEur: number;
+  monthlyMortgagePaymentEur: number; // Zins + Tilgung
+  interestRatePercent: number;
+  squareMeters: number;
+  location: string;
+  notes?: string;
+}
+
+export interface DepositLadderItem {
+  id: string;
+  bankName: string;
+  depositType: 'FESTGELD' | 'TAGESGELD' | 'SPARBRIEF';
+  principalEur: number;
+  interestRatePercent: number;
+  startDate: string;
+  maturityDate: string; // Fälligkeitsdatum
+  payoutInterval: 'ANNUAL' | 'AT_MATURITY' | 'MONTHLY';
+  isAutoRenew: boolean;
+  notes?: string;
+}
+
+export interface P2PLoanItem {
+  id: string;
+  platform: string; // e.g. Bondora, Mintos, EstateGuru
+  investedEur: number;
+  currentValueEur: number;
+  interestEarnedEur: number;
+  averageInterestRatePercent: number;
+  delayedAmountEur: number;
+  defaultedAmountEur: number;
+  autoInvestActive: boolean;
+}
+
+export interface FireWithdrawalConfig {
+  initialPortfolioValue: number;
+  monthlyExpensesEur: number;
+  annualInflationPercent: number;
+  expectedAnnualReturnPercent: number;
+  expectedAnnualYieldPercent: number;
+  retirementYears: number;
+  withdrawalStrategy: 'FIXED_4_PERCENT' | 'VARIABLE_GUARDRAILS' | 'VPW' | 'CONSTANT_INFLATION_ADJUSTED';
+  includeCapitalGainsTax: boolean;
+  effectiveTaxRatePercent: number;
+  monthlyHealthInsuranceEur: number;
+}
+
+export interface FireSimulationYearResult {
+  year: number;
+  age: number;
+  startingValue: number;
+  annualWithdrawal: number;
+  monthlyWithdrawalEffective: number;
+  investmentReturns: number;
+  taxPaid: number;
+  healthInsurancePaid: number;
+  endingValue: number;
+  isBankrupt: boolean;
+}
+
+export interface FireSimulationResult {
+  success: boolean;
+  ruinYear?: number;
+  finalPortfolioValue: number;
+  totalWithdrawn: number;
+  yearlyBreakdown: FireSimulationYearResult[];
+  safeWithdrawalRatePercent: number;
+  sequenceRiskScore: 'LOW' | 'MODERATE' | 'HIGH';
+}
+
+export interface DripComparisonResult {
+  years: string[];
+  withoutDripValue: number[];
+  withDripValue: number[];
+  totalDividendsReinvested: number;
+  dripOutperformanceEur: number;
+  dripOutperformancePercent: number;
+}
+
+export interface FxExposureItem {
+  currency: 'EUR' | 'USD' | 'CHF' | 'GBP' | 'OTHER';
+  valueEur: number;
+  percentage: number;
+  stressedValueEurDrop10Pct: number;
+}
+
+export interface FxExposureResult {
+  exposures: FxExposureItem[];
+  totalValueEur: number;
+  foreignExposurePercent: number;
 }
 
 export interface TargetAllocation {
@@ -80,6 +180,8 @@ export interface PortfolioStats {
   totalGains: number;
   totalGainsPercent: number;
   dividendsReceived: number;
+  interestReceived?: number;
+  rentalCashflowNet?: number;
   cashBalance: number;
   irr: number;
   ttwrr: number;
@@ -125,6 +227,9 @@ export interface Portfolio {
   targetAllocations?: TargetAllocation[];
   mappingRules?: AssetMappingRule[];
   taxLossPools?: TaxLossPools;
+  realEstate?: RealEstateAsset[];
+  depositLadder?: DepositLadderItem[];
+  p2pLoans?: P2PLoanItem[];
 }
 
 export interface BenchmarkSeries {
@@ -210,5 +315,6 @@ export interface OptionTrade {
   totalPremiumEur: number;
   status: 'OPEN' | 'EXPIRED' | 'ASSIGNED' | 'CLOSED';
 }
+
 
 

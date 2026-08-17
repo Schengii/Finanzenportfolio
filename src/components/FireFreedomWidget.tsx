@@ -1,150 +1,162 @@
-import React, { useState } from 'react';
-import { Flame, CheckCircle2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Flame, AlertTriangle, CheckCircle } from 'lucide-react';
+import { simulateFireWithdrawal } from './performanceUtils';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface FireFreedomWidgetProps {
-  portfolioValue: number;
-  annualDividends: number;
-  baseCurrency: 'EUR' | 'USD' | 'CHF' | 'GBP';
+  totalValue: number;
+  monthlyDividends?: number;
+  baseCurrency?: string;
 }
 
 export const FireFreedomWidget: React.FC<FireFreedomWidgetProps> = ({
-  portfolioValue,
-  annualDividends,
-  baseCurrency
+  totalValue,
+  baseCurrency = 'EUR'
 }) => {
-  const [monthlyExpenses, setMonthlyExpenses] = useState<number>(2000);
-  const withdrawalRate = 4.0; // 4% Rule
+  const [monthlyExpenses, setMonthlyExpenses] = useState(2500);
+  const [healthInsurance, setHealthInsurance] = useState(350);
+  const [inflation] = useState(2.0);
+  const [expectedReturn] = useState(7.0);
+  const [years, setYears] = useState(30);
+  const [strategy, setStrategy] = useState<'CONSTANT_INFLATION_ADJUSTED' | 'VARIABLE_GUARDRAILS' | 'VPW' | 'FIXED_4_PERCENT'>('VARIABLE_GUARDRAILS');
+  const [includeTax] = useState(true);
 
-  const annualExpenses = monthlyExpenses * 12;
-  const targetFireNumber = annualExpenses / (withdrawalRate / 100);
-  const fireProgressPct = targetFireNumber > 0 ? Math.min(100, (portfolioValue / targetFireNumber) * 100) : 0;
+  // Target FIRE Capital based on 4% Rule (25x annual expenses)
+  const targetCapital = useMemo(() => {
+    return (monthlyExpenses + healthInsurance) * 12 * 25;
+  }, [monthlyExpenses, healthInsurance]);
 
-  const monthlyDividends = annualDividends / 12;
-  const dividendCoveragePct = monthlyExpenses > 0 ? Math.min(100, (monthlyDividends / monthlyExpenses) * 100) : 0;
+  const fireProgress = useMemo(() => {
+    return targetCapital > 0 ? Math.min(100, (totalValue / targetCapital) * 100) : 0;
+  }, [totalValue, targetCapital]);
 
-  // Milestone Expenses Breakdown
-  const milestones = [
-    { name: 'Strom & Internet (~100 €)', cost: 100 },
-    { name: 'Wocheneinkauf (~300 €)', cost: 300 },
-    { name: 'Kaltmiete (~900 €)', cost: 900 },
-    { name: 'Gesamte Lebenshaltung', cost: monthlyExpenses }
-  ];
+  // Simulation run
+  const simResult = useMemo(() => {
+    return simulateFireWithdrawal({
+      initialPortfolioValue: totalValue,
+      monthlyExpensesEur: monthlyExpenses,
+      annualInflationPercent: inflation,
+      expectedAnnualReturnPercent: expectedReturn,
+      expectedAnnualYieldPercent: 3.5,
+      retirementYears: years,
+      withdrawalStrategy: strategy,
+      includeCapitalGainsTax: includeTax,
+      effectiveTaxRatePercent: 18.5, // Teilfreistellungs-bereinigt
+      monthlyHealthInsuranceEur: healthInsurance
+    });
+  }, [totalValue, monthlyExpenses, inflation, expectedReturn, years, strategy, includeTax, healthInsurance]);
+
+  const chartData = useMemo(() => {
+    return simResult.yearlyBreakdown.map(y => ({
+      name: `J${y.year}`,
+      Depotwert: Math.round(y.endingValue),
+      Entnahme: Math.round(y.annualWithdrawal)
+    }));
+  }, [simResult]);
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-6 backdrop-blur-md shadow-xl text-slate-100">
-      
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-orange-500/10 text-orange-400 rounded-xl border border-orange-500/20">
-            <Flame className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold">FIRE & Dividenden-Freiheitsrechner</h3>
-            <p className="text-xs text-slate-400">Financial Independence, Retire Early (4%-Regel)</p>
-          </div>
+    <div style={{ background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border-color)', padding: '1.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Flame className="text-orange-500" size={20} /> FIRE & Entnahmeplaner (Financial Independence)
+          </h3>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            Simuliere Entnahmestrategien (Trinity Study, Guyton-Klinger Guardrails, VPW) mit Steuern & Krankenversicherung.
+          </p>
         </div>
+        <span style={{
+          padding: '0.3rem 0.75rem',
+          borderRadius: '20px',
+          fontSize: '0.8rem',
+          fontWeight: 'bold',
+          background: simResult.success ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+          color: simResult.success ? '#10b981' : '#ef4444',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.3rem'
+        }}>
+          {simResult.success ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
+          {simResult.success ? 'Kapitalerhalt gesichert' : `Depot erschöpft nach ${simResult.ruinYear} Jahren`}
+        </span>
+      </div>
 
-        <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
-          <span className="text-slate-400">Monatl. Ausgaben:</span>
+      {/* Progress Bar */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
+          <span style={{ color: 'var(--text-muted)' }}>FIRE Fortschritt: {fireProgress.toFixed(1)}%</span>
+          <span style={{ fontWeight: '600' }}>
+            {totalValue.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })} / {targetCapital.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}
+          </span>
+        </div>
+        <div style={{ height: '8px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ width: `${fireProgress}%`, height: '100%', background: 'linear-gradient(90deg, #f97316, #10b981)', transition: 'width 0.5s ease' }} />
+        </div>
+      </div>
+
+      {/* Settings Controls */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', marginBottom: '1.25rem' }}>
+        <div>
+          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Monatl. Lebenskosten (€)</label>
           <input
             type="number"
             value={monthlyExpenses}
-            onChange={(e) => setMonthlyExpenses(Math.max(1, Number(e.target.value)))}
-            className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-right font-bold text-slate-100 focus:outline-none"
+            onChange={e => setMonthlyExpenses(Number(e.target.value))}
+            style={{ width: '100%', padding: '0.4rem', borderRadius: '6px', marginTop: '0.2rem' }}
           />
-          <span className="text-slate-400">€</span>
+        </div>
+
+        <div>
+          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Krankenversicherung / Mo. (€)</label>
+          <input
+            type="number"
+            value={healthInsurance}
+            onChange={e => setHealthInsurance(Number(e.target.value))}
+            style={{ width: '100%', padding: '0.4rem', borderRadius: '6px', marginTop: '0.2rem' }}
+          />
+        </div>
+
+        <div>
+          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Entnahmestrategie</label>
+          <select
+            value={strategy}
+            onChange={e => setStrategy(e.target.value as any)}
+            style={{ width: '100%', padding: '0.4rem', borderRadius: '6px', marginTop: '0.2rem' }}
+          >
+            <option value="VARIABLE_GUARDRAILS">Guyton-Klinger Guardrails (Dynamisch)</option>
+            <option value="CONSTANT_INFLATION_ADJUSTED">4% Trinity (Inflationsbereinigt)</option>
+            <option value="VPW">VPW (Variable Percentage Withdrawal)</option>
+            <option value="FIXED_4_PERCENT">Fix 4% des Jahresdepotwerts</option>
+          </select>
+        </div>
+
+        <div>
+          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Entnahme-Dauer: {years} Jahre</label>
+          <input
+            type="range"
+            min="10"
+            max="50"
+            value={years}
+            onChange={e => setYears(Number(e.target.value))}
+            style={{ width: '100%', marginTop: '0.4rem' }}
+          />
         </div>
       </div>
 
-      {/* Progress Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        
-        {/* FIRE Progress */}
-        <div className="p-5 bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-2xl space-y-3">
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs text-slate-400 font-semibold block">Ziel-Vermögen (FIRE Number)</span>
-              <span className="text-2xl font-black text-orange-400 mt-1 block">
-                {targetFireNumber.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}
-              </span>
-            </div>
-            <span className="px-2.5 py-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-lg text-xs font-bold">
-              {fireProgressPct.toFixed(1)}% erreicht
-            </span>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs text-slate-400">
-              <span>Aktuelles Depot: {portfolioValue.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}</span>
-              <span>Entnahmerate: {withdrawalRate}% p.a.</span>
-            </div>
-            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full transition-all duration-500"
-                style={{ width: `${fireProgressPct}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Dividend Expense Coverage */}
-        <div className="p-5 bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-2xl space-y-3">
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs text-slate-400 font-semibold block">Monatliche Passiv-Abdeckung</span>
-              <span className="text-2xl font-black text-emerald-400 mt-1 block">
-                {monthlyDividends.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })} / Mo.
-              </span>
-            </div>
-            <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold">
-              {dividendCoveragePct.toFixed(1)}% bedeckt
-            </span>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs text-slate-400">
-              <span>Jährliche Dividenden: {annualDividends.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}</span>
-            </div>
-            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500"
-                style={{ width: `${dividendCoveragePct}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
+      {/* Chart */}
+      <div style={{ height: '220px', width: '100%' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 5, right: 15, left: 10, bottom: 5 }}>
+            <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} />
+            <YAxis stroke="var(--text-muted)" fontSize={11} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+            <Tooltip
+              formatter={(value: any) => [Number(value).toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })]}
+              contentStyle={{ background: '#1e293b', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+            />
+            <Line type="monotone" dataKey="Depotwert" stroke="#10b981" strokeWidth={2.5} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
-
-      {/* Milestones Breakdown */}
-      <div className="space-y-3">
-        <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400">Passiv-Dividenden Meilensteine</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {milestones.map((m) => {
-            const isCovered = monthlyDividends >= m.cost;
-            const pct = Math.min(100, (monthlyDividends / m.cost) * 100);
-
-            return (
-              <div key={m.name} className="p-3.5 bg-slate-950/50 border border-slate-800/80 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${isCovered ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold block text-slate-200">{m.name}</span>
-                    <span className="text-[10px] text-slate-400">{pct.toFixed(0)}% gedeckt durch Dividenden</span>
-                  </div>
-                </div>
-                <span className={`text-xs font-bold ${isCovered ? 'text-emerald-400' : 'text-slate-400'}`}>
-                  {isCovered ? 'Freigeschaltet 🎉' : `${(m.cost - monthlyDividends).toFixed(0)} € / Mo fehlen`}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
     </div>
   );
 };

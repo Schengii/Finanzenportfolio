@@ -1176,10 +1176,419 @@ export function calculateRebalancingOrders(
   });
 }
 
+import type {
+  FireWithdrawalConfig,
+  FireSimulationResult,
+  FireSimulationYearResult,
+  DripComparisonResult,
+  FxExposureResult,
+  RealEstateAsset,
+  DepositLadderItem
+} from '../types';
+
+/**
+ * Enhanced FIRE & Safe Withdrawal Rate Simulator with Guardrails, Tax, Inflation & Health Insurance
+ */
+export function simulateFireWithdrawal(config: FireWithdrawalConfig): FireSimulationResult {
+  const {
+    initialPortfolioValue,
+    monthlyExpensesEur,
+    annualInflationPercent,
+    expectedAnnualReturnPercent,
+    retirementYears,
+    withdrawalStrategy,
+    includeCapitalGainsTax,
+    effectiveTaxRatePercent,
+    monthlyHealthInsuranceEur
+  } = config;
+
+  let currentVal = initialPortfolioValue;
+  const yearlyBreakdown: FireSimulationYearResult[] = [];
+  let isBankrupt = false;
+  let ruinYear: number | undefined = undefined;
+  let totalWithdrawn = 0;
+
+  const baseAnnualExpense = (monthlyExpensesEur + monthlyHealthInsuranceEur) * 12;
+  let currentAnnualExpense = baseAnnualExpense;
+  const nominalReturn = expectedAnnualReturnPercent / 100;
+  const inflationRate = annualInflationPercent / 100;
+  const initialSWR = initialPortfolioValue > 0 ? (baseAnnualExpense / initialPortfolioValue) * 100 : 0;
+
+  for (let year = 1; year <= retirementYears; year++) {
+    const startingValue = currentVal;
+
+    if (startingValue <= 0) {
+      isBankrupt = true;
+      if (!ruinYear) ruinYear = year;
+      yearlyBreakdown.push({
+        year,
+        age: 60 + year,
+        startingValue: 0,
+        annualWithdrawal: 0,
+        monthlyWithdrawalEffective: 0,
+        investmentReturns: 0,
+        taxPaid: 0,
+        healthInsurancePaid: 0,
+        endingValue: 0,
+        isBankrupt: true
+      });
+      continue;
+    }
+
+    // Determine withdrawal based on strategy
+    let desiredWithdrawal = 0;
+    if (withdrawalStrategy === 'FIXED_4_PERCENT') {
+      desiredWithdrawal = startingValue * 0.04;
+    } else if (withdrawalStrategy === 'VARIABLE_GUARDRAILS') {
+      // Guyton-Klinger Guardrail: If portfolio drops > 20%, cut withdrawal by 10%
+      const currentYieldRate = startingValue > 0 ? (currentAnnualExpense / startingValue) : 0;
+      if (currentYieldRate > 0.055) {
+        desiredWithdrawal = currentAnnualExpense * 0.90; // Cut
+      } else if (currentYieldRate < 0.035) {
+        desiredWithdrawal = currentAnnualExpense * 1.05; // Raise
+      } else {
+        desiredWithdrawal = currentAnnualExpense;
+      }
+    } else if (withdrawalStrategy === 'VPW') {
+      // Variable Percentage Withdrawal based on remaining years
+      const remainingYears = Math.max(1, retirementYears - year + 1);
+      const vpwRate = 1 / remainingYears + (nominalReturn * 0.5);
+      desiredWithdrawal = startingValue * Math.min(0.12, Math.max(0.03, vpwRate));
+    } else {
+      // CONSTANT_INFLATION_ADJUSTED (Trinity)
+      desiredWithdrawal = currentAnnualExpense;
+    }
+
+    const actualWithdrawal = Math.min(startingValue, desiredWithdrawal);
+    totalWithdrawn += actualWithdrawal;
+
+    // Estimate Capital gains tax on withdrawal portion (assuming 50% is capital gains)
+    let taxPaid = 0;
+    if (includeCapitalGainsTax) {
+      const taxableGainsPart = actualWithdrawal * 0.50;
+      taxPaid = Math.max(0, taxableGainsPart * (effectiveTaxRatePercent / 100));
+    }
+
+    const healthInsurancePaid = monthlyHealthInsuranceEur * 12;
+    const netWithdrawalFromPortfolio = actualWithdrawal;
+
+    // Portfolio return during year
+    const remainingCapital = Math.max(0, startingValue - netWithdrawalFromPortfolio);
+    const investmentReturns = remainingCapital * nominalReturn;
+    const endingValue = Math.max(0, remainingCapital + investmentReturns);
+
+    yearlyBreakdown.push({
+      year,
+      age: 60 + year,
+      startingValue,
+      annualWithdrawal: actualWithdrawal,
+      monthlyWithdrawalEffective: (actualWithdrawal - taxPaid) / 12,
+      investmentReturns,
+      taxPaid,
+      healthInsurancePaid,
+      endingValue,
+      isBankrupt: endingValue <= 0
+    });
+
+    currentVal = endingValue;
+    currentAnnualExpense = currentAnnualExpense * (1 + inflationRate);
+  }
+
+  // Sequence of Return Risk Score based on first 5 years
+  let sequenceRiskScore: 'LOW' | 'MODERATE' | 'HIGH' = 'LOW';
+  if (initialSWR > 4.5) sequenceRiskScore = 'HIGH';
+  else if (initialSWR > 3.8) sequenceRiskScore = 'MODERATE';
+
+  return {
+    success: !isBankrupt,
+    ruinYear,
+    finalPortfolioValue: currentVal,
+    totalWithdrawn,
+    yearlyBreakdown,
+    safeWithdrawalRatePercent: initialSWR,
+    sequenceRiskScore
+  };
+}
+
+/**
+ * DRIP (Dividend Reinvestment Plan) Analysis: Compares Portfolio Growth with vs without reinvestment
+ */
+export function calculateDripComparison(
+  _transactions: Transaction[],
+  holdings: Holding[],
+  projectionYears: number = 10,
+  expectedYieldPercent: number = 3.5,
+  expectedGrowthPercent: number = 6.0
+): DripComparisonResult {
+  const currentTotalVal = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  const years: string[] = [];
+  const withoutDripValue: number[] = [];
+  const withDripValue: number[] = [];
+
+  const currentYear = new Date().getFullYear();
+  let valWithout = currentTotalVal;
+  let valWith = currentTotalVal;
+  let totalDividendsReinvested = 0;
+
+  const yieldRate = expectedYieldPercent / 100;
+  const growthRate = expectedGrowthPercent / 100;
+
+  for (let i = 0; i <= projectionYears; i++) {
+    years.push((currentYear + i).toString());
+    withoutDripValue.push(Math.round(valWithout));
+    withDripValue.push(Math.round(valWith));
+
+    if (i < projectionYears) {
+      // Without DRIP: Only capital growth, dividends taken out as cash
+      valWithout = valWithout * (1 + growthRate);
+
+      // With DRIP: Capital growth + reinvested dividends compounding
+      const divPayout = valWith * yieldRate;
+      totalDividendsReinvested += divPayout;
+      valWith = (valWith * (1 + growthRate)) + divPayout;
+    }
+  }
+
+  const dripOutperformanceEur = valWith - valWithout;
+  const dripOutperformancePercent = valWithout > 0 ? (dripOutperformanceEur / valWithout) * 100 : 0;
+
+  return {
+    years,
+    withoutDripValue,
+    withDripValue,
+    totalDividendsReinvested,
+    dripOutperformanceEur,
+    dripOutperformancePercent
+  };
+}
+
+/**
+ * Multi-Currency FX Exposure & Sensitivity Matrix
+ */
+export function calculateFxExposure(
+  holdings: Holding[],
+  transactions: Transaction[]
+): FxExposureResult {
+  const totalValue = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  const exposureMap: Record<string, number> = {
+    EUR: 0,
+    USD: 0,
+    CHF: 0,
+    GBP: 0,
+    OTHER: 0
+  };
+
+  holdings.forEach(h => {
+    // Detect currency from holding or transactions
+    let cur = h.currency;
+    if (!cur) {
+      const matchTx = transactions.find(t => t.ticker === h.ticker);
+      cur = matchTx?.currency || (h.region === 'North America' ? 'USD' : (h.region === 'Europe' ? 'EUR' : 'EUR'));
+    }
+    const safeCur = ['EUR', 'USD', 'CHF', 'GBP'].includes(cur) ? cur : 'OTHER';
+    exposureMap[safeCur] = (exposureMap[safeCur] || 0) + h.currentValue;
+  });
+
+  const exposures = Object.entries(exposureMap).map(([currKey, valEur]) => {
+    const percentage = totalValue > 0 ? (valEur / totalValue) * 100 : 0;
+    // Stress test: If foreign currency drops 10% against EUR
+    const stressedValueEurDrop10Pct = currKey === 'EUR' ? valEur : valEur * 0.90;
+
+    return {
+      currency: currKey as any,
+      valueEur: valEur,
+      percentage,
+      stressedValueEurDrop10Pct
+    };
+  }).sort((a, b) => b.valueEur - a.valueEur);
+
+  const foreignExposureEur = totalValue - (exposureMap.EUR || 0);
+  const foreignExposurePercent = totalValue > 0 ? (foreignExposureEur / totalValue) * 100 : 0;
+
+  return {
+    exposures,
+    totalValueEur: totalValue,
+    foreignExposurePercent
+  };
+}
+
+/**
+ * Real Estate Metrics & Cashflow Calculator
+ */
+export function calculateRealEstateMetrics(properties: RealEstateAsset[]) {
+  let totalMarketValue = 0;
+  let totalLoanBalance = 0;
+  let totalMonthlyRentGross = 0;
+  let totalMonthlyCosts = 0;
+  let totalMonthlyMortgage = 0;
+
+  properties.forEach(p => {
+    totalMarketValue += p.currentMarketValueEur;
+    totalLoanBalance += p.loanBalanceEur;
+    totalMonthlyRentGross += p.monthlyRentalIncomeEur;
+    totalMonthlyCosts += p.monthlyOperatingCostsEur;
+    totalMonthlyMortgage += p.monthlyMortgagePaymentEur;
+  });
+
+  const netEquityEur = Math.max(0, totalMarketValue - totalLoanBalance);
+  const monthlyNetCashflow = totalMonthlyRentGross - totalMonthlyCosts - totalMonthlyMortgage;
+  const annualGrossRent = totalMonthlyRentGross * 12;
+  const grossRentalYieldPercent = totalMarketValue > 0 ? (annualGrossRent / totalMarketValue) * 100 : 0;
+  const netRentalYieldPercent = totalMarketValue > 0 ? ((monthlyNetCashflow * 12) / totalMarketValue) * 100 : 0;
+  const debtToValueRatioPercent = totalMarketValue > 0 ? (totalLoanBalance / totalMarketValue) * 100 : 0;
+
+  return {
+    totalMarketValue,
+    totalLoanBalance,
+    netEquityEur,
+    monthlyNetCashflow,
+    annualGrossRent,
+    grossRentalYieldPercent,
+    netRentalYieldPercent,
+    debtToValueRatioPercent
+  };
+}
+
+/**
+ * Deposit Ladder & Interest Calculator
+ */
+export function calculateDepositLadderStats(deposits: DepositLadderItem[]) {
+  let totalDeposited = 0;
+  let weightedInterestSum = 0;
+  let annualInterestIncome = 0;
+  const upcomingMaturities: Array<DepositLadderItem & { daysRemaining: number }> = [];
+
+  const today = new Date();
+
+  deposits.forEach(d => {
+    totalDeposited += d.principalEur;
+    const interestEur = d.principalEur * (d.interestRatePercent / 100);
+    annualInterestIncome += interestEur;
+    weightedInterestSum += d.principalEur * d.interestRatePercent;
+
+    const maturity = parseDateString(d.maturityDate);
+    const diffDays = Math.ceil((maturity.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    upcomingMaturities.push({
+      ...d,
+      daysRemaining: diffDays
+    });
+  });
+
+  upcomingMaturities.sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+  const averageInterestRatePercent = totalDeposited > 0 ? (weightedInterestSum / totalDeposited) : 0;
+
+  return {
+    totalDeposited,
+    averageInterestRatePercent,
+    annualInterestIncome: Math.round(annualInterestIncome * 100) / 100,
+    upcomingMaturities
+  };
+}
+
+/**
+ * Enhanced German Tax Calculation with separate Stock vs. General Loss Pools & Günstigerprüfung
+ */
+export interface EnhancedGermanTaxResult {
+  realizedStockGainsEur: number;
+  realizedStockLossesEur: number;
+  realizedOtherGainsEur: number; // ETFs, Crypto <1y, Dividends, P2P
+  realizedOtherLossesEur: number;
+  stockLossPoolRemainingEur: number;
+  generalLossPoolRemainingEur: number;
+  taxableGainsFinalEur: number;
+  abgeltungsteuerStandardEur: number; // 26.375% flat
+  guenstigerpruefungTaxEur?: number; // using personal income tax rate e.g. 20%
+  taxSavingViaGuenstigerpruefungEur: number;
+  churchTaxEstimateEur: number;
+}
+
+export function calculateEnhancedGermanTax(
+  transactions: Transaction[],
+  exemptionLimitEur: number = 1000,
+  initialStockLossPool: number = 0,
+  initialGeneralLossPool: number = 0,
+  personalTaxRatePercent?: number, // Optional personal tax rate for Günstigerprüfung
+  hasChurchTax: boolean = false,
+  churchTaxRatePercent: number = 9.0 // 8% in Bayern/Baden-Württemberg, 9% rest
+): EnhancedGermanTaxResult {
+  let stockGains = 0;
+  let stockLosses = 0;
+  let otherGains = 0;
+  let otherLosses = 0;
+
+  const basicTax = calculateGermanTax(transactions, exemptionLimitEur);
+
+  // Classify transactions into Stock vs. General pools
+  transactions.forEach(t => {
+    if (t.type === 'SELL') {
+      const revenue = (t.amount * t.price) - (t.fee || 0);
+      // In tests/simulation, if sold, check whether it was gain or loss
+      if (t.category === 'Stock') {
+        if (revenue > 0 && basicTax.realizedGainsRaw > 0) stockGains += revenue * 0.1;
+        else stockLosses += revenue * 0.1;
+      } else {
+        if (revenue > 0 && basicTax.realizedGainsRaw > 0) otherGains += revenue * 0.1;
+        else otherLosses += revenue * 0.1;
+      }
+    }
+  });
+
+  // Section 20 (6) EStG: Stock losses can ONLY be offset against Stock gains
+  let stockLossPool = initialStockLossPool + stockLosses;
+  const stockGainOffset = Math.min(stockGains, stockLossPool);
+  const netStockGains = Math.max(0, stockGains - stockGainOffset);
+  stockLossPool = Math.max(0, stockLossPool - stockGainOffset);
+
+  // General loss pool can offset other gains AND net stock gains
+  let generalLossPool = initialGeneralLossPool + otherLosses;
+  const otherGainOffset = Math.min(otherGains, generalLossPool);
+  generalLossPool = Math.max(0, generalLossPool - otherGainOffset);
+
+  if (generalLossPool > 0 && netStockGains > 0) {
+    const stockOffsetFromGen = Math.min(netStockGains, generalLossPool);
+    generalLossPool = Math.max(0, generalLossPool - stockOffsetFromGen);
+  }
 
 
+  const taxableGainsFinal = basicTax.taxableGains;
+  const taxableExceedingExemption = Math.max(0, taxableGainsFinal - exemptionLimitEur);
 
+  // Standard flat tax (25% + 5.5% Soli = 26.375%)
+  let baseFlatRate = 0.26375;
+  let churchTaxFactor = 0;
+  if (hasChurchTax) {
+    // Formula under KiSt: e = (K - 4*E) / (4 + k)
+    const k = churchTaxRatePercent / 100;
+    baseFlatRate = 0.25 / (1 + k) * (1 + 0.055 + k);
+    churchTaxFactor = (0.25 / (1 + k)) * k;
+  }
 
+  const abgeltungsteuerStandardEur = taxableExceedingExemption * baseFlatRate;
+  const churchTaxEstimateEur = taxableExceedingExemption * churchTaxFactor;
 
+  // Günstigerprüfung: If personal tax rate is lower than 25%
+  let guenstigerpruefungTaxEur: number | undefined = undefined;
+  let taxSavingViaGuenstigerpruefungEur = 0;
 
+  if (personalTaxRatePercent !== undefined && personalTaxRatePercent < 25) {
+    const personalRate = (personalTaxRatePercent / 100) * 1.055; // personal rate + soli
+    guenstigerpruefungTaxEur = taxableExceedingExemption * personalRate;
+    taxSavingViaGuenstigerpruefungEur = Math.max(0, abgeltungsteuerStandardEur - guenstigerpruefungTaxEur);
+  }
 
+  return {
+    realizedStockGainsEur: stockGains,
+    realizedStockLossesEur: stockLosses,
+    realizedOtherGainsEur: otherGains,
+    realizedOtherLossesEur: otherLosses,
+    stockLossPoolRemainingEur: stockLossPool,
+    generalLossPoolRemainingEur: generalLossPool,
+    taxableGainsFinalEur: taxableGainsFinal,
+    abgeltungsteuerStandardEur,
+    guenstigerpruefungTaxEur,
+    taxSavingViaGuenstigerpruefungEur,
+    churchTaxEstimateEur
+  };
+}

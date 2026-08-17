@@ -37,6 +37,10 @@ interface PortfolioContextType {
   refreshPrices: () => Promise<void>;
   importBackup: (data: Portfolio[]) => void;
   updateHoldingNotes: (ticker: string, notes: string) => void;
+  addRealEstate: (prop: any) => void;
+  deleteRealEstate: (id: string) => void;
+  addDepositLadderItem: (item: any) => void;
+  deleteDepositLadderItem: (id: string) => void;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | null>(null);
@@ -528,6 +532,42 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
+  const addRealEstate = (prop: any) => {
+    setPortfolios(prev => prev.map(p => {
+      if (p.id === activePortfolioId) {
+        return { ...p, realEstate: [...(p.realEstate || []), prop] };
+      }
+      return p;
+    }));
+  };
+
+  const deleteRealEstate = (id: string) => {
+    setPortfolios(prev => prev.map(p => {
+      if (p.id === activePortfolioId) {
+        return { ...p, realEstate: (p.realEstate || []).filter(r => r.id !== id) };
+      }
+      return p;
+    }));
+  };
+
+  const addDepositLadderItem = (item: any) => {
+    setPortfolios(prev => prev.map(p => {
+      if (p.id === activePortfolioId) {
+        return { ...p, depositLadder: [...(p.depositLadder || []), item] };
+      }
+      return p;
+    }));
+  };
+
+  const deleteDepositLadderItem = (id: string) => {
+    setPortfolios(prev => prev.map(p => {
+      if (p.id === activePortfolioId) {
+        return { ...p, depositLadder: (p.depositLadder || []).filter(d => d.id !== id) };
+      }
+      return p;
+    }));
+  };
+
   return (
     <PortfolioContext.Provider value={{
       portfolios,
@@ -562,7 +602,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       deleteMappingRule,
       refreshPrices,
       importBackup,
-      updateHoldingNotes
+      updateHoldingNotes,
+      addRealEstate,
+      deleteRealEstate,
+      addDepositLadderItem,
+      deleteDepositLadderItem
     }}>
       {children}
     </PortfolioContext.Provider>

@@ -8,8 +8,11 @@ import { SavingsSimulator } from './components/SavingsSimulator';
 import { DividendCalendar } from './components/DividendCalendar';
 import { MappingEditor } from './components/MappingEditor';
 import { usePortfolio } from './context/PortfolioContext';
-import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar, Settings, Upload, FileText, RefreshCw, FileSpreadsheet, Sparkles } from 'lucide-react';
+import { Wallet, PieChart, Activity, Sliders, Eye, FolderOpen, Calendar, Settings, Upload, FileText, RefreshCw, FileSpreadsheet, Sparkles, Building, Layers } from 'lucide-react';
 import './App.css';
+
+import { RealEstateTracker } from './components/RealEstateTracker';
+import { DepositLadderWidget } from './components/DepositLadderWidget';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
@@ -56,7 +59,7 @@ function App() {
     importBackup
   } = usePortfolio();
 
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'dividend_calendar' | 'watchlist' | 'savings' | 'options' | 'mapping_rules'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'dividend_calendar' | 'watchlist' | 'savings' | 'options' | 'real_estate' | 'deposit_ladder' | 'mapping_rules'>('dashboard');
   const [showBatchPdfModal, setShowBatchPdfModal] = useState(false);
   const [showTaxReportModal, setShowTaxReportModal] = useState(false);
   const [showTaxHarvestingModal, setShowTaxHarvestingModal] = useState(false);
@@ -277,6 +280,12 @@ function App() {
           <button className={`nav-tab ${currentTab === 'options' ? 'active' : ''}`} onClick={() => setCurrentTab('options')}>
             <DollarSign size={16} /> Optionen
           </button>
+          <button className={`nav-tab ${currentTab === 'real_estate' ? 'active' : ''}`} onClick={() => setCurrentTab('real_estate')}>
+            <Building size={16} /> Immobilien
+          </button>
+          <button className={`nav-tab ${currentTab === 'deposit_ladder' ? 'active' : ''}`} onClick={() => setCurrentTab('deposit_ladder')}>
+            <Layers size={16} /> Zinstreppe
+          </button>
           <button className={`nav-tab ${currentTab === 'mapping_rules' ? 'active' : ''}`} onClick={() => setCurrentTab('mapping_rules')}>
             <Settings size={16} /> PDF-Regeln
           </button>
@@ -385,6 +394,38 @@ function App() {
           <OptionIncomeTracker 
             transactions={activePortfolio.transactions || []}
             onAddTransaction={handleAddTransaction}
+            baseCurrency={baseCurrency}
+          />
+        )}
+        {currentTab === 'real_estate' && (
+          <RealEstateTracker 
+            properties={activePortfolio.realEstate || []}
+            onAddProperty={(prop) => {
+              if (activePortfolio.realEstate) {
+                activePortfolio.realEstate.push(prop);
+              } else {
+                activePortfolio.realEstate = [prop];
+              }
+            }}
+            onDeleteProperty={(id) => {
+              activePortfolio.realEstate = (activePortfolio.realEstate || []).filter(p => p.id !== id);
+            }}
+            baseCurrency={baseCurrency}
+          />
+        )}
+        {currentTab === 'deposit_ladder' && (
+          <DepositLadderWidget 
+            deposits={activePortfolio.depositLadder || []}
+            onAddDeposit={(dep) => {
+              if (activePortfolio.depositLadder) {
+                activePortfolio.depositLadder.push(dep);
+              } else {
+                activePortfolio.depositLadder = [dep];
+              }
+            }}
+            onDeleteDeposit={(id) => {
+              activePortfolio.depositLadder = (activePortfolio.depositLadder || []).filter(d => d.id !== id);
+            }}
             baseCurrency={baseCurrency}
           />
         )}

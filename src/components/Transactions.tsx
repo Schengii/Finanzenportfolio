@@ -42,6 +42,9 @@ export const Transactions: React.FC<TransactionsProps> = ({
   const [searchTx, setSearchTx] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
 
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
   // PDF Preview modal state
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [parsedTx, setParsedTx] = useState<Omit<Transaction, 'id'> | null>(null);
@@ -54,6 +57,26 @@ export const Transactions: React.FC<TransactionsProps> = ({
       return matchType && matchQuery;
     });
   }, [transactions, filterType, searchTx]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredTransactions.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredTransactions.map(t => t.id));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBatchDelete = () => {
+    if (confirm(`${selectedIds.length} ausgewählte Transaktionen wirklich löschen?`)) {
+      selectedIds.forEach(id => onDeleteTransaction(id));
+      setSelectedIds([]);
+    }
+  };
+
 
   useEffect(() => {
     if (prefilledData) {
@@ -504,6 +527,50 @@ export const Transactions: React.FC<TransactionsProps> = ({
           </div>
         </div>
 
+        {/* Batch Actions Toolbar */}
+        {!isReadOnly && filteredTransactions.length > 0 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '0.5rem 0.75rem',
+            background: 'rgba(255,255,255,0.03)',
+            borderRadius: '6px',
+            marginBottom: '0.5rem',
+            fontSize: '0.8rem'
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={selectedIds.length === filteredTransactions.length && filteredTransactions.length > 0}
+                onChange={toggleSelectAll}
+              />
+              <span>Alle auswählen ({selectedIds.length} gewählt)</span>
+            </label>
+
+            {selectedIds.length > 0 && (
+              <button
+                onClick={handleBatchDelete}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#ef4444',
+                  padding: '0.25rem 0.6rem',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  fontSize: '0.75rem',
+                  fontWeight: '600'
+                }}
+              >
+                <Trash2 size={13} /> {selectedIds.length} Einträge löschen
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="tx-list-scrollable">
           {filteredTransactions.length > 0 ? (
             filteredTransactions.map((tx) => {
@@ -523,9 +590,19 @@ export const Transactions: React.FC<TransactionsProps> = ({
                 displayVal = `${(tx.amount * tx.price).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
               }
 
+              const isSelected = selectedIds.includes(tx.id);
+
               return (
-                <div key={tx.id} className="tx-item-box">
+                <div key={tx.id} className="tx-item-box" style={{ background: isSelected ? 'rgba(59, 130, 246, 0.08)' : undefined }}>
                   <div className="tx-item-left">
+                    {!isReadOnly && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(tx.id)}
+                        style={{ cursor: 'pointer', marginRight: '0.3rem' }}
+                      />
+                    )}
                     <span className={`badge badge-${tx.type.toLowerCase()}`} style={{
                       backgroundColor: isDeposit ? 'rgba(16, 185, 129, 0.2)' : isWithdrawal ? 'rgba(239, 68, 68, 0.2)' : isStaking ? 'rgba(245, 158, 11, 0.2)' : undefined,
                       color: isDeposit ? 'var(--accent-emerald)' : isWithdrawal ? 'var(--accent-rose)' : isStaking ? 'var(--accent-gold)' : undefined
@@ -540,6 +617,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
                       </span>
                     </div>
                   </div>
+
 
                   <div className="tx-item-right-wrap">
                     <div className="tx-item-right-text">

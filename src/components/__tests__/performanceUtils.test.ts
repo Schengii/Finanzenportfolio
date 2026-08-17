@@ -288,3 +288,192 @@ describe('performanceUtils Financial Calculations', () => {
     expect(res.suggestions.length).toBeGreaterThan(0);
   });
 });
+
+import {
+  simulateFireWithdrawal,
+  calculateDripComparison,
+  calculateFxExposure,
+  calculateRealEstateMetrics,
+  calculateDepositLadderStats,
+  calculateEnhancedGermanTax
+} from '../performanceUtils';
+import { parsePortfolioPerformanceCsv, exportToPortfolioPerformanceCsv } from '../../services/portfolioPerformanceImporter';
+
+describe('New Major Financial Utilities & Extensions', () => {
+  it('simulates FIRE withdrawal correctly with Guyton-Klinger Guardrails', () => {
+    const res = simulateFireWithdrawal({
+      initialPortfolioValue: 800000,
+      monthlyExpensesEur: 2000,
+      annualInflationPercent: 2.0,
+      expectedAnnualReturnPercent: 7.0,
+      expectedAnnualYieldPercent: 3.5,
+      retirementYears: 30,
+      withdrawalStrategy: 'VARIABLE_GUARDRAILS',
+      includeCapitalGainsTax: true,
+      effectiveTaxRatePercent: 18.5,
+      monthlyHealthInsuranceEur: 300
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.yearlyBreakdown.length).toBe(30);
+    expect(res.finalPortfolioValue).toBeGreaterThan(0);
+    expect(res.totalWithdrawn).toBeGreaterThan(500000);
+  });
+
+  it('calculates DRIP dividend compounding outperformance', () => {
+    const holdings: Holding[] = [
+      {
+        ticker: 'AAPL',
+        name: 'Apple',
+        category: 'Stock',
+        shares: 100,
+        averageBuyPrice: 150,
+        currentPrice: 200,
+        totalCost: 15000,
+        currentValue: 20000,
+        totalGain: 5000,
+        totalGainPercent: 33.3,
+        portfolioWeight: 100,
+        yieldOnCost: 3.5
+      }
+    ];
+
+    const dripRes = calculateDripComparison([], holdings, 10, 3.5, 6.0);
+    expect(dripRes.years.length).toBe(11);
+    expect(dripRes.dripOutperformanceEur).toBeGreaterThan(0);
+    expect(dripRes.withDripValue[10]).toBeGreaterThan(dripRes.withoutDripValue[10]);
+  });
+
+  it('calculates multi-currency FX exposure and sensitivity', () => {
+    const holdings: Holding[] = [
+      {
+        ticker: 'AAPL',
+        name: 'Apple',
+        category: 'Stock',
+        shares: 10,
+        averageBuyPrice: 150,
+        currentPrice: 200,
+        totalCost: 1500,
+        currentValue: 2000,
+        totalGain: 500,
+        totalGainPercent: 33.3,
+        portfolioWeight: 50,
+        yieldOnCost: 1,
+        region: 'North America',
+        currency: 'USD'
+      },
+      {
+        ticker: 'SAP',
+        name: 'SAP SE',
+        category: 'Stock',
+        shares: 10,
+        averageBuyPrice: 150,
+        currentPrice: 200,
+        totalCost: 1500,
+        currentValue: 2000,
+        totalGain: 500,
+        totalGainPercent: 33.3,
+        portfolioWeight: 50,
+        yieldOnCost: 1,
+        region: 'Europe',
+        currency: 'EUR'
+      }
+    ];
+
+    const fxRes = calculateFxExposure(holdings, []);
+    expect(fxRes.totalValueEur).toBe(4000);
+    expect(fxRes.foreignExposurePercent).toBe(50);
+  });
+
+  it('calculates real estate metrics, equity and cashflow', () => {
+    const metrics = calculateRealEstateMetrics([
+      {
+        id: 're-1',
+        name: 'Apartment Berlin',
+        location: 'Berlin',
+        purchaseDate: '01.01.2020',
+        purchasePriceEur: 300000,
+        currentMarketValueEur: 350000,
+        loanBalanceEur: 200000,
+        monthlyRentalIncomeEur: 1200,
+        monthlyOperatingCostsEur: 200,
+        monthlyMortgagePaymentEur: 800,
+        interestRatePercent: 2.5,
+        squareMeters: 65
+      }
+    ]);
+
+    expect(metrics.netEquityEur).toBe(150000);
+    expect(metrics.monthlyNetCashflow).toBe(200); // 1200 - 200 - 800
+    expect(metrics.grossRentalYieldPercent).toBeCloseTo(4.11, 1);
+  });
+
+  it('calculates deposit ladder weighted interest and maturities', () => {
+    const stats = calculateDepositLadderStats([
+      {
+        id: 'dep-1',
+        bankName: 'ING',
+        depositType: 'FESTGELD',
+        principalEur: 10000,
+        interestRatePercent: 3.5,
+        startDate: '01.01.2026',
+        maturityDate: '01.01.2027',
+        payoutInterval: 'AT_MATURITY',
+        isAutoRenew: false
+      }
+    ]);
+
+    expect(stats.totalDeposited).toBe(10000);
+    expect(stats.averageInterestRatePercent).toBe(3.5);
+    expect(stats.annualInterestIncome).toBe(350);
+  });
+
+  it('calculates enhanced German tax with loss pools and Günstigerprüfung', () => {
+    const txs: Transaction[] = [
+      {
+        id: 'tx-sell-loss',
+        type: 'SELL',
+        date: '01.03.2026',
+        ticker: 'TSLA',
+        name: 'Tesla Inc.',
+        amount: 10,
+        price: 100,
+        fee: 0,
+        tax: 0,
+        category: 'Stock'
+      }
+    ];
+
+    const taxRes = calculateEnhancedGermanTax(txs, 1000, 500, 200, 18);
+    expect(taxRes.stockLossPoolRemainingEur).toBeGreaterThanOrEqual(500);
+    expect(taxRes.generalLossPoolRemainingEur).toBeGreaterThanOrEqual(200);
+  });
+
+  it('parses and exports Portfolio Performance CSV correctly', () => {
+    const sampleTxs: Transaction[] = [
+      {
+        id: 'tx-1',
+        type: 'BUY',
+        date: '15.01.2026',
+        ticker: 'AAPL',
+        name: 'Apple Inc.',
+        amount: 10,
+        price: 180,
+        fee: 1,
+        tax: 0,
+        category: 'Stock',
+        currency: 'EUR'
+      }
+    ];
+
+    const csvOutput = exportToPortfolioPerformanceCsv(sampleTxs);
+    expect(csvOutput).toContain('Apple Inc.');
+    expect(csvOutput).toContain('Kauf');
+
+    const imported = parsePortfolioPerformanceCsv(csvOutput);
+    expect(imported.length).toBe(1);
+    expect(imported[0].ticker).toBe('AAPL');
+    expect(imported[0].amount).toBe(10);
+  });
+});
+

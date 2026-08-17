@@ -18,13 +18,13 @@
 
 ## 💡 Über das Projekt
 
-Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier-, Krypto- und Derivate-Portfolios. 
+Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier-, Immobilien-, Zins-, Krypto- und Derivate-Portfolios. 
 
 ### Warum FinanzPortfolio CoPilot?
 - 🔒 **100% Datenschutz**: Keine Speicherung deiner Finanzdaten auf externen Servern. Alle Transaktionen bleiben ausschließlich lokal in deinem Browser.
 - ⚡ **Web Crypto Tresor**: AES-GCM 256-Bit Verschlüsselung aller Depotdaten via Master-PIN.
 - 📱 **Mobile First PWA**: 1-Klick-Installation auf iOS und Android inklusive Offline-Verfügbarkeit.
-- 📈 **Profianalysen**: TTWRR, IRR, Sharpe Ratio, Max Drawdown, Alpha/Beta Benchmark-Engine, Monte-Carlo-Simulationen, ESG Audit und Option Income Tracker.
+- 📈 **Profianalysen**: TTWRR, IRR, Sharpe Ratio, Max Drawdown, Alpha/Beta Benchmark-Engine, Monte-Carlo-Simulationen, ESG Audit, FIRE Entnahme-Studio und DRIP Reinvestitionsanalyse.
 
 ---
 
@@ -36,74 +36,36 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 - **Professionelle Renditemetriken**: TTWRR (zeitgewichtet), IRR (geldgewichtet), Sharpe Ratio & Volatilität.
 - **Monatliche Performance-Matrix**: Historische Renditen pro Jahr und Monat im Heatmap-Stil.
 
-### 2. 👨‍👩‍👧‍👦 Konsolidierte Familien- & Multi-Depot Gesamtansicht
-- **1-Klick Zusammenführung**: Schalte im Header auf *"👨‍👩‍👧‍👦 Familien-Gesamtsicht (Alle Depots)"*, um alle Einzeldepots (z.B. Partner-Depot, Junior-Depot, Firmendepot) kumuliert in einem Gesamt-Dashboard zu analysieren.
+### 2. 🏢 Immobilien & Cashflow-Tracker (`RealEstateTracker.tsx`)
+- **Immobilien-Verwaltung**: Erfassung von Anschaffungskosten, aktuellem Marktwert, Darlehensrestschuld und Tilgungsraten.
+- **Cashflow & Renditekennzahlen**: Berechnung von monatlichem Netto-Cashflow (nach Bankrate & Instandhaltung), Netto-Eigenkapital (Equity), Beleihungsauslauf (LTV) sowie Brutto- und Netto-Mietrenditen.
 
-### 3. ⚖️ Steuer-Optimierungs-Engine & Tax-Loss Harvesting (`TaxLossHarvestingModal.tsx`)
-- **Freibetrag-Ausschöpfer**: Automatische Berechnung von Gewinn-Verkäufen vor Jahresende zur vollen Ausnutzung des Sparer-Pauschbetrags (1.000 € / 2.000 €).
-- **Tax-Loss Harvesting**: Identifiziert Positionen mit Buchverlusten zur Verrechnung mit realisierten Kapitalerträgen.
+### 3. 🪜 Festgeld- & Tagesgeld-Zinstreppe (`DepositLadderWidget.tsx`)
+- **Zinstreppen-Management**: Gestaffelte Festgelder, Tagesgelder und Sparbriefe mit Laufzeiten und Zinssätzen.
+- **Fälligkeitskalender & Zinseszins**: Automatische Warnung bei bald ablaufenden Festgeldern und Berechnung des durchschnittlich gewichteten Zinssatzes.
 
-### 4. 📅 iCal (.ics) Dividenden-Kalender Export (`icalExporter.ts`)
-- **1-Klick Kalender-Export**: Exportiere alle erhaltenen und anstehenden Dividenden-Termine als `.ics` Datei direkt in deinen Apple Calendar, Google Calendar oder Outlook.
+### 4. 🔥 FIRE & Safe Withdrawal Rate Studio (`FireFreedomWidget.tsx`)
+- **Entnahmestrategien**: Simulation von 4%-Regel (Trinity Study), Guyton-Klinger Guardrails (dynamische Kürzungen/Erhöhungen) und VPW (Variable Percentage Withdrawal).
+- **Steuern & Krankenversicherung**: Realistische Kaufkraftprognose unter Berücksichtigung von Inflation, Abgeltungsteuer und monatlichen Krankenkassenbeiträgen.
 
-### 5. 🌿 ESG & Nachhaltigkeits-Score Audit (`EsgAuditWidget.tsx`)
-- **Nachhaltigkeits-Score**: Automatische Bewertung deines Portfolios in den Bereichen Umwelt (E), Soziales (S) und Governance (G) mit Rating-Stufen (AAA bis CCC).
-- **Kontroversen-Prüfung**: Erkennt Rüstungs-, Tabak- oder Fossile-Brennstoff-Anteile im Depot.
+### 5. ✨ DRIP Dividenden-Zinseszins-Simulation (`DripAnalysisWidget.tsx`)
+- **Reinvestitions-Vergleich**: Interaktive Gegenüberstellung des Vermögenswachstums mit automatischer Dividenden-Reinvestition (DRIP) gegenüber Barauszahlung.
 
-### 6. 💵 Options Income Tracker & Wheel Strategy (`OptionIncomeTracker.tsx`)
-- **Prämien-Dashboard**: Erfassung und Analyse von vereinbarten Optionsprämien für Cash-Secured Puts & Covered Calls inklusive Ertragsrendite und Verfallskalender.
+### 6. 🌐 Währungsrisiko- & FX-Exposure Matrix (`FxExposureWidget.tsx`)
+- **Währungs-Aufteilung**: Aufschlüsselung des Portfolios nach EUR, USD, CHF, GBP etc. inklusive 10% FX-Stresstest.
 
-### 7. 💱 Multi-Währungsumrechnung (FX-Engine)
-- Echtzeit-Umrechnung zwischen **EUR, USD, CHF und GBP** unter Anwendung tagesaktueller Devisenkurse.
+### 7. ⚖️ Erweiterte DACH-Steuer-Engine & Verlusttöpfe (`TaxReportModal.tsx`)
+- **Getrennte Verlusttöpfe**: Exakte Trennung nach § 20 Abs. 6 EStG in Aktien-Verlusttopf (nur mit Aktiengewinnen verrechenbar) und Sonstiger Verlusttopf.
+- **Günstigerprüfung & Kirchensteuer**: Simulation der Steuerersparnis bei persönlichem Grenzsteuersatz < 25%.
 
-### 8. 📈 Benchmark-Vergleich & Alpha/Beta Engine
-- Vergleiche dein Portfolio direkt mit **MSCI World**, **S&P 500**, **DAX 40** und **Bitcoin**.
+### 8. 📄 Portfolio Performance (PP) Import & Export (`portfolioPerformanceImporter.ts`)
+- **Volle PP-Kompatibilität**: Nahtloser CSV- und Datentransfer zwischen FinanzPortfolio und Portfolio Performance.
 
-### 9. 🎯 Rebalancing-Auftragsplaner
-- Berechnet für Einmalkäufe (z.B. 2.500 €) die exakt benötigten Kauf-Beträge und Stückzahlen je Asset, um deine Soll-Allokation kostenminimal wiederherzustellen.
+### 9. ⚡ Transaktions-Massenaktionen & Multi-Select (`Transactions.tsx`)
+- Mehrere Transaktionen markieren und gleichzeitig per Batch-Action löschen oder verwalten.
 
-### 10. 📄 Universal CSV & Portfolio Performance (PP) Import/Export
-- **Portfolio Performance (PP)**: Vollständige Kompatibilität zum Import und Export im standardisierten PP-CSV/JSON-Format.
-
-### 11. 📑 Erweiterte PDF-Abrechnungs-Parser
+### 10. 📑 Universeller PDF- & CSV-Abrechnungs-Parser
 - Automatische Erkennung von Kauf-, Verkauf- und Dividendenbelegen von **Trade Republic**, **Scalable Capital**, **ING-DiBa**, **comdirect**, **DKB**, **Consorsbank**, **finanzen.net zero**, **Flatex**, **Smartbroker+**, **Revolut** und **eToro**.
-
-### 12. 🔒 Web Crypto Master-PIN Tresor
-- Lokale **AES-GCM 256-Bit** Verschlüsselung aller Depotdaten. Ein Master-PIN Unlock Screen sperrt unbefugte Zugriffe beim Start ab.
-
----
-
-## 🚀 Schnellanleitung (Anleitung zur Nutzung)
-
-### Schritt 1: Depot anlegen oder importieren
-- Starte die App und nutze das **Portfolio-Dropdown** oben rechts, um ein neues Portfolio zu erstellen oder schalte auf die **Familien-Gesamtsicht**.
-- Nutze das **CSV-Import-Icon** oder den **Stapel PDF-Upload**, um bestehende Abrechnungen direkt einzulesen.
-
-### Schritt 2: Steueroptimierung & Freibetrag prüfen
-- Klicke auf das **Waage-Icon** in der Kopfzeile, um die Steuer-Optimierungs-Engine zu starten.
-- Erhalte exakte Verkaufsempfehlungen zum Erreichen des 1.000 € / 2.000 € Freibetrags.
-
-### Schritt 3: Option Income & Wheel-Strategie buchen
-- Wechsle in den Tab **Optionen**, um verkaufte Put/Call Kontrakte und vereinnahmte Prämien zu dokumentieren.
-
-### Schritt 4: Dividenden in den eigenen Kalender exportieren
-- Im Tab **Zahltage** klicke auf **"Kalender Export (.ics)"**, um alle Termine mit Apple/Google Calendar zu synchronisieren.
-
----
-
-## 🌐 1-Klick Deployment & Hosting
-
-### 1. Vercel Deployment (Empfohlen)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
-- Repository mit Vercel verbinden. Vercel erkennt Vite automatisch (`vercel.json` inklusive).
-
-### 2. Netlify Deployment
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start)
-- Repository auf Netlify verknüpfen. Die mitgelieferte `netlify.toml` steuert Build und SPA-Redirects.
-
-### 3. GitHub Pages Deployment
-- In Repository-Einstellungen unter **Pages** die Quelle auf **GitHub Actions** stellen.
-- Die Workflow-Datei `.github/workflows/deploy.yml` führt automatisch Tests aus und baut die PWA bei jedem Push auf `main`.
 
 ---
 
@@ -115,22 +77,14 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (14 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (21 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
 
 ---
 
-## 🔒 Sicherheit & Daten-Tresor (AES-GCM 256)
-
-Alle eingegebenen Daten werden verschlüsselt im `localStorage` deines Browsers aufbewahrt:
-- Key Derivation: **PBKDF2** mit 100.000 Iterationen (SHA-256).
-- Verschlüsselungsalgorithmus: **AES-GCM 256-Bit** mit zufälligem Salt (16 Bytes) und IV (12 Bytes).
-
----
-
-## 营业 🚦 Entwicklungs- & Testbefehle
+## 🚦 Entwicklungs- & Testbefehle
 
 ```bash
 # 1. Abhängigkeiten installieren
@@ -139,12 +93,12 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (14 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (21 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen
 npm run lint
 
-# 5. Produktions-Build erstellen (mit optimiertem Chunk-Splitting)
+# 5. Produktions-Build erstellen
 npm run build
 ```
