@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { Transaction } from '../types';
 import { DollarSign, Plus } from 'lucide-react';
-import { convertCurrency } from './performanceUtils';
+import { convertCurrency, calculateOptionGreeks } from './performanceUtils';
 
 interface OptionIncomeTrackerProps {
   transactions: Transaction[];
@@ -204,6 +204,8 @@ export const OptionIncomeTracker: React.FC<OptionIncomeTrackerProps> = ({
               <th className="p-3">Asset</th>
               <th className="p-3">Ticker</th>
               <th className="p-3">Strike</th>
+              <th className="p-3">Delta (Δ)</th>
+              <th className="p-3">Theta (Θ/Tag)</th>
               <th className="p-3">Verfall</th>
               <th className="p-3 text-right">Prämie Gesamt</th>
             </tr>
@@ -211,25 +213,33 @@ export const OptionIncomeTracker: React.FC<OptionIncomeTrackerProps> = ({
           <tbody className="divide-y divide-slate-800/50">
             {optionTxs.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-slate-500">
+                <td colSpan={8} className="p-6 text-center text-slate-500">
                   Noch keine Optionsprämien erfasst. Klicke auf "Option Trade Einbuchen".
                 </td>
               </tr>
             ) : (
-              optionTxs.map((tx) => (
-                <tr key={tx.id} className="hover:bg-slate-900/50">
-                  <td className="p-3 font-bold text-purple-400">
-                    {tx.optionType || 'PUT'}
-                  </td>
-                  <td className="p-3 font-medium text-slate-200">{tx.name}</td>
-                  <td className="p-3 font-mono text-slate-400">{tx.ticker}</td>
-                  <td className="p-3 font-mono text-slate-300">{tx.strikePrice ? `${tx.strikePrice} €` : '-'}</td>
-                  <td className="p-3 text-slate-400">{tx.expirationDate || tx.date}</td>
-                  <td className="p-3 text-right font-bold text-emerald-400">
-                    +{formatVal(tx.amount * tx.price)}
-                  </td>
-                </tr>
-              ))
+              optionTxs.map((tx) => {
+                const strike = tx.strikePrice || 100;
+                const greeks = calculateOptionGreeks(strike * 1.02, strike, 45, 25, 3.5, tx.optionType || 'PUT');
+                const thetaCash = (greeks.thetaDaily * (tx.amount || 100));
+
+                return (
+                  <tr key={tx.id} className="hover:bg-slate-900/50">
+                    <td className="p-3 font-bold text-purple-400">
+                      {tx.optionType || 'PUT'}
+                    </td>
+                    <td className="p-3 font-medium text-slate-200">{tx.name}</td>
+                    <td className="p-3 font-mono text-slate-400">{tx.ticker}</td>
+                    <td className="p-3 font-mono text-slate-300">{tx.strikePrice ? `${tx.strikePrice} €` : '-'}</td>
+                    <td className="p-3 font-mono text-blue-400">{greeks.delta.toFixed(2)}</td>
+                    <td className="p-3 font-mono text-emerald-400">+{thetaCash.toFixed(2)} €/Tag</td>
+                    <td className="p-3 text-slate-400">{tx.expirationDate || tx.date}</td>
+                    <td className="p-3 text-right font-bold text-emerald-400">
+                      +{formatVal(tx.amount * tx.price)}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

@@ -194,6 +194,35 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Official Anlage KAP Tax Return Mapping Table */}
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+            <div style={{ padding: '0.75rem 1rem', background: 'rgba(59, 130, 246, 0.08)', fontWeight: 'bold', fontSize: '0.85rem', color: '#3b82f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>📑 Offizielle Kennziffern für Anlage KAP (WISO / Taxfix / Steuerberater)</span>
+            </div>
+            <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Zeile 7 (Inländische Kapitalerträge):</span>
+                <strong>{enhancedTax.taxableGainsFinalEur.toFixed(2)} €</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Zeile 8 (Gewinne aus Aktienverkäufen):</span>
+                <strong>{enhancedTax.realizedStockGainsEur.toFixed(2)} €</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Zeile 14 (Verluste ohne Aktien):</span>
+                <strong style={{ color: '#3b82f6' }}>{enhancedTax.realizedOtherLossesEur.toFixed(2)} €</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Zeile 15 (Verluste aus Aktienverkäufen):</span>
+                <strong style={{ color: '#ef4444' }}>{enhancedTax.realizedStockLossesEur.toFixed(2)} €</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Zeile 16/17 (In Anspruch genommener Sparer-Pauschbetrag):</span>
+                <strong>{Math.min(taxExemptionLimit, enhancedTax.taxableGainsFinalEur).toFixed(2)} €</strong>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}

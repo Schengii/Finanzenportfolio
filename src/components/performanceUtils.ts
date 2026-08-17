@@ -1801,3 +1801,123 @@ export function calculateCryptoStakingTaxSummary(
   };
 }
 
+/**
+ * Option Greeks Calculator (Black-Scholes Approximation)
+ */
+export interface OptionGreeks {
+  delta: number; // Rate of change of price with respect to underlying
+  thetaDaily: number; // Daily time decay
+  gamma: number; // Rate of change of delta
+  vega: number; // Sensitivity to volatility
+}
+
+export function calculateOptionGreeks(
+  spotPrice: number,
+  strikePrice: number,
+  daysToExpiry: number,
+  volatilityPercent: number = 25,
+  riskFreeRatePercent: number = 3.5,
+  optionType: 'CALL' | 'PUT' = 'PUT'
+): OptionGreeks {
+  const T = Math.max(0.001, daysToExpiry / 365.0);
+  const sigma = Math.max(0.01, volatilityPercent / 100.0);
+  const r = riskFreeRatePercent / 100.0;
+  const S = Math.max(0.01, spotPrice);
+  const K = Math.max(0.01, strikePrice);
+
+  const d1 = (Math.log(S / K) + (r + (sigma * sigma) / 2) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+
+  // Standard Normal CDF approximation (Abramowitz and Stegun)
+  const normCdf = (x: number) => {
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+    const p = 0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    const z = Math.abs(x) / Math.sqrt(2.0);
+    const t = 1.0 / (1.0 + p * z);
+    const erf = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-z * z);
+    return 0.5 * (1.0 + sign * erf);
+  };
+
+  const normPdf = (x: number) => {
+    return (1.0 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
+  };
+
+  let delta = 0;
+  let thetaAnnual = 0;
+
+  if (optionType === 'CALL') {
+    delta = normCdf(d1);
+    thetaAnnual = -(S * normPdf(d1) * sigma) / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * normCdf(d2);
+  } else {
+    delta = normCdf(d1) - 1.0;
+    thetaAnnual = -(S * normPdf(d1) * sigma) / (2 * Math.sqrt(T)) + r * K * Math.exp(-r * T) * normCdf(-d2);
+  }
+
+  const gamma = normPdf(d1) / (S * sigma * Math.sqrt(T));
+  const vega = (S * normPdf(d1) * Math.sqrt(T)) / 100;
+  const thetaDaily = thetaAnnual / 365.0;
+
+  return {
+    delta: Math.round(delta * 1000) / 1000,
+    thetaDaily: Math.round(thetaDaily * 100) / 100,
+    gamma: Math.round(gamma * 10000) / 10000,
+    vega: Math.round(vega * 100) / 100
+  };
+}
+
+/**
+ * Dynamic Savings Growth Simulator with Annual Contribution Hikes (Career Escalator)
+ */
+export interface DynamicSavingsResult {
+  years: number[];
+  constantTotalValue: number[];
+  dynamicTotalValue: number[];
+  dynamicContributions: number[];
+  outperformanceEur: number;
+}
+
+export function calculateDynamicSavingsGrowth(
+  initialMonthlySavings: number,
+  annualGrowthPercent: number = 3.0,
+  expectedReturnPercent: number = 7.0,
+  yearsToInvest: number = 20
+): DynamicSavingsResult {
+  const years: number[] = [];
+  const constantTotalValue: number[] = [];
+  const dynamicTotalValue: number[] = [];
+  const dynamicContributions: number[] = [];
+
+  let constVal = 0;
+  let dynVal = 0;
+  let totalDynDeposits = 0;
+
+  const monthlyReturnRate = Math.pow(1 + expectedReturnPercent / 100, 1 / 12) - 1;
+
+  for (let year = 1; year <= yearsToInvest; year++) {
+    years.push(year);
+    const monthlyRateThisYear = initialMonthlySavings * Math.pow(1 + annualGrowthPercent / 100, year - 1);
+
+    for (let m = 0; m < 12; m++) {
+      constVal = (constVal + initialMonthlySavings) * (1 + monthlyReturnRate);
+      dynVal = (dynVal + monthlyRateThisYear) * (1 + monthlyReturnRate);
+      totalDynDeposits += monthlyRateThisYear;
+    }
+
+    constantTotalValue.push(Math.round(constVal));
+    dynamicTotalValue.push(Math.round(dynVal));
+    dynamicContributions.push(Math.round(totalDynDeposits));
+  }
+
+  const outperformanceEur = (dynamicTotalValue[dynamicTotalValue.length - 1] || 0) - (constantTotalValue[constantTotalValue.length - 1] || 0);
+
+  return {
+    years,
+    constantTotalValue,
+    dynamicTotalValue,
+    dynamicContributions,
+    outperformanceEur
+  };
+}
+
+

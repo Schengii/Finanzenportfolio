@@ -89,6 +89,15 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 ### 17. 📱 Air-Gapped Offline QR-Code Vault Transfer (`QrSyncModal.tsx`)
 - **100% kontaktlose Datenübertragung**: Vollständig internetfreier Transfer des AES-GCM 256-Bit verschlüsselten Portfolios zwischen Geräten per animiertem QR-Code.
 
+### 18. 🎯 Option Greeks (Delta & Theta) Tracker (`OptionIncomeTracker.tsx`)
+- **Black-Scholes Bewertung**: Berechnung von Delta ($\Delta$) und täglichem Theta-Time-Decay ($\Theta$/Tag) für verkaufte Puts und Calls.
+
+### 19. 📈 Dynamischer Sparplan-Simulator & Gehaltssprung-Rechner (`SavingsSimulator.tsx`)
+- **Karriere- & Inflationsanpassung**: Simulation mit jährlicher Sparratenerhöhung (z.B. +2.5% bis +5% p.a.) im direkten Vergleich zum statischen Sparplan.
+
+### 20. 📑 Offizieller Anlage KAP Steuererklärungs-Report (`TaxReportModal.tsx`)
+- **WISO & Taxfix Export**: Exakte Aufschlüsselung aller Erträge und Verluste nach den offiziellen Zeilen der Anlage KAP (Zeile 7, 8, 14, 15, 16/17).
+
 ---
 
 ## 🛠️ Technologie-Stack & Architektur
@@ -99,7 +108,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (25 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (27 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -115,7 +124,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (25 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (27 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen

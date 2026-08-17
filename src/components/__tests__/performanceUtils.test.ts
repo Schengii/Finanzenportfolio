@@ -298,7 +298,9 @@ import {
   calculateEnhancedGermanTax,
   calculateCorrelationMatrix,
   calculateDividendSafetyScores,
-  calculateCryptoStakingTaxSummary
+  calculateCryptoStakingTaxSummary,
+  calculateOptionGreeks,
+  calculateDynamicSavingsGrowth
 } from '../performanceUtils';
 import { parsePortfolioPerformanceCsv, exportToPortfolioPerformanceCsv } from '../../services/portfolioPerformanceImporter';
 import { lookupIsinMetadata } from '../../services/isinMetadataService';
@@ -609,6 +611,24 @@ describe('New Major Financial Utilities & Extensions', () => {
     expect(summaryOver.isTaxFree).toBe(false);
     expect(summaryOver.taxableStakingIncomeEur).toBe(300);
     expect(summaryOver.estimatedIncomeTaxEur).toBe(90);
+  });
+
+  it('calculates Option Greeks with Black-Scholes approximation', () => {
+    const putGreeks = calculateOptionGreeks(100, 100, 30, 20, 3.0, 'PUT');
+    expect(putGreeks.delta).toBeLessThan(0);
+    expect(putGreeks.delta).toBeGreaterThan(-1);
+    expect(putGreeks.thetaDaily).toBeDefined();
+
+    const callGreeks = calculateOptionGreeks(100, 100, 30, 20, 3.0, 'CALL');
+    expect(callGreeks.delta).toBeGreaterThan(0);
+    expect(callGreeks.delta).toBeLessThan(1);
+  });
+
+  it('simulates Dynamic Savings Growth with career escalator raises', () => {
+    const res = calculateDynamicSavingsGrowth(200, 3.0, 7.0, 10);
+    expect(res.years.length).toBe(10);
+    expect(res.dynamicTotalValue[9]).toBeGreaterThan(res.constantTotalValue[9]);
+    expect(res.outperformanceEur).toBeGreaterThan(0);
   });
 });
 
