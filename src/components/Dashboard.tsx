@@ -25,6 +25,7 @@ import { CryptoStakingTaxWidget } from './CryptoStakingTaxWidget';
 import { FxHedgingWidget } from './FxHedgingWidget';
 import { DividendSeasonalityWidget } from './DividendSeasonalityWidget';
 import { BondDurationWidget } from './BondDurationWidget';
+import { AssetClassPerformanceChart } from './AssetClassPerformanceChart';
 import { DashboardCustomizerModal, DEFAULT_DASHBOARD_WIDGETS, type DashboardWidgetConfig } from './DashboardCustomizerModal';
 import { usePortfolio } from '../context/PortfolioContext';
  
@@ -750,10 +751,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
            baseCurrency={baseCurrency}
          />
 
-         <BondDurationWidget
-           holdings={holdings}
-           baseCurrency={baseCurrency}
-         />
+          <BondDurationWidget
+            holdings={holdings}
+            baseCurrency={baseCurrency}
+          />
+
+          {isWidgetVisible('asset_class_chart') && (
+            <AssetClassPerformanceChart
+              holdings={holdings}
+              baseCurrency={baseCurrency}
+            />
+          )}
 
          <PerformanceAttribution
            transactions={transactions}

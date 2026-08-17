@@ -22,6 +22,7 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
   { id: 'fx_hedging', name: 'Multi-Währungs-Absicherung & FX Hedging Rechner', category: 'SECURITY', isVisible: true },
   { id: 'dividend_seasonality', name: 'Dividenden-Saisonalität & Cashflow-Heatmap', category: 'DIVIDENDS', isVisible: true },
   { id: 'bond_duration', name: 'Anleihen-Duration & Zinsänderungsrisiko', category: 'SECURITY', isVisible: true },
+  { id: 'asset_class_chart', name: 'Performance-Vergleich nach Assetklassen', category: 'GROWTH', isVisible: true },
   { id: 'performance_attr', name: 'Performance-Attribution (Asset- vs. FX-Gewinne)', category: 'ALL', isVisible: true },
   { id: 'allocation_radar', name: 'Soll- vs. Ist-Allokation Radar', category: 'ALL', isVisible: true },
   { id: 'fire_freedom', name: 'FIRE Entnahme-Studio (Guardrails & Steuern)', category: 'ALL', isVisible: true }

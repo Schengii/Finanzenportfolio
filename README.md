@@ -125,6 +125,15 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 ### 29. 🎯 Reale Kaufkraft- & Inflationsziel-Berechnung (`SavingsSimulator.tsx`)
 - **Inflationsbereinigte Freiheitsprognose**: Exakter Ausweis des realen Kaufkraftwerts des Endkapitals unter Berücksichtigung von Inflationsraten.
 
+### 30. 📑 PDF-Dividendenabrechnungs-Parser (`PdfParser.ts`)
+- **Automatisierte Ertragserkennung**: Direkte Erkennung und Buchung von Brutto-Dividenden, Quellensteuern und Nettoerträgen für alle gängigen Banken und Broker.
+
+### 31. 📈 Assetklassen Cumulative Return Performance-Overlay (`AssetClassPerformanceChart.tsx`)
+- **Kumulierter Rendite-Vergleich**: Multilineare Zeitreihen-Visualisierung der relativen Performance von Aktien vs. ETFs vs. Krypto vs. Rohstoffen.
+
+### 32. 💶 EZB-Referenzkurs Historie & FX-Engine (`fxRatesService.ts`)
+- **Offizielle EZB-Tageskurse**: Integrierter lokaler Cache für historische Währungsumrechnungen (USD, CHF, GBP zu EUR) bei Transaktionsbuchungen.
+
 ---
 
 ## 🛠️ Technologie-Stack & Architektur
@@ -135,7 +144,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (34 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (36 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -151,7 +160,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (34 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (36 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen

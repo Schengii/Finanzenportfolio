@@ -307,8 +307,10 @@ import {
   calculateDividendSeasonalityProfile,
   calculateBondDurationSensitivity,
   exportRebalancingOrdersToCsv,
-  calculatePurchasingPowerTarget
+  calculatePurchasingPowerTarget,
+  calculateAssetClassCumulativeReturns
 } from '../performanceUtils';
+import { getEcbReferenceRate, convertWithEcbRate } from '../../services/fxRatesService';
 import { parsePortfolioPerformanceCsv, exportToPortfolioPerformanceCsv } from '../../services/portfolioPerformanceImporter';
 import { lookupIsinMetadata } from '../../services/isinMetadataService';
 
@@ -812,6 +814,52 @@ describe('New Major Financial Utilities & Extensions', () => {
     expect(res.yearsToTarget).toBeLessThan(35);
     expect(res.realPurchasingPowerEur).toBeLessThan(1000000);
     expect(res.purchasingPowerLossPercent).toBeGreaterThan(0);
+  });
+
+  it('converts currencies accurately with historical ECB reference rates', () => {
+    const rateUsd = getEcbReferenceRate('USD', '15.08.2026');
+    expect(rateUsd).toBe(1.085);
+    const converted = convertWithEcbRate(1085, 'USD', 'EUR', '15.08.2026');
+    expect(Math.round(converted)).toBe(1000);
+  });
+
+  it('calculates Asset Class Cumulative Returns timeline points', () => {
+    const holdings: Holding[] = [
+      {
+        ticker: 'AAPL',
+        name: 'Apple Inc.',
+        category: 'Stock',
+        shares: 10,
+        averageBuyPrice: 150,
+        currentPrice: 200,
+        totalCost: 1500,
+        currentValue: 2000,
+        totalGain: 500,
+        totalGainPercent: 33.3,
+        portfolioWeight: 50,
+        yieldOnCost: 0.5
+      },
+      {
+        ticker: 'VWCE',
+        name: 'Vanguard FTSE All-World',
+        category: 'ETF',
+        shares: 20,
+        averageBuyPrice: 100,
+        currentPrice: 120,
+        totalCost: 2000,
+        currentValue: 2400,
+        totalGain: 400,
+        totalGainPercent: 20.0,
+        portfolioWeight: 50,
+        yieldOnCost: 1.8
+      }
+    ];
+
+    const timeline = calculateAssetClassCumulativeReturns(holdings);
+    expect(timeline.length).toBe(5);
+    expect(timeline[0].dateLabel).toBe('Start');
+    expect(timeline[4].Aktien).toBe(33.3);
+    expect(timeline[4].ETFs).toBe(20.0);
   });
 });
 
