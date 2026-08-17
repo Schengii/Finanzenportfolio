@@ -16,7 +16,9 @@ import { DepositLadderWidget } from './components/DepositLadderWidget';
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { OrderAssistantModal } from './components/OrderAssistantModal';
 import { QrSyncModal } from './components/QrSyncModal';
-import { Cloud, ShoppingCart, QrCode } from 'lucide-react';
+import { CryptoTaxLossHarvestingModal } from './components/CryptoTaxLossHarvestingModal';
+import { PdfFactsheetExporter } from './components/PdfFactsheetExporter';
+import { Cloud, ShoppingCart, QrCode, Coins } from 'lucide-react';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
@@ -74,6 +76,8 @@ function App() {
   const [showCloudSyncModal, setShowCloudSyncModal] = useState(false);
   const [showOrderAssistantModal, setShowOrderAssistantModal] = useState(false);
   const [showQrSyncModal, setShowQrSyncModal] = useState(false);
+  const [showCryptoTaxModal, setShowCryptoTaxModal] = useState(false);
+  const [showFactsheetModal, setShowFactsheetModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleAddTransaction = (tx: any) => {
@@ -158,6 +162,22 @@ function App() {
 
         {/* Action Controls & Switcher */}
         <div className="header-controls-group">
+          <button
+            onClick={() => setShowCryptoTaxModal(true)}
+            className="theme-toggle-btn"
+            title="Krypto FiFo Tranchen- & Steuer-Optimierer (§ 23 EStG)"
+          >
+            <Coins size={16} />
+          </button>
+
+          <button
+            onClick={() => setShowFactsheetModal(true)}
+            className="theme-toggle-btn"
+            title="Institutionelles Portfolio-Factsheet (Druck/PDF)"
+          >
+            <FileSpreadsheet size={16} />
+          </button>
+
           <button
             onClick={() => setShowQrSyncModal(true)}
             className="theme-toggle-btn"
@@ -560,6 +580,28 @@ function App() {
           onClose={() => setShowQrSyncModal(false)}
           portfolios={portfolios}
           onImportDecrypted={importBackup}
+        />
+      )}
+
+      {/* Crypto Tax Tranches & Harvesting Modal */}
+      {showCryptoTaxModal && (
+        <CryptoTaxLossHarvestingModal
+          isOpen={showCryptoTaxModal}
+          onClose={() => setShowCryptoTaxModal(false)}
+          transactions={activePortfolio.transactions || []}
+          currentPrices={currentPrices}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Institutional PDF Factsheet Report */}
+      {showFactsheetModal && (
+        <PdfFactsheetExporter
+          isOpen={showFactsheetModal}
+          onClose={() => setShowFactsheetModal(false)}
+          portfolio={activePortfolio}
+          holdings={holdings}
+          baseCurrency={baseCurrency}
         />
       )}
 

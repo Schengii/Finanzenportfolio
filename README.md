@@ -98,6 +98,15 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 ### 20. 📑 Offizieller Anlage KAP Steuererklärungs-Report (`TaxReportModal.tsx`)
 - **WISO & Taxfix Export**: Exakte Aufschlüsselung aller Erträge und Verluste nach den offiziellen Zeilen der Anlage KAP (Zeile 7, 8, 14, 15, 16/17).
 
+### 21. 🌪️ Benutzerdefinierter Makro-Stresstest Designer (`StressTestModal.tsx`)
+- **Eigene Krisenszenarien**: Interaktive Konfiguration und Simulation von branchen- und assetklassenspezifischen Marktschocks.
+
+### 22. 🪙 Krypto FiFo Tranchen- & Tax-Loss Harvesting Radar (`CryptoTaxLossHarvestingModal.tsx`)
+- **1-Jahres Haltefristen-Tracker (§ 23 EStG)**: Aufschlüsselung aller Krypto-Tranchen in steuerfreie (>365 Tage) vs. steuerpflichtige Bestände mit gezielter Verlustverrechnung.
+
+### 23. 📄 Institutionelles Fonds-Factsheet & PDF Monatsbericht (`PdfFactsheetExporter.tsx`)
+- **2-seitiger A4 Druckbericht**: Hochwertiges druckfertiges Portfolio-Factsheet mit Allokation, Performancekennzahlen und Top-Positionen.
+
 ---
 
 ## 🛠️ Technologie-Stack & Architektur
@@ -108,7 +117,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (27 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (29 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -124,7 +133,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (27 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (29 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen

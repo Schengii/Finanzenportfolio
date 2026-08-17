@@ -300,7 +300,9 @@ import {
   calculateDividendSafetyScores,
   calculateCryptoStakingTaxSummary,
   calculateOptionGreeks,
-  calculateDynamicSavingsGrowth
+  calculateDynamicSavingsGrowth,
+  calculateCustomMacroScenarioImpact,
+  calculateCryptoFifoTranches
 } from '../performanceUtils';
 import { parsePortfolioPerformanceCsv, exportToPortfolioPerformanceCsv } from '../../services/portfolioPerformanceImporter';
 import { lookupIsinMetadata } from '../../services/isinMetadataService';
@@ -629,6 +631,81 @@ describe('New Major Financial Utilities & Extensions', () => {
     expect(res.years.length).toBe(10);
     expect(res.dynamicTotalValue[9]).toBeGreaterThan(res.constantTotalValue[9]);
     expect(res.outperformanceEur).toBeGreaterThan(0);
+  });
+
+  it('calculates custom macro scenario stress tests and worst hit asset', () => {
+    const holdings: Holding[] = [
+      {
+        ticker: 'NVDA',
+        name: 'NVIDIA Corp.',
+        category: 'Stock',
+        sector: 'Technology',
+        shares: 10,
+        averageBuyPrice: 100,
+        currentPrice: 150,
+        totalCost: 1000,
+        currentValue: 1500,
+        totalGain: 500,
+        totalGainPercent: 50,
+        portfolioWeight: 100,
+        yieldOnCost: 0.1
+      }
+    ];
+
+    const scenario = {
+      name: 'Tech Shock',
+      stockShockPercent: -20,
+      cryptoShockPercent: -50,
+      commodityShockPercent: 10,
+      techSectorExtraShockPercent: -15
+    };
+
+    const impact = calculateCustomMacroScenarioImpact(holdings, scenario);
+    expect(impact.percentageLoss).toBe(35); // -20% stock + -15% tech
+    expect(impact.worstHitHolding?.ticker).toBe('NVDA');
+  });
+
+  it('calculates Crypto FiFo Tranches and Tax-Free eligibility', () => {
+    const txs: Transaction[] = [
+      {
+        id: 'tx-old',
+        type: 'BUY',
+        date: '01.01.2024',
+        ticker: 'BTC',
+        name: 'Bitcoin',
+        amount: 0.5,
+        price: 40000,
+        fee: 0,
+        tax: 0,
+        category: 'Crypto',
+        currency: 'EUR'
+      },
+      {
+        id: 'tx-new',
+        type: 'BUY',
+        date: '01.08.2026',
+        ticker: 'ETH',
+        name: 'Ethereum',
+        amount: 2,
+        price: 3000,
+        fee: 0,
+        tax: 0,
+        category: 'Crypto',
+        currency: 'EUR'
+      }
+    ];
+
+    const currentPrices = { BTC: 60000, ETH: 2500 };
+    const res = calculateCryptoFifoTranches(txs, currentPrices);
+
+    expect(res.tranches.length).toBe(2);
+    const btcTranche = res.tranches.find(t => t.ticker === 'BTC');
+    const ethTranche = res.tranches.find(t => t.ticker === 'ETH');
+
+    expect(btcTranche?.isTaxFree).toBe(true);
+    expect(ethTranche?.isTaxFree).toBe(false);
+    expect(ethTranche?.canHarvestLoss).toBe(true); // Loss of 1000 EUR
+    expect(res.harvestableLossesEur).toBe(1000);
   });
 });
 

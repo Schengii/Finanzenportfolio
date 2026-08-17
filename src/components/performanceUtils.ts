@@ -1920,4 +1920,161 @@ export function calculateDynamicSavingsGrowth(
   };
 }
 
+/**
+ * Custom Macro Scenario Impact Calculator
+ */
+export interface CustomMacroScenario {
+  name: string;
+  stockShockPercent: number; // e.g. -25%
+  cryptoShockPercent: number; // e.g. -40%
+  commodityShockPercent: number; // e.g. +15%
+  techSectorExtraShockPercent?: number; // e.g. -15%
+}
+
+export interface MacroScenarioImpactResult {
+  scenarioName: string;
+  initialTotalValueEur: number;
+  stressedTotalValueEur: number;
+  absoluteLossEur: number;
+  percentageLoss: number;
+  worstHitHolding: { ticker: string; name: string; lossEur: number } | null;
+}
+
+export function calculateCustomMacroScenarioImpact(
+  holdings: Holding[],
+  scenario: CustomMacroScenario
+): MacroScenarioImpactResult {
+  const initialTotalValueEur = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  let stressedTotalValueEur = 0;
+  let maxLossEur = 0;
+  let worstHitHolding: MacroScenarioImpactResult['worstHitHolding'] = null;
+
+  holdings.forEach(h => {
+    let shockPct = scenario.stockShockPercent;
+
+    if (h.category === 'Crypto') {
+      shockPct = scenario.cryptoShockPercent;
+    } else if (h.category === 'PreciousMetal') {
+      shockPct = scenario.commodityShockPercent;
+    } else if (h.sector === 'Technology' && scenario.techSectorExtraShockPercent) {
+      shockPct += scenario.techSectorExtraShockPercent;
+    }
+
+    const stressedVal = Math.max(0, h.currentValue * (1 + shockPct / 100));
+    const loss = h.currentValue - stressedVal;
+    stressedTotalValueEur += stressedVal;
+
+    if (loss > maxLossEur) {
+      maxLossEur = loss;
+      worstHitHolding = {
+        ticker: h.ticker,
+        name: h.name,
+        lossEur: Math.round(loss)
+      };
+    }
+  });
+
+  const absoluteLossEur = Math.max(0, initialTotalValueEur - stressedTotalValueEur);
+  const percentageLoss = initialTotalValueEur > 0 ? (absoluteLossEur / initialTotalValueEur) * 100 : 0;
+
+  return {
+    scenarioName: scenario.name,
+    initialTotalValueEur: Math.round(initialTotalValueEur),
+    stressedTotalValueEur: Math.round(stressedTotalValueEur),
+    absoluteLossEur: Math.round(absoluteLossEur),
+    percentageLoss: Math.round(percentageLoss * 10) / 10,
+    worstHitHolding
+  };
+}
+
+/**
+ * Crypto FiFo Tranches & Tax-Loss Harvesting Analyzer (§ 23 EStG)
+ */
+export interface CryptoTrancheItem {
+  id: string;
+  ticker: string;
+  name: string;
+  buyDate: string;
+  daysHeld: number;
+  amount: number;
+  buyPriceEur: number;
+  currentPriceEur: number;
+  unrealizedGainEur: number;
+  isTaxFree: boolean; // Held > 365 days
+  canHarvestLoss: boolean; // Held < 365 days AND unrealized loss
+}
+
+export interface CryptoFifoTranchesResult {
+  tranches: CryptoTrancheItem[];
+  totalTaxableGainEur: number;
+  totalTaxFreeGainEur: number;
+  harvestableLossesEur: number;
+}
+
+export function calculateCryptoFifoTranches(
+  transactions: Transaction[],
+  currentPrices: Record<string, number> = {}
+): CryptoFifoTranchesResult {
+  const cryptoBuys = transactions.filter(t => t.category === 'Crypto' && t.type === 'BUY');
+  const now = new Date();
+  const tranches: CryptoTrancheItem[] = [];
+
+  let totalTaxableGainEur = 0;
+  let totalTaxFreeGainEur = 0;
+  let harvestableLossesEur = 0;
+
+  cryptoBuys.forEach(tx => {
+    const parts = tx.date.split('.');
+    let buyDateObj = new Date();
+    if (parts.length === 3) {
+      buyDateObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+    }
+
+    const diffTime = Math.abs(now.getTime() - buyDateObj.getTime());
+    const daysHeld = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const isTaxFree = daysHeld > 365;
+
+    const rate = tx.exchangeRate || 1.0;
+    const costPerUnitEur = tx.price / rate;
+    const currentPriceEur = currentPrices[tx.ticker] || costPerUnitEur;
+
+    const totalCostEur = tx.amount * costPerUnitEur;
+    const currentValEur = tx.amount * currentPriceEur;
+    const unrealizedGainEur = currentValEur - totalCostEur;
+
+    const canHarvestLoss = !isTaxFree && unrealizedGainEur < 0;
+    if (canHarvestLoss) {
+      harvestableLossesEur += Math.abs(unrealizedGainEur);
+    }
+
+    if (isTaxFree) {
+      totalTaxFreeGainEur += unrealizedGainEur;
+    } else {
+      totalTaxableGainEur += unrealizedGainEur;
+    }
+
+    tranches.push({
+      id: tx.id,
+      ticker: tx.ticker,
+      name: tx.name,
+      buyDate: tx.date,
+      daysHeld,
+      amount: tx.amount,
+      buyPriceEur: costPerUnitEur,
+      currentPriceEur,
+      unrealizedGainEur: Math.round(unrealizedGainEur * 100) / 100,
+      isTaxFree,
+      canHarvestLoss
+    });
+  });
+
+  return {
+    tranches: tranches.sort((a, b) => a.daysHeld - b.daysHeld),
+    totalTaxableGainEur: Math.round(totalTaxableGainEur * 100) / 100,
+    totalTaxFreeGainEur: Math.round(totalTaxFreeGainEur * 100) / 100,
+    harvestableLossesEur: Math.round(harvestableLossesEur * 100) / 100
+  };
+}
+
+
 
