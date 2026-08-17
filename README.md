@@ -64,8 +64,18 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 ### 9. ⚡ Transaktions-Massenaktionen & Multi-Select (`Transactions.tsx`)
 - Mehrere Transaktionen markieren und gleichzeitig per Batch-Action löschen oder verwalten.
 
-### 10. 📑 Universeller PDF- & CSV-Abrechnungs-Parser
+### 10. 📑 Universeller PDF- & CSV-Abrechnungs-Parser & OCR Fallback (`ocrParser.ts`)
 - Automatische Erkennung von Kauf-, Verkauf- und Dividendenbelegen von **Trade Republic**, **Scalable Capital**, **ING-DiBa**, **comdirect**, **DKB**, **Consorsbank**, **finanzen.net zero**, **Flatex**, **Smartbroker+**, **Revolut** und **eToro**.
+- **OCR Scan-Erkennung**: Extraktion aus Bilddateien und gescannten Dokumenten via Canvas-Pipeline.
+
+### 11. ☁️ Nextcloud & WebDAV Private Cloud Sync (`CloudSyncModal.tsx`)
+- **Ende-zu-Ende verschlüsselte Synchronisation**: Sicheres automatisches Backup und Multi-Device-Sync auf deine private Nextcloud oder WebDAV-Server via AES-GCM 256-Bit Master-PIN.
+
+### 12. 🎯 Automatische ISIN-Stammdaten & Sektor-Anreicherung (`isinMetadataService.ts`)
+- **1-Klick ISIN Auto-Mapping**: Automatische Erkennung von Sektoren, Regionen, Asset-Klassen und ETF-Gesamtkostenquoten (TER) für Top globale ETFs und Bluechip-Aktien.
+
+### 13. 🛒 Neobroker Sparplan- & Order-Assistent (`OrderAssistantModal.tsx`)
+- **1-Klick Order-Vorlagen**: Erstellung von aggregierten Sparplan- und Kauflisten mit Copy-Paste-Schnellbuttons für Trade Republic, Scalable Capital, ING und Comdirect.
 
 ---
 
@@ -77,7 +87,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (21 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (22 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -93,7 +103,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (21 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (22 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen

@@ -13,6 +13,9 @@ import './App.css';
 
 import { RealEstateTracker } from './components/RealEstateTracker';
 import { DepositLadderWidget } from './components/DepositLadderWidget';
+import { CloudSyncModal } from './components/CloudSyncModal';
+import { OrderAssistantModal } from './components/OrderAssistantModal';
+import { Cloud, ShoppingCart } from 'lucide-react';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
@@ -67,6 +70,8 @@ function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
   const [showPdfExportModal, setShowPdfExportModal] = useState(false);
+  const [showCloudSyncModal, setShowCloudSyncModal] = useState(false);
+  const [showOrderAssistantModal, setShowOrderAssistantModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleAddTransaction = (tx: any) => {
@@ -151,6 +156,22 @@ function App() {
 
         {/* Action Controls & Switcher */}
         <div className="header-controls-group">
+          <button
+            onClick={() => setShowOrderAssistantModal(true)}
+            className="theme-toggle-btn"
+            title="Neobroker Sparplan- & Order-Assistent"
+          >
+            <ShoppingCart size={16} />
+          </button>
+
+          <button
+            onClick={() => setShowCloudSyncModal(true)}
+            className="theme-toggle-btn"
+            title="WebDAV & Nextcloud Private Cloud Sync"
+          >
+            <Cloud size={16} />
+          </button>
+
           <button 
             onClick={handleRefreshPrices}
             disabled={isRefreshing}
@@ -500,6 +521,27 @@ function App() {
           />
         )}
       </Suspense>
+
+      {/* Cloud Sync Modal */}
+      {showCloudSyncModal && (
+        <CloudSyncModal
+          isOpen={showCloudSyncModal}
+          onClose={() => setShowCloudSyncModal(false)}
+          portfolios={portfolios}
+          onImportSyncData={importBackup}
+        />
+      )}
+
+      {/* Neobroker Order Assistant Modal */}
+      {showOrderAssistantModal && (
+        <OrderAssistantModal
+          isOpen={showOrderAssistantModal}
+          onClose={() => setShowOrderAssistantModal(false)}
+          savingsPlans={activePortfolio.savingsPlans || []}
+          holdings={holdings}
+          baseCurrency={baseCurrency}
+        />
+      )}
 
       {/* Security Master PIN Unlock Modal */}
       <VaultUnlockModal

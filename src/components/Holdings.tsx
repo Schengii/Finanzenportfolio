@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import type { Holding, Transaction } from '../types';
-import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Sparkles, Check } from 'lucide-react';
 import { convertCurrency } from './performanceUtils';
 import { HoldingDetailModal } from './HoldingDetailModal';
+import { lookupIsinMetadata } from '../services/isinMetadataService';
 
 interface HoldingsProps {
   holdings: Holding[];
@@ -21,6 +22,24 @@ export const Holdings: React.FC<HoldingsProps> = ({
 }) => {
   const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [enrichedCount, setEnrichedCount] = useState<number | null>(null);
+
+  const handleAutoEnrich = () => {
+    let count = 0;
+    holdings.forEach(h => {
+      const meta = lookupIsinMetadata(h.ticker, h.name);
+      if (meta.sector && !h.sector) {
+        h.sector = meta.sector;
+        count++;
+      }
+      if (meta.region && !h.region) {
+        h.region = meta.region;
+        count++;
+      }
+    });
+    setEnrichedCount(count);
+    setTimeout(() => setEnrichedCount(null), 3000);
+  };
 
   // Currency Formatter
   const formatVal = (value: number) => {
@@ -72,6 +91,16 @@ export const Holdings: React.FC<HoldingsProps> = ({
         </div>
 
         <div className="controls-group">
+          <button
+            onClick={handleAutoEnrich}
+            className="theme-toggle-btn"
+            title="Stammdaten, Sektoren & Regionen automatisch per ISIN-Lookup anreichern"
+            style={{ width: 'auto', padding: '0 0.75rem', gap: '0.4rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center' }}
+          >
+            {enrichedCount !== null ? <Check size={14} color="#10b981" /> : <Sparkles size={14} className="text-amber-400" />}
+            <span>{enrichedCount !== null ? `${enrichedCount} Bestände angereichert` : 'ISIN Auto-Mapping'}</span>
+          </button>
+
           <input
             type="text"
             placeholder="Asset suchen (Ticker/Name)..."

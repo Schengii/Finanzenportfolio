@@ -298,6 +298,7 @@ import {
   calculateEnhancedGermanTax
 } from '../performanceUtils';
 import { parsePortfolioPerformanceCsv, exportToPortfolioPerformanceCsv } from '../../services/portfolioPerformanceImporter';
+import { lookupIsinMetadata } from '../../services/isinMetadataService';
 
 describe('New Major Financial Utilities & Extensions', () => {
   it('simulates FIRE withdrawal correctly with Guyton-Klinger Guardrails', () => {
@@ -474,6 +475,23 @@ describe('New Major Financial Utilities & Extensions', () => {
     expect(imported.length).toBe(1);
     expect(imported[0].ticker).toBe('AAPL');
     expect(imported[0].amount).toBe(10);
+  });
+
+  it('accurately enriches ISIN metadata for top global ETFs and Equities', () => {
+    const msciWorldMeta = lookupIsinMetadata('IE00B4L5Y983');
+    expect(msciWorldMeta.ticker).toBe('EUNL');
+    expect(msciWorldMeta.category).toBe('ETF');
+    expect(msciWorldMeta.region).toBe('Global');
+    expect(msciWorldMeta.terPercent).toBe(0.20);
+
+    const appleMeta = lookupIsinMetadata('US0378331002');
+    expect(appleMeta.ticker).toBe('AAPL');
+    expect(appleMeta.sector).toBe('Technology');
+    expect(appleMeta.region).toBe('North America');
+
+    const heuristicMeta = lookupIsinMetadata('CUSTOM_TECH_ETF', 'iShares Global Clean Energy UCITS ETF');
+    expect(heuristicMeta.category).toBe('ETF');
+    expect(heuristicMeta.sector).toBe('Energy');
   });
 });
 
