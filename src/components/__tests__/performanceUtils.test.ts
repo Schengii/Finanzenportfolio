@@ -302,7 +302,10 @@ import {
   calculateOptionGreeks,
   calculateDynamicSavingsGrowth,
   calculateCustomMacroScenarioImpact,
-  calculateCryptoFifoTranches
+  calculateCryptoFifoTranches,
+  calculateFxHedgingAnalysis,
+  calculateDividendSeasonalityProfile,
+  calculateBondDurationSensitivity
 } from '../performanceUtils';
 import { parsePortfolioPerformanceCsv, exportToPortfolioPerformanceCsv } from '../../services/portfolioPerformanceImporter';
 import { lookupIsinMetadata } from '../../services/isinMetadataService';
@@ -706,6 +709,78 @@ describe('New Major Financial Utilities & Extensions', () => {
     expect(ethTranche?.isTaxFree).toBe(false);
     expect(ethTranche?.canHarvestLoss).toBe(true); // Loss of 1000 EUR
     expect(res.harvestableLossesEur).toBe(1000);
+  });
+
+  it('calculates FX Hedging analysis and risk reduction', () => {
+    const usdHoldings: Holding[] = [
+      {
+        ticker: 'MSFT',
+        name: 'Microsoft',
+        category: 'Stock',
+        currency: 'USD',
+        shares: 10,
+        averageBuyPrice: 300,
+        currentPrice: 400,
+        totalCost: 3000,
+        currentValue: 4000,
+        totalGain: 1000,
+        totalGainPercent: 33.3,
+        portfolioWeight: 100,
+        yieldOnCost: 0.8
+      }
+    ];
+
+    const res = calculateFxHedgingAnalysis(usdHoldings, 50, 1.2);
+    expect(res.totalNonEurValueEur).toBe(4000);
+    expect(res.hedgedAmountEur).toBe(2000);
+    expect(res.annualHedgingCostEur).toBe(24);
+  });
+
+  it('calculates Dividend Seasonality profile across 12 months', () => {
+    const divTxs: Transaction[] = [
+      {
+        id: 'div-1',
+        type: 'DIVIDEND',
+        date: '15.05.2026',
+        ticker: 'ALV',
+        name: 'Allianz',
+        amount: 10,
+        price: 13.80,
+        fee: 0,
+        tax: 0,
+        category: 'Stock',
+        currency: 'EUR'
+      }
+    ];
+
+    const profile = calculateDividendSeasonalityProfile(divTxs);
+    expect(profile.length).toBe(12);
+    expect(profile[4].monthName).toBe('Mai');
+    expect(profile[4].totalDividendsEur).toBe(138);
+  });
+
+  it('calculates Bond Duration and interest rate sensitivity', () => {
+    const bondHoldings: Holding[] = [
+      {
+        ticker: 'AGGH',
+        name: 'iShares Core Global Aggregate Bond UCITS ETF',
+        category: 'Bond',
+        shares: 100,
+        averageBuyPrice: 5,
+        currentPrice: 5,
+        totalCost: 500,
+        currentValue: 500,
+        totalGain: 0,
+        totalGainPercent: 0,
+        portfolioWeight: 100,
+        yieldOnCost: 3.5
+      }
+    ];
+
+    const res = calculateBondDurationSensitivity(bondHoldings, 100);
+    expect(res.bondHoldingsValueEur).toBe(500);
+    expect(res.estimatedPriceChangePercent).toBe(-6.5);
+    expect(Math.abs(res.estimatedValueImpactEur)).toBeLessThanOrEqual(33);
   });
 });
 

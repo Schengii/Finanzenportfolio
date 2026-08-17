@@ -2076,5 +2076,121 @@ export function calculateCryptoFifoTranches(
   };
 }
 
+/**
+ * Multi-Currency FX Hedging Analysis
+ */
+export interface FxHedgingResult {
+  totalNonEurValueEur: number;
+  hedgedAmountEur: number;
+  unhedgedAmountEur: number;
+  annualHedgingCostEur: number;
+  varReductionEstimatePercent: number;
+}
+
+export function calculateFxHedgingAnalysis(
+  holdings: Holding[],
+  targetHedgePercent: number = 50,
+  annualHedgeCostPercent: number = 1.2
+): FxHedgingResult {
+  const nonEurHoldings = holdings.filter(h => h.currency && h.currency !== 'EUR');
+  const totalNonEurValueEur = nonEurHoldings.reduce((sum, h) => sum + h.currentValue, 0);
+
+  const hedgePct = Math.max(0, Math.min(100, targetHedgePercent)) / 100.0;
+  const hedgedAmountEur = totalNonEurValueEur * hedgePct;
+  const unhedgedAmountEur = totalNonEurValueEur - hedgedAmountEur;
+  const annualHedgingCostEur = hedgedAmountEur * (annualHedgeCostPercent / 100.0);
+
+  // Volatility reduction estimate proportional to square root of hedge ratio
+  const varReductionEstimatePercent = Math.round(hedgePct * 45.0 * 10) / 10;
+
+  return {
+    totalNonEurValueEur: Math.round(totalNonEurValueEur),
+    hedgedAmountEur: Math.round(hedgedAmountEur),
+    unhedgedAmountEur: Math.round(unhedgedAmountEur),
+    annualHedgingCostEur: Math.round(annualHedgingCostEur),
+    varReductionEstimatePercent
+  };
+}
+
+/**
+ * Dividend Seasonality Profile & Cashflow Forecaster
+ */
+export interface DividendSeasonalityMonth {
+  monthName: string;
+  totalDividendsEur: number;
+  percentageOfYear: number;
+}
+
+export function calculateDividendSeasonalityProfile(transactions: Transaction[]): DividendSeasonalityMonth[] {
+  const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  const monthTotals = new Array(12).fill(0);
+
+  const divTxs = transactions.filter(t => t.type === 'DIVIDEND');
+  let totalDivsYear = 0;
+
+  divTxs.forEach(t => {
+    const parts = t.date.split('.');
+    let monthIdx = 0;
+    if (parts.length >= 2) {
+      monthIdx = Math.max(0, Math.min(11, Number(parts[1]) - 1));
+    }
+    const val = (t.amount * t.price) / (t.exchangeRate || 1.0);
+    monthTotals[monthIdx] += val;
+    totalDivsYear += val;
+  });
+
+  return monthNames.map((monthName, i) => {
+    const totalDividendsEur = Math.round(monthTotals[i] * 100) / 100;
+    const percentageOfYear = totalDivsYear > 0 ? Math.round((totalDividendsEur / totalDivsYear) * 1000) / 10 : 8.3;
+    return {
+      monthName,
+      totalDividendsEur,
+      percentageOfYear
+    };
+  });
+}
+
+/**
+ * Bond Duration & Interest Rate Sensitivity (§ Modified Duration)
+ */
+export interface BondDurationResult {
+  weightedDurationYears: number;
+  estimatedPriceChangePercent: number;
+  estimatedValueImpactEur: number;
+  bondHoldingsValueEur: number;
+}
+
+export function calculateBondDurationSensitivity(
+  holdings: Holding[],
+  interestRateShiftBps: number = 100 // +100 bps = +1.0%
+): BondDurationResult {
+  // Identify bond/money market assets
+  const bondHoldings = holdings.filter(h => 
+    h.category === 'Bond' ||
+    h.name.toLowerCase().includes('bond') ||
+    h.name.toLowerCase().includes('treasury') ||
+    h.name.toLowerCase().includes('anleihe') ||
+    h.name.toLowerCase().includes('geldmarkt')
+  );
+
+  const bondHoldingsValueEur = bondHoldings.reduce((sum, h) => sum + h.currentValue, 0);
+
+  // Approximate default modified duration: ~6.5 years for broad aggregate bond ETFs
+  const weightedDurationYears = 6.5;
+
+  // Modified Duration Formula: % Price Change ≈ -Duration * Δy
+  const deltaYield = interestRateShiftBps / 10000.0;
+  const estimatedPriceChangePercent = -(weightedDurationYears * deltaYield * 100);
+  const estimatedValueImpactEur = bondHoldingsValueEur * (estimatedPriceChangePercent / 100);
+
+  return {
+    weightedDurationYears,
+    estimatedPriceChangePercent: Math.round(estimatedPriceChangePercent * 100) / 100,
+    estimatedValueImpactEur: Math.round(estimatedValueImpactEur),
+    bondHoldingsValueEur: Math.round(bondHoldingsValueEur)
+  };
+}
+
+
 
 

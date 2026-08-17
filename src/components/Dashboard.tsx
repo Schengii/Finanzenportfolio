@@ -22,6 +22,9 @@ import { FxExposureWidget } from './FxExposureWidget';
 import { CorrelationMatrixWidget } from './CorrelationMatrixWidget';
 import { DividendSafetyScoreWidget } from './DividendSafetyScoreWidget';
 import { CryptoStakingTaxWidget } from './CryptoStakingTaxWidget';
+import { FxHedgingWidget } from './FxHedgingWidget';
+import { DividendSeasonalityWidget } from './DividendSeasonalityWidget';
+import { BondDurationWidget } from './BondDurationWidget';
 import { usePortfolio } from '../context/PortfolioContext';
  
  interface DashboardProps {
@@ -683,6 +686,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
          <FxExposureWidget
            holdings={holdings}
            transactions={transactions}
+           baseCurrency={baseCurrency}
+         />
+
+         <FxHedgingWidget
+           holdings={holdings}
+           baseCurrency={baseCurrency}
+         />
+
+         <DividendSeasonalityWidget
+           transactions={transactions}
+           baseCurrency={baseCurrency}
+         />
+
+         <BondDurationWidget
+           holdings={holdings}
            baseCurrency={baseCurrency}
          />
 

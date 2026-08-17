@@ -107,6 +107,15 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 ### 23. 📄 Institutionelles Fonds-Factsheet & PDF Monatsbericht (`PdfFactsheetExporter.tsx`)
 - **2-seitiger A4 Druckbericht**: Hochwertiges druckfertiges Portfolio-Factsheet mit Allokation, Performancekennzahlen und Top-Positionen.
 
+### 24. 💱 Multi-Währungs-Absicherung & FX Hedging Rechner (`FxHedgingWidget.tsx`)
+- **Hedging-Kosten vs. Risikominimierung**: Simulation von Vorwärtskurs-Sicherungsquoten für USD, CHF und GBP.
+
+### 25. 📅 Dividenden-Saisonalität & Cashflow-Heatmap (`DividendSeasonalityWidget.tsx`)
+- **Monatliches Ausschüttungsprofil**: Historische Auswertung der Dividendenverteilung über 12 Monate zur Glättung des passiven Einkommens.
+
+### 26. 🏛️ Anleihen-Duration & Zinsänderungsrisiko (`BondDurationWidget.tsx`)
+- **Modified Duration Calculator**: Quantifizierung von Kursverlusten bzw. -gewinnen bei Zinsänderungen ($\Delta y = \pm 100$ bis $\pm 300$ BP).
+
 ---
 
 ## 🛠️ Technologie-Stack & Architektur
@@ -117,7 +126,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (29 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (32 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -133,7 +142,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (29 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (32 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen
