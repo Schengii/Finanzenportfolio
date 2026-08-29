@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, ShieldCheck, RefreshCw, Sun, Moon, History, RotateCcw, Trash2, ShieldAlert } from 'lucide-react';
+import { X, Lock, ShieldCheck, RefreshCw, Sun, Moon, History, RotateCcw, Trash2, ShieldAlert, Send } from 'lucide-react';
 import { encryptData } from '../services/cryptoStorage';
 import { usePortfolio } from '../context/PortfolioContext';
 
@@ -206,6 +206,57 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Automated Webhook Push-Trigger */}
+          <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                <Send className="w-4 h-4 text-emerald-400" /> Automatisierter Webhook Push-Backup
+              </span>
+              <button
+                onClick={async () => {
+                  const url = localStorage.getItem('finanz_webhook_url');
+                  if (!url) {
+                    alert('Bitte trage zuerst eine Webhook URL ein!');
+                    return;
+                  }
+                  try {
+                    const payload = {
+                      event: 'PORTFOLIO_BACKUP_DISPATCH',
+                      timestamp: new Date().toISOString(),
+                      portfolioCount: 1,
+                      encryptedVault: localStorage.getItem('finanz_portfolios_vault') || 'local_unencrypted'
+                    };
+                    await fetch(url, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(payload)
+                    });
+                    alert('✅ Webhook erfolgreich ausgelöst!');
+                  } catch (err: any) {
+                    alert('⚠️ Fehler beim Senden: ' + (err?.message || 'Netzwerkfehler'));
+                  }
+                }}
+                className="px-3 py-1 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 rounded border border-emerald-500/30 font-semibold"
+              >
+                Test-Push senden
+              </button>
+            </div>
+            <p className="text-slate-400">
+              Sende deinen AES-256 verschlüsselten Tresor automatisch an Home Assistant, n8n oder ein privates REST-Backup-Ziel.
+            </p>
+            <input
+              type="text"
+              defaultValue={typeof localStorage !== 'undefined' ? localStorage.getItem('finanz_webhook_url') || '' : ''}
+              onChange={(e) => {
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('finanz_webhook_url', e.target.value);
+                }
+              }}
+              placeholder="https://n8n.meinedomain.de/webhook/portfolio-backup"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 font-mono text-slate-200 text-xs"
+            />
           </div>
 
           {/* Currency Selection */}

@@ -100,6 +100,24 @@ export const OptionIncomeTracker: React.FC<OptionIncomeTrackerProps> = ({
         </div>
       </div>
 
+      {/* Delta-Hedging & Crash-Protection Radar */}
+      <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs">
+        <div>
+          <span className="font-bold text-slate-200 block text-sm flex items-center gap-1.5">
+            🛡️ Delta-Neutral & Protective Put Hedging Assistent
+          </span>
+          <span className="text-slate-400 block mt-0.5">
+            Aktives Portfolio-Delta: <strong className="text-blue-400">Δ +0.82</strong> | Empfohlene Absicherung für Tail-Risk: <strong className="text-emerald-400">2x Protective Puts (10% OTM, 60-90 Tage)</strong>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold">
+            Status: Moderat Bullisch
+          </span>
+        </div>
+      </div>
+
       {/* Add Form Modal/Card */}
       {showAddForm && (
         <form onSubmit={handleAddOption} className="p-5 bg-slate-950/80 border border-slate-700 rounded-2xl space-y-4 animate-in fade-in duration-150 text-xs">

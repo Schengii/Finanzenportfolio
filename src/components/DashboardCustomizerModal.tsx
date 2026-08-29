@@ -14,6 +14,7 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
   { id: 'benchmark', name: 'Benchmark-Vergleich (MSCI World, S&P 500, DAX)', category: 'GROWTH', isVisible: true },
   { id: 'rebalancing', name: 'Rebalancing-Auftragsplaner mit Toleranzbändern', category: 'ALL', isVisible: true },
   { id: 'dividend_growth_radar', name: 'Dividenden-Wachstums-Radar & 5J Cashflow-Prognose', category: 'DIVIDENDS', isVisible: true },
+  { id: 'factor_exposure', name: 'Fama-French 5-Faktor Risiko-Zerlegung', category: 'GROWTH', isVisible: true },
   { id: 'ex_date_radar', name: 'Ex-Dividenden-Radar', category: 'DIVIDENDS', isVisible: true },
   { id: 'correlation', name: 'Asset-Korrelationsmatrix & Heatmap', category: 'SECURITY', isVisible: true },
   { id: 'dividend_safety', name: 'Dividenden-Sicherheits- & Aristokraten-Score', category: 'DIVIDENDS', isVisible: true },

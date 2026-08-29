@@ -20,7 +20,8 @@ import { CryptoTaxLossHarvestingModal } from './components/CryptoTaxLossHarvesti
 import { PdfFactsheetExporter } from './components/PdfFactsheetExporter';
 import { DualPortfolioCompareModal } from './components/DualPortfolioCompareModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
-import { Cloud, ShoppingCart, QrCode, Coins, Columns, Search } from 'lucide-react';
+import { WithholdingTaxRefundModal } from './components/WithholdingTaxRefundModal';
+import { Cloud, ShoppingCart, QrCode, Coins, Columns, Search, Landmark } from 'lucide-react';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
@@ -72,6 +73,7 @@ function App() {
   const [showBatchPdfModal, setShowBatchPdfModal] = useState(false);
   const [showTaxReportModal, setShowTaxReportModal] = useState(false);
   const [showTaxHarvestingModal, setShowTaxHarvestingModal] = useState(false);
+  const [showWithholdingTaxModal, setShowWithholdingTaxModal] = useState(false);
   const [showStressTestModal, setShowStressTestModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
@@ -194,6 +196,14 @@ function App() {
             title="Side-by-Side Dual Portfolio-Vergleich"
           >
             <Columns size={16} />
+          </button>
+
+          <button
+            onClick={() => setShowWithholdingTaxModal(true)}
+            className="theme-toggle-btn"
+            title="Ausländische Quellensteuer-Rückerstattung (Schweiz Form 82 I, Frankreich, Österreich)"
+          >
+            <Landmark size={16} />
           </button>
 
           <button
@@ -624,6 +634,16 @@ function App() {
           onClose={() => setShowCryptoTaxModal(false)}
           transactions={activePortfolio.transactions || []}
           currentPrices={currentPrices}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Ausländische Quellensteuer-Rückerstattung */}
+      {showWithholdingTaxModal && (
+        <WithholdingTaxRefundModal
+          isOpen={showWithholdingTaxModal}
+          onClose={() => setShowWithholdingTaxModal(false)}
+          transactions={activePortfolio.transactions || []}
           baseCurrency={baseCurrency}
         />
       )}

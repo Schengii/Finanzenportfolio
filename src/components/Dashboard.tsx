@@ -18,6 +18,7 @@ import { BenchmarkComparison } from './BenchmarkComparison';
 import { RebalancingOrderPlanner } from './RebalancingOrderPlanner';
 import { ExDateDividendRadar } from './ExDateDividendRadar';
 import { DividendGrowthRadarWidget } from './DividendGrowthRadarWidget';
+import { FactorExposureWidget } from './FactorExposureWidget';
 import { DripAnalysisWidget } from './DripAnalysisWidget';
 import { FxExposureWidget } from './FxExposureWidget';
 import { CorrelationMatrixWidget } from './CorrelationMatrixWidget';
@@ -716,6 +717,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
             <DividendGrowthRadarWidget
               holdings={holdings}
               transactions={transactions}
+              baseCurrency={baseCurrency}
+            />
+          )}
+
+          {isWidgetVisible('factor_exposure') && (
+            <FactorExposureWidget
+              holdings={holdings}
               baseCurrency={baseCurrency}
             />
           )}

@@ -2719,6 +2719,218 @@ export function runFireMonteCarloSimulation(
   };
 }
 
+/**
+ * Multi-Faktor Risiko-Zerlegung (Fama-French 5-Faktoren Modell)
+ */
+export interface FamaFrenchFactorsResult {
+  marketBeta: number; // Mkt-RF (Marktrisiko-Sensitivität)
+  sizeSmb: number; // Small Minus Big (Size-Prämie: positiv = Small-Cap Tilt)
+  valueHml: number; // High Minus Low (Value vs Growth Tilt: positiv = Value)
+  profitabilityRmw: number; // Robust Minus Weak (Profitability Tilt)
+  investmentCma: number; // Conservative Minus Aggressive (Investment Tilt)
+  qualityScore: number; // 0-100 Multi-Factor Quality Score
+}
+
+export function calculateFamaFrench5Factors(holdings: Holding[]): FamaFrenchFactorsResult {
+  const totalVal = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  if (totalVal <= 0) {
+    return {
+      marketBeta: 1.0,
+      sizeSmb: 0.0,
+      valueHml: 0.0,
+      profitabilityRmw: 0.2,
+      investmentCma: 0.1,
+      qualityScore: 75
+    };
+  }
+
+  let weightedBeta = 0;
+  let weightedSmb = 0;
+  let weightedHml = 0;
+  let weightedRmw = 0;
+  let weightedCma = 0;
+
+  holdings.forEach(h => {
+    const weight = h.currentValue / totalVal;
+    const isTech = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA'].includes(h.ticker);
+    const isValue = ['ALV', 'BAS', 'MBG', 'KO', 'JNJ', 'NESN', 'NOVN'].includes(h.ticker);
+    const isEtf = h.category === 'ETF';
+    const isCrypto = h.category === 'Crypto';
+
+    if (isCrypto) {
+      weightedBeta += weight * 2.2;
+      weightedSmb += weight * 0.8;
+      weightedHml += weight * -0.5;
+      weightedRmw += weight * -0.2;
+      weightedCma += weight * -0.4;
+    } else if (isTech) {
+      weightedBeta += weight * 1.25;
+      weightedSmb += weight * -0.2; // Mega-Cap
+      weightedHml += weight * -0.6; // Growth Tilt
+      weightedRmw += weight * 0.85; // High Profitability
+      weightedCma += weight * 0.3;
+    } else if (isValue) {
+      weightedBeta += weight * 0.85;
+      weightedSmb += weight * 0.1;
+      weightedHml += weight * 0.75; // Strong Value Tilt
+      weightedRmw += weight * 0.5;
+      weightedCma += weight * 0.4;
+    } else if (isEtf) {
+      weightedBeta += weight * 1.0;
+      weightedSmb += weight * 0.0;
+      weightedHml += weight * 0.0;
+      weightedRmw += weight * 0.4;
+      weightedCma += weight * 0.2;
+    } else {
+      weightedBeta += weight * 1.05;
+      weightedSmb += weight * 0.15;
+      weightedHml += weight * 0.1;
+      weightedRmw += weight * 0.35;
+      weightedCma += weight * 0.2;
+    }
+  });
+
+  const qualityScore = Math.min(100, Math.max(30, Math.round(50 + (weightedRmw * 35) + (weightedCma * 20) - (Math.abs(weightedBeta - 1.0) * 15))));
+
+  return {
+    marketBeta: Math.round(weightedBeta * 100) / 100,
+    sizeSmb: Math.round(weightedSmb * 100) / 100,
+    valueHml: Math.round(weightedHml * 100) / 100,
+    profitabilityRmw: Math.round(weightedRmw * 100) / 100,
+    investmentCma: Math.round(weightedCma * 100) / 100,
+    qualityScore
+  };
+}
+
+/**
+ * Ausländische Quellensteuer-Rückerstattungsberechnung (z. B. Schweiz 35%, Frankreich 28%, Österreich 27.5%)
+ */
+export interface WithholdingTaxRefundItem {
+  country: string;
+  countryCode: string;
+  formName: string;
+  domesticWithholdingTaxPct: number;
+  dbaCreditedTaxPct: number;
+  reclaimableTaxPct: number;
+  grossDividendsEur: number;
+  totalWithheldEur: number;
+  reclaimableRefundEur: number;
+}
+
+export interface WithholdingTaxRefundSummary {
+  totalGrossDividendsEur: number;
+  totalWithheldTaxEur: number;
+  totalReclaimableEur: number;
+  items: WithholdingTaxRefundItem[];
+}
+
+export function calculateWithholdingTaxRefunds(transactions: Transaction[]): WithholdingTaxRefundSummary {
+  const dividendTxs = transactions.filter(t => t.type === 'DIVIDEND');
+  
+  let chGross = 0;
+  let frGross = 0;
+  let atGross = 0;
+  let usGross = 0;
+  let otherGross = 0;
+
+  dividendTxs.forEach(tx => {
+    const gross = (tx.amount * tx.price) / (tx.exchangeRate || 1);
+    const tickerOrIsin = (tx.ticker || tx.name).toUpperCase();
+    
+    if (tickerOrIsin.startsWith('CH') || ['NESN', 'NOVN', 'ROG', 'UBSG'].includes(tickerOrIsin)) {
+      chGross += gross;
+    } else if (tickerOrIsin.startsWith('FR') || ['MC', 'OR', 'TTE', 'SAN'].includes(tickerOrIsin)) {
+      frGross += gross;
+    } else if (tickerOrIsin.startsWith('AT') || ['OMV', 'EBS'].includes(tickerOrIsin)) {
+      atGross += gross;
+    } else if (tickerOrIsin.startsWith('US') || ['AAPL', 'MSFT', 'KO', 'JNJ'].includes(tickerOrIsin)) {
+      usGross += gross;
+    } else {
+      otherGross += gross;
+    }
+  });
+
+  const items: WithholdingTaxRefundItem[] = [];
+
+  if (chGross > 0) {
+    // Schweiz: 35% QSt, 15% DBA angerechnet, 20% erstattungsfähig via ESTV Form 82 I
+    const withheld = chGross * 0.35;
+    const reclaimable = chGross * 0.20;
+    items.push({
+      country: 'Schweiz',
+      countryCode: 'CH',
+      formName: 'ESTV Formular 82 I / Tax Voucher',
+      domesticWithholdingTaxPct: 35,
+      dbaCreditedTaxPct: 15,
+      reclaimableTaxPct: 20,
+      grossDividendsEur: Math.round(chGross * 100) / 100,
+      totalWithheldEur: Math.round(withheld * 100) / 100,
+      reclaimableRefundEur: Math.round(reclaimable * 100) / 100
+    });
+  }
+
+  if (frGross > 0) {
+    // Frankreich: 25% QSt, 15% DBA angerechnet, 10% erstattungsfähig via Form 5000/5001
+    const withheld = frGross * 0.25;
+    const reclaimable = frGross * 0.10;
+    items.push({
+      country: 'Frankreich',
+      countryCode: 'FR',
+      formName: 'Formulaire 5000 / 5001 (DGFIP)',
+      domesticWithholdingTaxPct: 25,
+      dbaCreditedTaxPct: 15,
+      reclaimableTaxPct: 10,
+      grossDividendsEur: Math.round(frGross * 100) / 100,
+      totalWithheldEur: Math.round(withheld * 100) / 100,
+      reclaimableRefundEur: Math.round(reclaimable * 100) / 100
+    });
+  }
+
+  if (atGross > 0) {
+    // Österreich: 27.5% KESt, 15% DBA angerechnet, 12.5% erstattungsfähig via ZS-RD1
+    const withheld = atGross * 0.275;
+    const reclaimable = atGross * 0.125;
+    items.push({
+      country: 'Österreich',
+      countryCode: 'AT',
+      formName: 'BMF Formular ZS-RD1 / DBA',
+      domesticWithholdingTaxPct: 27.5,
+      dbaCreditedTaxPct: 15,
+      reclaimableTaxPct: 12.5,
+      grossDividendsEur: Math.round(atGross * 100) / 100,
+      totalWithheldEur: Math.round(withheld * 100) / 100,
+      reclaimableRefundEur: Math.round(reclaimable * 100) / 100
+    });
+  }
+
+  if (usGross > 0) {
+    // USA: 15% QSt bei gültigem W-8BEN (voll nach DBA angerechnet, 0% Rest-Erstattung nötig)
+    items.push({
+      country: 'USA',
+      countryCode: 'US',
+      formName: 'W-8BEN Vorab-Reduktion (15% voll im Inland angerechnet)',
+      domesticWithholdingTaxPct: 15,
+      dbaCreditedTaxPct: 15,
+      reclaimableTaxPct: 0,
+      grossDividendsEur: Math.round(usGross * 100) / 100,
+      totalWithheldEur: Math.round(usGross * 0.15 * 100) / 100,
+      reclaimableRefundEur: 0
+    });
+  }
+
+  const totalGrossDividendsEur = Math.round((chGross + frGross + atGross + usGross + otherGross) * 100) / 100;
+  const totalWithheldTaxEur = items.reduce((sum, i) => sum + i.totalWithheldEur, 0);
+  const totalReclaimableEur = items.reduce((sum, i) => sum + i.reclaimableRefundEur, 0);
+
+  return {
+    totalGrossDividendsEur,
+    totalWithheldTaxEur,
+    totalReclaimableEur,
+    items
+  };
+}
+
+
 
 
 

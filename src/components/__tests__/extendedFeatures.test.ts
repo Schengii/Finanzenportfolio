@@ -236,3 +236,35 @@ describe('Async Monte Carlo Runner', () => {
   });
 });
 
+describe('Fama-French 5-Factor Model & Withholding Tax Refund', () => {
+  it('calculates Fama-French factor exposures and quality score accurately', async () => {
+    const { calculateFamaFrench5Factors } = await import('../performanceUtils');
+    const mockHoldings: any[] = [
+      { ticker: 'AAPL', name: 'Apple Inc.', category: 'Stock', currentValue: 5000, totalCost: 4000 },
+      { ticker: 'EUNL', name: 'iShares Core MSCI World', category: 'ETF', currentValue: 5000, totalCost: 4500 }
+    ];
+
+    const result = calculateFamaFrench5Factors(mockHoldings);
+    expect(result.marketBeta).toBeGreaterThan(0.5);
+    expect(result.qualityScore).toBeGreaterThanOrEqual(50);
+    expect(result.profitabilityRmw).toBeGreaterThanOrEqual(0);
+  });
+
+  it('calculates reclaimable foreign withholding taxes for Switzerland and France', async () => {
+    const { calculateWithholdingTaxRefunds } = await import('../performanceUtils');
+    const mockTxs: any[] = [
+      { id: 'tx-ch', type: 'DIVIDEND', ticker: 'NESN', name: 'Nestle SA', amount: 10, price: 100, date: '15.04.2026' },
+      { id: 'tx-fr', type: 'DIVIDEND', ticker: 'MC', name: 'LVMH', amount: 5, price: 200, date: '20.05.2026' }
+    ];
+
+    const result = calculateWithholdingTaxRefunds(mockTxs);
+    expect(result.totalGrossDividendsEur).toBe(2000);
+    expect(result.totalReclaimableEur).toBeGreaterThan(0);
+    
+    const swissItem = result.items.find(i => i.countryCode === 'CH');
+    expect(swissItem?.reclaimableTaxPct).toBe(20);
+    expect(swissItem?.reclaimableRefundEur).toBe(200); // 1000 * 20% = 200
+  });
+});
+
+
