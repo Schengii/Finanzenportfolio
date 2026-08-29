@@ -105,3 +105,78 @@ export function lookupIsinMetadata(identifier: string, currentName: string = '')
     region
   };
 }
+
+/**
+ * Dynamic online lookup with persistent local cache.
+ * Falls back to offline ISIN database and heuristic rules if network is unavailable.
+ */
+export async function fetchOnlineIsinMetadata(
+  identifier: string,
+  currentName: string = ''
+): Promise<Partial<IsinMetadata>> {
+  const cleanId = identifier.trim().toUpperCase();
+
+  // 1. Check local storage cache
+  const cacheKey = `finanz_isin_cache_${cleanId}`;
+  const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(cacheKey) : null;
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Direct built-in database check
+  const localMatch = lookupIsinMetadata(cleanId, currentName);
+  if (localMatch.name && localMatch.sector && localMatch.sector !== 'Other') {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(cacheKey, JSON.stringify(localMatch));
+    }
+    return localMatch;
+  }
+
+  // 3. Online lookup via Yahoo / CORS proxy
+  try {
+    const queryUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(cleanId)}&quotesCount=1&newsCount=0`;
+    let response = await fetch(queryUrl).catch(() => null);
+
+    if (!response || !response.ok) {
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(queryUrl)}`;
+      response = await fetch(proxyUrl).catch(() => null);
+    }
+
+    if (response && response.ok) {
+      const json = await response.json();
+      const quote = json?.quotes?.[0];
+      if (quote) {
+        const name = quote.longname || quote.shortname || currentName || cleanId;
+        const quoteType = (quote.quoteType || '').toUpperCase();
+        const sector = quote.sector || localMatch.sector || 'Other';
+        
+        let category: AssetCategory = quoteType === 'ETF' ? 'ETF' : quoteType === 'CRYPTOCURRENCY' ? 'Crypto' : 'Stock';
+        let region: Region = localMatch.region || (quote.exchange === 'GER' || quote.exchange === 'FRA' ? 'Europe' : 'North America');
+
+        const enriched: Partial<IsinMetadata> = {
+          ticker: quote.symbol || cleanId,
+          name,
+          category,
+          sector: sector as any,
+          region
+        };
+
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(cacheKey, JSON.stringify(enriched));
+        }
+        return enriched;
+      }
+    }
+  } catch {
+    // Network lookup silent fallback
+  }
+
+  // Fallback to local heuristic
+  return localMatch;
+}
+
+

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Portfolio } from '../types';
-import { calculateEnhancedGermanTax, calculateVorabpauschaleDetails } from './performanceUtils';
-import { FileText, Printer, X } from 'lucide-react';
+import { calculateEnhancedGermanTax, calculateVorabpauschaleDetails, calculateCryptoFifoTranches } from './performanceUtils';
+import { FileText, Printer, Copy, Check, X, ShieldAlert } from 'lucide-react';
 
 interface TaxReportModalProps {
   isOpen: boolean;
@@ -16,11 +16,13 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
   portfolio,
   taxExemptionLimit
 }) => {
-  if (!isOpen) return null;
-
   const [personalTaxRate, setPersonalTaxRate] = useState<number>(18);
   const [enableGuenstiger, setEnableGuenstiger] = useState<boolean>(true);
   const [hasChurchTax, setHasChurchTax] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
+  const [activeTaxTab, setActiveTaxTab] = useState<'KAP' | 'SO'>('KAP');
+
+  if (!isOpen) return null;
 
   const currentYear = new Date().getFullYear();
 
@@ -53,8 +55,33 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
   );
   const vorabpauschale = vorabpauschaleRes.totalVorabpauschale;
 
+  const cryptoFifo = calculateCryptoFifoTranches(portfolio.transactions, {});
+  const cryptoTaxableGains = cryptoFifo.totalTaxableGainEur;
+  const cryptoFreigrenze = 1000;
+  const isCryptoTaxFree = cryptoTaxableGains <= cryptoFreigrenze;
+
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleCopyElsterSummary = () => {
+    const text = `=== FINANZPORTFOLIO COPILOT - STEUERBERICHT ${currentYear} ===
+[ANLAGE KAP - EINKÜNFTE AUS KAPITALVERMÖGEN]
+- Zeile 7 (Inländische Kapitalerträge): ${enhancedTax.taxableGainsFinalEur.toFixed(2)} €
+- Zeile 8 (Gewinne aus Aktienverkäufen): ${enhancedTax.realizedStockGainsEur.toFixed(2)} €
+- Zeile 14 (Verluste ohne Aktien / Sonstiges): ${enhancedTax.realizedOtherLossesEur.toFixed(2)} €
+- Zeile 15 (Verluste aus Aktienverkäufen): ${enhancedTax.realizedStockLossesEur.toFixed(2)} €
+- Zeile 16/17 (In Anspruch genommener Sparer-Pauschbetrag): ${Math.min(taxExemptionLimit, enhancedTax.taxableGainsFinalEur).toFixed(2)} €
+- Geschätzte Vorabpauschale (§ 18 InvStG): ${vorabpauschale.toFixed(2)} €
+
+[ANLAGE SO - SONSTIGE EINKÜNFTE (§ 22/23 EStG - KRYPTO & STAKING)]
+- Steuerpflichtige Krypto-Gewinne (< 1 Jahr Haltefrist): ${cryptoTaxableGains.toFixed(2)} €
+- Steuerfreie Krypto-Gewinne (> 1 Jahr Haltefrist): ${cryptoFifo.totalTaxFreeGainEur.toFixed(2)} €
+- Freigrenze (§ 23 Abs. 3 EStG): 1.000,00 € (Status: ${isCryptoTaxFree ? 'Steuerfrei unter Freigrenze' : 'Voll steuerpflichtig zum pers. Steuersatz'})
+`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   return (
@@ -69,7 +96,6 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', overflow: 'hidden'
       }}>
         
-        {/* Header */}
         <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ padding: '0.5rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '8px' }}>
@@ -77,11 +103,15 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold' }}>Steuer- & Verlusttöpfe Report ({currentYear})</h3>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Anlage KAP / KAP-INV (§ 20 Abs. 6 EStG Verlustverrechnung & Günstigerprüfung)</p>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Offizielle Kennziffern für Anlage KAP & Anlage SO (ELSTER / WISO / Taxfix)</p>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={handleCopyElsterSummary} className="btn btn-secondary" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              {copied ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+              {copied ? 'Kopiert!' : 'ELSTER Text kopieren'}
+            </button>
             <button onClick={handlePrint} className="btn btn-secondary" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Printer size={14} /> Drucken / PDF
             </button>
@@ -91,142 +121,203 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
           </div>
         </div>
 
-        {/* Content Body */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.2)', padding: '0 1rem' }}>
+          <button
+            onClick={() => setActiveTaxTab('KAP')}
+            style={{
+              padding: '0.75rem 1.25rem',
+              border: 'none',
+              background: 'transparent',
+              borderBottom: activeTaxTab === 'KAP' ? '2px solid #3b82f6' : '2px solid transparent',
+              color: activeTaxTab === 'KAP' ? '#3b82f6' : 'var(--text-muted)',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: 'pointer'
+            }}
+          >
+            📑 Anlage KAP (Wertpapiere & ETFs)
+          </button>
+          <button
+            onClick={() => setActiveTaxTab('SO')}
+            style={{
+              padding: '0.75rem 1.25rem',
+              border: 'none',
+              background: 'transparent',
+              borderBottom: activeTaxTab === 'SO' ? '2px solid #f59e0b' : '2px solid transparent',
+              color: activeTaxTab === 'SO' ? '#f59e0b' : 'var(--text-muted)',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: 'pointer'
+            }}
+          >
+            🪙 Anlage SO (§ 22/23 EStG Krypto)
+          </button>
+        </div>
+
         <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          
-          {/* Interactive Günstigerprüfung & KiSt config */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <input
-                  type="checkbox"
-                  checked={enableGuenstiger}
-                  onChange={e => setEnableGuenstiger(e.target.checked)}
-                />
-                Günstigerprüfung anwenden
-              </label>
-              {enableGuenstiger && (
-                <div style={{ marginTop: '0.3rem' }}>
+          {activeTaxTab === 'KAP' ? (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    Persönlicher Grenzsteuersatz (%)
+                  </label>
                   <input
                     type="number"
                     value={personalTaxRate}
                     onChange={e => setPersonalTaxRate(Number(e.target.value))}
-                    min="0"
-                    max="45"
-                    style={{ width: '80px', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}
+                    min={0}
+                    max={45}
+                    style={{ width: '100%', padding: '0.4rem', borderRadius: '6px', marginTop: '0.2rem' }}
                   />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.4rem' }}>% persönlicher Steuersatz</span>
                 </div>
-              )}
-            </div>
-
-            <div>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <input
-                  type="checkbox"
-                  checked={hasChurchTax}
-                  onChange={e => setHasChurchTax(e.target.checked)}
-                />
-                Kirchensteuerpflichtig (8% / 9%)
-              </label>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-                Autom. Berücksichtigung in Formel
-              </div>
-            </div>
-          </div>
-
-          {/* Loss Pools (§ 20 Abs. 6 EStG) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '1rem', borderRadius: '10px' }}>
-              <div style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 'bold' }}>📉 Aktien-Verlusttopf (§ 20 Abs. 6 S. 4 EStG)</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#ef4444', marginTop: '0.25rem' }}>
-                {enhancedTax.stockLossPoolRemainingEur.toFixed(2)} €
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                Ausschließlich mit Gewinnen aus Aktienverkäufen verrechenbar.
-              </div>
-            </div>
-
-            <div style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '1rem', borderRadius: '10px' }}>
-              <div style={{ fontSize: '0.8rem', color: '#3b82f6', fontWeight: 'bold' }}>📊 Sonstiger Verlusttopf (ETFs, Zinsen, Krypto)</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#3b82f6', marginTop: '0.25rem' }}>
-                {enhancedTax.generalLossPoolRemainingEur.toFixed(2)} €
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                Verrechenbar mit ETFs, Fonds, Dividenden und Zinsen.
-              </div>
-            </div>
-          </div>
-
-          {/* Detailed Tax Breakdown Table */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
-            <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', fontWeight: 'bold', fontSize: '0.85rem' }}>
-              Steuerberechnung & Freibeträge
-            </div>
-            <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Sparer-Pauschbetrag</span>
-                <strong>{taxExemptionLimit.toFixed(2)} €</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Zu versteuernde Erträge (nach Teilfreistellung)</span>
-                <strong style={{ color: '#10b981' }}>{enhancedTax.taxableGainsFinalEur.toFixed(2)} €</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
-                <span>Standard-Abgeltungsteuer (25% + Soli)</span>
-                <strong>{enhancedTax.abgeltungsteuerStandardEur.toFixed(2)} €</strong>
-              </div>
-              {enhancedTax.guenstigerpruefungTaxEur !== undefined && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981', fontWeight: 'bold' }}>
-                  <span>Steuer nach Günstigerprüfung ({personalTaxRate}%)</span>
-                  <span>{enhancedTax.guenstigerpruefungTaxEur.toFixed(2)} € (Ersparnis: {enhancedTax.taxSavingViaGuenstigerpruefungEur.toFixed(2)} €)</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+                  <input
+                    type="checkbox"
+                    id="guenstiger"
+                    checked={enableGuenstiger}
+                    onChange={e => setEnableGuenstiger(e.target.checked)}
+                  />
+                  <label htmlFor="guenstiger" style={{ fontSize: '0.8rem', cursor: 'pointer' }}>Günstigerprüfung anwenden</label>
                 </div>
-              )}
-              {hasChurchTax && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a855f7' }}>
-                  <span>Kirchensteuer (geschätzt)</span>
-                  <span>{enhancedTax.churchTaxEstimateEur.toFixed(2)} €</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+                  <input
+                    type="checkbox"
+                    id="churchTax"
+                    checked={hasChurchTax}
+                    onChange={e => setHasChurchTax(e.target.checked)}
+                  />
+                  <label htmlFor="churchTax" style={{ fontSize: '0.8rem', cursor: 'pointer' }}>Kirchensteuerpflicht (8-9%)</label>
                 </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
-                <span>Geschätzte Vorabpauschale 2025/2026 (§ 18 InvStG)</span>
-                <strong style={{ color: '#3b82f6' }}>{vorabpauschale.toFixed(2)} €</strong>
               </div>
-            </div>
-          </div>
 
-          {/* Official Anlage KAP Tax Return Mapping Table */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
-            <div style={{ padding: '0.75rem 1rem', background: 'rgba(59, 130, 246, 0.08)', fontWeight: 'bold', fontSize: '0.85rem', color: '#3b82f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>📑 Offizielle Kennziffern für Anlage KAP (WISO / Taxfix / Steuerberater)</span>
-            </div>
-            <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Zeile 7 (Inländische Kapitalerträge):</span>
-                <strong>{enhancedTax.taxableGainsFinalEur.toFixed(2)} €</strong>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '1rem', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 'bold' }}>📉 Aktien-Verlusttopf (§ 20 Abs. 6 S. 4 EStG)</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#ef4444', marginTop: '0.25rem' }}>
+                    {enhancedTax.stockLossPoolRemainingEur.toFixed(2)} €
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    Ausschließlich verrechenbar mit Gewinnen aus Aktienverkäufen.
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '1rem', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#3b82f6', fontWeight: 'bold' }}>📊 Sonstiger Verlusttopf (ETFs, Zinsen)</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#3b82f6', marginTop: '0.25rem' }}>
+                    {enhancedTax.generalLossPoolRemainingEur.toFixed(2)} €
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    Verrechenbar mit ETFs, Fonds, Dividenden und Zinsen.
+                  </div>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Zeile 8 (Gewinne aus Aktienverkäufen):</span>
-                <strong>{enhancedTax.realizedStockGainsEur.toFixed(2)} €</strong>
+
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                  Steuerberechnung & Freibeträge
+                </div>
+                <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Sparer-Pauschbetrag</span>
+                    <strong>{taxExemptionLimit.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Zu versteuernde Erträge (nach Teilfreistellung)</span>
+                    <strong style={{ color: '#10b981' }}>{enhancedTax.taxableGainsFinalEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                    <span>Standard-Abgeltungsteuer (25% + Soli)</span>
+                    <strong>{enhancedTax.abgeltungsteuerStandardEur.toFixed(2)} €</strong>
+                  </div>
+                  {enhancedTax.guenstigerpruefungTaxEur !== undefined && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981', fontWeight: 'bold' }}>
+                      <span>Steuer nach Günstigerprüfung ({personalTaxRate}%)</span>
+                      <span>{enhancedTax.guenstigerpruefungTaxEur.toFixed(2)} € (Ersparnis: {enhancedTax.taxSavingViaGuenstigerpruefungEur.toFixed(2)} €)</span>
+                    </div>
+                  )}
+                  {hasChurchTax && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a855f7' }}>
+                      <span>Kirchensteuer (geschätzt)</span>
+                      <span>{enhancedTax.churchTaxEstimateEur.toFixed(2)} €</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                    <span>Geschätzte Vorabpauschale 2025/2026 (§ 18 InvStG)</span>
+                    <strong style={{ color: '#3b82f6' }}>{vorabpauschale.toFixed(2)} €</strong>
+                  </div>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Zeile 14 (Verluste ohne Aktien):</span>
-                <strong style={{ color: '#3b82f6' }}>{enhancedTax.realizedOtherLossesEur.toFixed(2)} €</strong>
+
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ padding: '0.75rem 1rem', background: 'rgba(59, 130, 246, 0.08)', fontWeight: 'bold', fontSize: '0.85rem', color: '#3b82f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>📑 Offizielle Kennziffern für Anlage KAP (WISO / Taxfix / Steuerberater)</span>
+                </div>
+                <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Zeile 7 (Inländische Kapitalerträge):</span>
+                    <strong>{enhancedTax.taxableGainsFinalEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Zeile 8 (Gewinne aus Aktienverkäufen):</span>
+                    <strong>{enhancedTax.realizedStockGainsEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Zeile 14 (Verluste ohne Aktien):</span>
+                    <strong style={{ color: '#3b82f6' }}>{enhancedTax.realizedOtherLossesEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Zeile 15 (Verluste aus Aktienverkäufen):</span>
+                    <strong style={{ color: '#ef4444' }}>{enhancedTax.realizedStockLossesEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Zeile 16/17 (In Anspruch genommener Sparer-Pauschbetrag):</span>
+                    <strong>{Math.min(taxExemptionLimit, enhancedTax.taxableGainsFinalEur).toFixed(2)} €</strong>
+                  </div>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Zeile 15 (Verluste aus Aktienverkäufen):</span>
-                <strong style={{ color: '#ef4444' }}>{enhancedTax.realizedStockLossesEur.toFixed(2)} €</strong>
+            </>
+          ) : (
+            <>
+              <div style={{ background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '1rem', borderRadius: '10px' }}>
+                <div style={{ fontSize: '0.85rem', color: '#f59e0b', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ShieldAlert size={16} /> Anlage SO - Private Veräußerungsgeschäfte (§ 23 EStG)
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.4rem 0 0 0' }}>
+                  Kryptowährungen gelten im deutschen Steuerrecht als Wirtschaftsgüter. Gewinne aus Verkäufen innerhalb der 1-jährigen Spekulationsfrist sind bis zur Freigrenze von 1.000 € (ab 2024) steuerfrei.
+                </p>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Zeile 16/17 (In Anspruch genommener Sparer-Pauschbetrag):</span>
-                <strong>{Math.min(taxExemptionLimit, enhancedTax.taxableGainsFinalEur).toFixed(2)} €</strong>
+
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                  Krypto-Besteuerung nach FiFo-Prinzip
+                </div>
+                <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Steuerfreie Gewinne (&gt; 1 Jahr Haltedauer)</span>
+                    <strong style={{ color: '#10b981' }}>{cryptoFifo.totalTaxFreeGainEur.toFixed(2)} € (100% steuerfrei)</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                    <span>Steuerpflichtige Gewinne (&lt; 1 Jahr Haltedauer)</span>
+                    <strong style={{ color: isCryptoTaxFree ? '#10b981' : '#ef4444' }}>
+                      {cryptoTaxableGains.toFixed(2)} €
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Gesetzliche Freigrenze (§ 23 Abs. 3 EStG)</span>
+                    <strong>1.000,00 €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', color: isCryptoTaxFree ? '#10b981' : '#f59e0b', fontWeight: 'bold' }}>
+                    <span>Steuer-Status Anlage SO</span>
+                    <span>{isCryptoTaxFree ? '✅ Steuerfrei (Gewinn unter Freigrenze)' : '⚠️ Steuerpflichtig zum pers. Einkommensteuersatz'}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button className="btn btn-secondary" onClick={onClose}>
             Schließen
           </button>

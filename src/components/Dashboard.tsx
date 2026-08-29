@@ -17,6 +17,7 @@ import { AchievementBadges } from './AchievementBadges';
 import { BenchmarkComparison } from './BenchmarkComparison';
 import { RebalancingOrderPlanner } from './RebalancingOrderPlanner';
 import { ExDateDividendRadar } from './ExDateDividendRadar';
+import { DividendGrowthRadarWidget } from './DividendGrowthRadarWidget';
 import { DripAnalysisWidget } from './DripAnalysisWidget';
 import { FxExposureWidget } from './FxExposureWidget';
 import { CorrelationMatrixWidget } from './CorrelationMatrixWidget';
@@ -704,16 +705,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
             />
           )}
 
-         <RebalancingOrderPlanner
-           holdings={holdings}
-           baseCurrency={baseCurrency}
-         />
+          {isWidgetVisible('rebalancing') && (
+            <RebalancingOrderPlanner
+              holdings={holdings}
+              baseCurrency={baseCurrency}
+            />
+          )}
 
-         <ExDateDividendRadar
-           holdings={holdings}
-           transactions={transactions}
-           baseCurrency={baseCurrency}
-         />
+          {isWidgetVisible('dividend_growth_radar') && (
+            <DividendGrowthRadarWidget
+              holdings={holdings}
+              transactions={transactions}
+              baseCurrency={baseCurrency}
+            />
+          )}
+
+          {isWidgetVisible('ex_date_radar') && (
+            <ExDateDividendRadar
+              holdings={holdings}
+              transactions={transactions}
+              baseCurrency={baseCurrency}
+            />
+          )}
 
          <CorrelationMatrixWidget
            holdings={holdings}

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Portfolio, Holding } from '../types';
-import { FileText, Printer, X } from 'lucide-react';
+import { FileText, Printer, Copy, Check, Download, X } from 'lucide-react';
 
 interface PdfFactsheetExporterProps {
   isOpen: boolean;
@@ -17,6 +17,7 @@ export const PdfFactsheetExporter: React.FC<PdfFactsheetExporterProps> = ({
   holdings,
   baseCurrency = 'EUR'
 }) => {
+  const [copied, setCopied] = useState(false);
   if (!isOpen) return null;
 
   const totalValue = holdings.reduce((sum, h) => sum + h.currentValue, 0);
@@ -25,6 +26,49 @@ export const PdfFactsheetExporter: React.FC<PdfFactsheetExporterProps> = ({
   const totalGainPercent = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
 
   const top5 = [...holdings].sort((a, b) => b.currentValue - a.currentValue).slice(0, 5);
+
+  const handleCopyMarkdown = () => {
+    const md = `# 📊 Portfolio-Factsheet: ${portfolio.name}
+**Datum:** ${new Date().toLocaleDateString('de-DE')} | **Währung:** ${baseCurrency}
+
+### Kennzahlen
+- **Gesamtvermögen:** ${totalValue.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}
+- **Einstandswert:** ${totalCost.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}
+- **Rendite:** ${totalGain >= 0 ? '+' : ''}${totalGainPercent.toFixed(2)}% (${totalGain.toFixed(2)} €)
+- **Positionen:** ${holdings.length}
+
+### Top 5 Bestände
+${top5.map((h, i) => `${i + 1}. **${h.name}** (${h.ticker}): ${h.currentValue.toFixed(2)} € (${((h.currentValue / totalValue) * 100).toFixed(1)}%)`).join('\n')}
+`;
+    navigator.clipboard.writeText(md);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadCsv = () => {
+    const rows = [
+      ['Name', 'Ticker', 'Kategorie', 'Anteile', 'Kaufkurs', 'Aktueller Kurs', 'Marktwert', 'Gewinn', 'Rendite %'],
+      ...holdings.map(h => [
+        `"${h.name}"`,
+        h.ticker,
+        h.category,
+        h.shares.toString(),
+        h.averageBuyPrice.toString(),
+        h.currentPrice.toString(),
+        h.currentValue.toString(),
+        h.totalGain.toString(),
+        h.totalGainPercent.toFixed(2)
+      ])
+    ];
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(";")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Factsheet_${portfolio.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="modal-overlay" style={{
@@ -43,7 +87,22 @@ export const PdfFactsheetExporter: React.FC<PdfFactsheetExporterProps> = ({
             <FileText size={20} className="text-emerald-400" />
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold' }}>Institutionelles Portfolio-Factsheet (Druckansicht)</h3>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+              onClick={handleCopyMarkdown}
+              style={{ background: '#334155', color: '#fff', border: 'none', padding: '0.4rem 0.75rem', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 600 }}
+              title="Factsheet-Markdown in Zwischenablage kopieren"
+            >
+              {copied ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+              {copied ? 'Kopiert' : 'Markdown'}
+            </button>
+            <button
+              onClick={handleDownloadCsv}
+              style={{ background: '#334155', color: '#fff', border: 'none', padding: '0.4rem 0.75rem', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 600 }}
+              title="Factsheet-Bestände als CSV herunterladen"
+            >
+              <Download size={14} /> CSV
+            </button>
             <button onClick={() => window.print()} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 'bold' }}>
               <Printer size={14} /> PDF Drucken
             </button>

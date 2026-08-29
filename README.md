@@ -26,7 +26,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 - 🔄 **Versionierte Snapshots**: Bis zu 5 automatische Wiederherstellungspunkte vor Massenimporten mit 1-Klick Rollback.
 - ⌨️ **Spotlight Command Palette**: Schnelle Suche und Tastaturnavigation via `Strg + K`.
 - 📱 **Mobile First PWA**: 1-Klick-Installation auf iOS und Android inklusive Offline-Verfügbarkeit.
-- 📈 **Profianalysen**: TTWRR, IRR, Sharpe Ratio, Max Drawdown, Alpha/Beta Benchmark-Engine, 500-Pfade Monte-Carlo FIRE-Simulation, ESG Audit und Drift-Toleranzband Rebalancing.
+- 📈 **Profianalysen**: TTWRR, IRR, Sharpe Ratio, Max Drawdown, Alpha/Beta Benchmark-Engine, Asynchrone 500-Pfade Monte-Carlo FIRE-Simulation, Dividenden-Wachstums-Radar und Drift-Toleranzband Rebalancing.
 
 ---
 
@@ -49,33 +49,26 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 
 ### 5. ⚖️ Rebalancing-Engine mit Drift-Toleranzbändern (`RebalancingOrderPlanner.tsx`)
 - **Toleranzbänder ($\pm 1\%$ bis $\pm 5\%$):** Orders werden nur ausgelöst, wenn Positionen das definierte Band verlassen.
-- **Kauf- & Cash-Inflow Modus:** Flexible Auswahl zwischen vollständigem Rebalancing (Kauf + Verkauf) oder reinem Zukauf mit neuem Spar- oder Cash-Zufluss zur Minimierung von Steuern und Ordergebühren.
+- **Kauf- & Cash-Inflow Modus:** Flexible Auswahl zwischen vollständigem Rebalancing (Kauf + Verkauf) oder reinem Zukauf mit neuem Spar- oder Cash-Zufluss.
 
-### 6. 🎲 Probabilistisches FIRE & Monte-Carlo Studio (`FireFreedomWidget.tsx`)
-- **500 Monte-Carlo Pfade:** Visualisierung von Zufallspfaden unter Berücksichtigung von Volatilität ($10\% - 25\%$).
-- **Perzentil-Fächer:** Exakte Ausweisung von 90. Perzentil (Starkes Wachstum), Median (50.) und 10. Perzentil (Konservativer Bärenmarkt) sowie der mathematischen Ruin-Wahrscheinlichkeit.
+### 6. 🎲 Probabilistisches FIRE & Asynchroner Monte-Carlo Runner (`FireFreedomWidget.tsx` & `monteCarloRunner.ts`)
+- **Asynchrone Background-Berechnung:** Auslagerung von 500+ Zufallspfaden ohne UI-Blockaden.
+- **Perzentil-Fächer:** Exakte Ausweisung von 90. Perzentil, Median (50.) und 10. Perzentil sowie der mathematischen Ruin-Wahrscheinlichkeit.
 
-### 7. 📄 Universeller Multi-Format Importer (`universalCsvImporter.ts`)
-- **Erweiterte Formate:** Direkte Unterstützung für **Portfolio Performance (PP) CSV**, **Parqet CSV & JSON**, **Interactive Brokers (IBKR Activity Statements)** und **Trade Republic CSV**.
+### 7. 📈 Dividenden-Wachstums-Radar & Aristokraten-Score (`DividendGrowthRadarWidget.tsx`)
+- **YoY-Wachstumsraten:** Automatische Auswertung der historischen Ausschüttungssteigerungen pro Jahr.
+- **3-, 5- und 10-Jahres Cashflow-Prognose:** Simulation des zukünftigen monatlichen und jährlichen passiven Einkommens.
+- **Aristokraten-Scorecards:** Einstufung in Könige (50J+), Aristokraten (25J+) und Contender (10J+).
 
-### 8. 📊 Dashboard & Performance-Analysen (`Dashboard.tsx`)
-- **Echtzeit-Kennzahlen**: Gesamtvermögen, Einstandswert, Absolute & Prozentuale Rendite, Cash-Bestand.
-- **Interaktiver Zeitraum-Filter**: Dynamische Analyse im Chart (1M, 3M, 6M, 1Y, 3Y, 5Y, ALL).
-- **Professionelle Renditemetriken**: TTWRR (zeitgewichtet), IRR (geldgewichtet), Sharpe Ratio & Volatilität.
+### 8. 📑 Anlage KAP & Anlage SO (§ 22/23 EStG) Steuererklärungs-Assistent (`TaxReportModal.tsx`)
+- **1-Klick ELSTER / WISO / Taxfix Copy:** Formatierter Text-Export für direkte Zwischenablage-Übernahme in Steuerprogramme.
+- **Anlage SO & Krypto-Freigrenze:** Vollständige Aufschlüsselung von Gewinnen innerhalb/außerhalb der 1-jährigen Spekulationsfrist und 1.000 € Freigrenze.
 
-### 9. 🏢 Immobilien & Cashflow-Tracker (`RealEstateTracker.tsx`)
-- **Immobilien-Verwaltung**: Erfassung von Anschaffungskosten, Marktwert, Darlehensrestschuld und Tilgung.
-- **Cashflow & Renditekennzahlen**: Berechnung von monatlichem Netto-Cashflow, Equity, LTV sowie Brutto- und Netto-Mietrenditen.
+### 9. 📄 Institutionelles Fonds-Factsheet mit Markdown & CSV Export (`PdfFactsheetExporter.tsx`)
+- **Druckfertiger A4 Monatsbericht:** 1-Klick-Export als druckbares PDF, strukturierter Markdown-Bericht oder CSV.
 
-### 10. 🪜 Festgeld- & Tagesgeld-Zinstreppe (`DepositLadderWidget.tsx`)
-- **Zinstreppen-Management**: Gestaffelte Festgelder, Tagesgelder und Sparbriefe mit Laufzeiten und Zinssätzen.
-- **Fälligkeitskalender**: Automatische Warnung bei bald ablaufenden Festgeldern.
-
-### 11. 🪙 Krypto FiFo Tranchen- & Steuer-Tracker (§ 23 EStG) (`CryptoTaxLossHarvestingModal.tsx`)
-- **1-Jahres Haltefristen-Tracker**: Trennung in steuerfreie (>365 Tage) vs. steuerpflichtige Bestände mit gezielter Verlustverrechnung.
-
-### 12. 📑 Offizieller Anlage KAP Steuererklärungs-Report (`TaxReportModal.tsx`)
-- **WISO & Taxfix Export**: Exakte Aufschlüsselung aller Erträge und Verluste nach den offiziellen Zeilen der Anlage KAP (Zeile 7, 8, 14, 15, 16/17).
+### 10. 🌐 Dynamischer Online-Lookup & Parqet / IBKR Importer (`universalCsvImporter.ts`)
+- **Erweiterte Formate:** Direkte Unterstützung für **Portfolio Performance (PP) CSV**, **Parqet CSV & JSON**, **Interactive Brokers (IBKR Trades CSV)** und **Trade Republic CSV**.
 
 ---
 
@@ -98,7 +91,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (48 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (50 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -114,7 +107,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (48 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (50 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen

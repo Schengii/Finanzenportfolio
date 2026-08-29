@@ -5,7 +5,7 @@ import {
 } from '../performanceUtils';
 import { parseUniversalCsv } from '../../services/universalCsvImporter';
 import { getEcbReferenceRate, convertWithEcbRate } from '../../services/fxRatesService';
-import { lookupIsinMetadata } from '../../services/isinMetadataService';
+import { lookupIsinMetadata, fetchOnlineIsinMetadata } from '../../services/isinMetadataService';
 import type { Holding, FireWithdrawalConfig } from '../../types';
 
 describe('Tolerance-Band Rebalancing Engine', () => {
@@ -202,4 +202,37 @@ describe('ISIN Metadata & Sector Auto-Enrichment', () => {
     const gold = lookupIsinMetadata('DE000A0S9GB0', 'Xetra-Gold');
     expect(gold.category).toBe('PreciousMetal');
   });
+
+  it('fetches online or cached metadata with fallback', async () => {
+    const res = await fetchOnlineIsinMetadata('IE00B4L5Y983', 'MSCI World');
+    expect(res.category).toBe('ETF');
+    expect(res.ticker).toBe('EUNL');
+  });
 });
+
+describe('Async Monte Carlo Runner', () => {
+  it('executes Monte Carlo simulation asynchronously in background', async () => {
+    const { runMonteCarloSimulationAsync } = await import('../../workers/monteCarloRunner');
+    const result = await runMonteCarloSimulationAsync(
+      {
+        initialPortfolioValue: 200000,
+        monthlyExpensesEur: 1200,
+        annualInflationPercent: 2.0,
+        expectedAnnualReturnPercent: 6.5,
+        expectedAnnualYieldPercent: 2.5,
+        retirementYears: 20,
+        withdrawalStrategy: 'VARIABLE_GUARDRAILS',
+        includeCapitalGainsTax: true,
+        effectiveTaxRatePercent: 18.5,
+        monthlyHealthInsuranceEur: 200
+      },
+      12.0,
+      100
+    );
+
+    expect(result.simulationsRun).toBe(100);
+    expect(result.paths.length).toBe(21);
+    expect(result.percentile50EndingValue).toBeGreaterThanOrEqual(0);
+  });
+});
+

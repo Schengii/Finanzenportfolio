@@ -12,7 +12,8 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
   { id: 'health_audit', name: 'Depot-Gesundheitscheck (Health Audit)', category: 'SECURITY', isVisible: true },
   { id: 'heatmap', name: 'Performance-Treemap & Heatmap', category: 'ALL', isVisible: true },
   { id: 'benchmark', name: 'Benchmark-Vergleich (MSCI World, S&P 500, DAX)', category: 'GROWTH', isVisible: true },
-  { id: 'rebalancing', name: 'Rebalancing-Auftragsplaner', category: 'ALL', isVisible: true },
+  { id: 'rebalancing', name: 'Rebalancing-Auftragsplaner mit Toleranzbändern', category: 'ALL', isVisible: true },
+  { id: 'dividend_growth_radar', name: 'Dividenden-Wachstums-Radar & 5J Cashflow-Prognose', category: 'DIVIDENDS', isVisible: true },
   { id: 'ex_date_radar', name: 'Ex-Dividenden-Radar', category: 'DIVIDENDS', isVisible: true },
   { id: 'correlation', name: 'Asset-Korrelationsmatrix & Heatmap', category: 'SECURITY', isVisible: true },
   { id: 'dividend_safety', name: 'Dividenden-Sicherheits- & Aristokraten-Score', category: 'DIVIDENDS', isVisible: true },
@@ -25,7 +26,7 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetConfig[] = [
   { id: 'asset_class_chart', name: 'Performance-Vergleich nach Assetklassen', category: 'GROWTH', isVisible: true },
   { id: 'performance_attr', name: 'Performance-Attribution (Asset- vs. FX-Gewinne)', category: 'ALL', isVisible: true },
   { id: 'allocation_radar', name: 'Soll- vs. Ist-Allokation Radar', category: 'ALL', isVisible: true },
-  { id: 'fire_freedom', name: 'FIRE Entnahme-Studio (Guardrails & Steuern)', category: 'ALL', isVisible: true }
+  { id: 'fire_freedom', name: 'FIRE Entnahme-Studio & Monte Carlo', category: 'ALL', isVisible: true }
 ];
 
 interface DashboardCustomizerModalProps {
