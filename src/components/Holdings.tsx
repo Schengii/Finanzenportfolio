@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import type { Holding, Transaction } from '../types';
-import { TrendingUp, TrendingDown, RefreshCw, Sparkles, Check } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Sparkles, Check, Tag, Plus, X } from 'lucide-react';
 import { convertCurrency } from './performanceUtils';
 import { HoldingDetailModal } from './HoldingDetailModal';
 import { lookupIsinMetadata } from '../services/isinMetadataService';
+import { usePortfolio } from '../context/PortfolioContext';
 
 interface HoldingsProps {
   holdings: Holding[];
@@ -13,6 +14,8 @@ interface HoldingsProps {
   onBaseCurrencyChange: (currency: 'EUR' | 'USD' | 'CHF' | 'GBP') => void;
 }
 
+const PREDEFINED_TAGS = ['#Core', '#Satellite', '#Dividende', '#Tech', '#Growth', '#Value', '#Krypto', '#Defensiv'];
+
 export const Holdings: React.FC<HoldingsProps> = ({ 
   holdings, 
   transactions, 
@@ -20,9 +23,13 @@ export const Holdings: React.FC<HoldingsProps> = ({
   baseCurrency,
   onBaseCurrencyChange
 }) => {
+  const { updateHoldingTags } = usePortfolio();
   const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTagFilter, setActiveTagFilter] = useState<string>('ALL');
   const [enrichedCount, setEnrichedCount] = useState<number | null>(null);
+  const [editingTagTicker, setEditingTagTicker] = useState<string | null>(null);
+  const [newCustomTag, setNewCustomTag] = useState('');
 
   const handleAutoEnrich = () => {
     let count = 0;
@@ -49,6 +56,13 @@ export const Holdings: React.FC<HoldingsProps> = ({
     });
   };
 
+  // Extract all active tags in the portfolio
+  const availableTags = useMemo(() => {
+    const set = new Set<string>();
+    holdings.forEach(h => (h.tags || []).forEach(t => set.add(t)));
+    return Array.from(set);
+  }, [holdings]);
+
   // Convert values on the fly to baseCurrency for display
   const convertedHoldings = useMemo(() => {
     return holdings.map(h => {
@@ -74,20 +88,47 @@ export const Holdings: React.FC<HoldingsProps> = ({
   }, [holdings, baseCurrency]);
 
   const filteredHoldings = useMemo(() => {
-    if (!searchQuery.trim()) return convertedHoldings;
-    const q = searchQuery.toLowerCase();
-    return convertedHoldings.filter(h =>
-      h.name.toLowerCase().includes(q) || h.ticker.toLowerCase().includes(q)
-    );
-  }, [convertedHoldings, searchQuery]);
+    return convertedHoldings.filter(h => {
+      // Search text filter
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q || (
+        h.name.toLowerCase().includes(q) || 
+        h.ticker.toLowerCase().includes(q) ||
+        (h.tags || []).some(t => t.toLowerCase().includes(q))
+      );
+
+      // Tag filter
+      const matchesTag = activeTagFilter === 'ALL' || (h.tags || []).includes(activeTagFilter);
+
+      return matchesSearch && matchesTag;
+    });
+  }, [convertedHoldings, searchQuery, activeTagFilter]);
+
+  const handleToggleTag = (ticker: string, currentTags: string[], tagToToggle: string) => {
+    const exists = currentTags.includes(tagToToggle);
+    const updated = exists 
+      ? currentTags.filter(t => t !== tagToToggle)
+      : [...currentTags, tagToToggle];
+    updateHoldingTags(ticker, updated);
+  };
+
+  const handleAddCustomTag = (ticker: string, currentTags: string[]) => {
+    let tag = newCustomTag.trim();
+    if (!tag) return;
+    if (!tag.startsWith('#')) tag = '#' + tag;
+    if (!currentTags.includes(tag)) {
+      updateHoldingTags(ticker, [...currentTags, tag]);
+    }
+    setNewCustomTag('');
+  };
 
   return (
     <div className="holdings-container">
       {/* Top Header Bar */}
       <div className="holdings-header">
         <div>
-          <h2 className="holdings-title">Depot-Bestände</h2>
-          <p className="holdings-subtitle">Aktuelle Positionen, Einstandskurse & Wertentwicklung</p>
+          <h2 className="holdings-title">Depot-Bestände & Tag-Studio</h2>
+          <p className="holdings-subtitle">Aktuelle Positionen, Strategie-Tags, Einstandskurse & Wertentwicklung</p>
         </div>
 
         <div className="controls-group">
@@ -103,7 +144,7 @@ export const Holdings: React.FC<HoldingsProps> = ({
 
           <input
             type="text"
-            placeholder="Asset suchen (Ticker/Name)..."
+            placeholder="Asset oder #Tag suchen..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input-field px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500"
@@ -135,10 +176,87 @@ export const Holdings: React.FC<HoldingsProps> = ({
         </div>
       </div>
 
+      {/* Tag Filtering Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '10px 14px',
+        marginBottom: '16px',
+        borderRadius: '12px',
+        backgroundColor: 'var(--card-bg, rgba(30, 41, 59, 0.4))',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        overflowX: 'auto'
+      }}>
+        <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+          <Tag size={14} /> Filter:
+        </span>
+        <button
+          onClick={() => setActiveTagFilter('ALL')}
+          style={{
+            fontSize: '0.78rem',
+            padding: '4px 10px',
+            borderRadius: '20px',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: 600,
+            backgroundColor: activeTagFilter === 'ALL' ? '#3b82f6' : 'rgba(255, 255, 255, 0.08)',
+            color: activeTagFilter === 'ALL' ? '#fff' : '#94a3b8'
+          }}
+        >
+          Alle ({convertedHoldings.length})
+        </button>
+        {PREDEFINED_TAGS.map(tag => {
+          const count = convertedHoldings.filter(h => (h.tags || []).includes(tag)).length;
+          const isActive = activeTagFilter === tag;
+          return (
+            <button
+              key={tag}
+              onClick={() => setActiveTagFilter(isActive ? 'ALL' : tag)}
+              style={{
+                fontSize: '0.78rem',
+                padding: '4px 10px',
+                borderRadius: '20px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 600,
+                backgroundColor: isActive ? '#10b981' : 'rgba(255, 255, 255, 0.08)',
+                color: isActive ? '#fff' : '#94a3b8',
+                display: count > 0 ? 'inline-block' : 'none'
+              }}
+            >
+              {tag} ({count})
+            </button>
+          );
+        })}
+        {availableTags.filter(t => !PREDEFINED_TAGS.includes(t)).map(tag => {
+          const count = convertedHoldings.filter(h => (h.tags || []).includes(tag)).length;
+          const isActive = activeTagFilter === tag;
+          return (
+            <button
+              key={tag}
+              onClick={() => setActiveTagFilter(isActive ? 'ALL' : tag)}
+              style={{
+                fontSize: '0.78rem',
+                padding: '4px 10px',
+                borderRadius: '20px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 600,
+                backgroundColor: isActive ? '#8b5cf6' : 'rgba(255, 255, 255, 0.08)',
+                color: isActive ? '#fff' : '#94a3b8'
+              }}
+            >
+              {tag} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       {/* Holdings Table */}
       {filteredHoldings.length === 0 ? (
         <div className="empty-state-card">
-          <p className="empty-text">Keine passenden Positionen im aktuellen Portfolio vorhanden.</p>
+          <p className="empty-text">Keine passenden Positionen mit den aktuellen Filterkriterien gefunden.</p>
         </div>
       ) : (
         <div className="table-container">
@@ -146,13 +264,14 @@ export const Holdings: React.FC<HoldingsProps> = ({
             <thead>
               <tr>
                 <th>Asset / Ticker</th>
-                <th>Kategorie</th>
+                <th>Kategorie & Tags</th>
                 <th>Anteile</th>
                 <th>Kaufkurs (Ø)</th>
                 <th>Aktueller Kurs</th>
                 <th>Gesamtwert</th>
                 <th>Gewinn / Verlust</th>
                 <th>Depotanteil</th>
+                <th>Aktionen</th>
               </tr>
             </thead>
             <tbody>
@@ -165,13 +284,37 @@ export const Holdings: React.FC<HoldingsProps> = ({
                   <td>
                     <div className="asset-info">
                       <span className="asset-name">{h.name}</span>
-                      <span className="asset-ticker">{h.ticker}</span>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <span className="asset-ticker">{h.ticker}</span>
+                        {h.sector && (
+                          <span style={{ fontSize: '0.7rem', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '1px 5px', borderRadius: '4px' }}>
+                            {h.sector}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td>
-                    <span className={`badge badge-${h.category.toLowerCase()}`}>
-                      {h.category}
-                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                      <span className={`badge badge-${h.category.toLowerCase()}`}>
+                        {h.category}
+                      </span>
+                      {(h.tags || []).map(tag => (
+                        <span 
+                          key={tag}
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: tag === '#Core' ? 'rgba(59, 130, 246, 0.18)' : tag === '#Satellite' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(139, 92, 246, 0.18)',
+                            color: tag === '#Core' ? '#60a5fa' : tag === '#Satellite' ? '#fbbf24' : '#c084fc',
+                            border: '1px solid rgba(255,255,255,0.08)'
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td className="fw-500">
                     {h.shares.toLocaleString('de-DE', { maximumFractionDigits: 4 })}
@@ -198,6 +341,92 @@ export const Holdings: React.FC<HoldingsProps> = ({
                       </div>
                     </div>
                   </td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => setEditingTagTicker(editingTagTicker === h.ticker ? null : h.ticker)}
+                      className="theme-toggle-btn"
+                      title="Tags für diese Position anpassen"
+                      style={{ padding: '4px 8px', fontSize: '0.75rem', width: 'auto', display: 'flex', gap: '4px', alignItems: 'center' }}
+                    >
+                      <Tag size={13} /> Tags
+                    </button>
+
+                    {/* Inline Tag Popover */}
+                    {editingTagTicker === h.ticker && (
+                      <div style={{
+                        position: 'absolute',
+                        zIndex: 999,
+                        marginTop: '6px',
+                        right: '40px',
+                        backgroundColor: 'var(--card-bg, #1e222d)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '10px',
+                        padding: '12px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                        width: '240px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Tags für {h.ticker}:</span>
+                          <button onClick={() => setEditingTagTicker(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                            <X size={14} />
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px' }}>
+                          {PREDEFINED_TAGS.map(t => {
+                            const isSelected = (h.tags || []).includes(t);
+                            return (
+                              <button
+                                key={t}
+                                onClick={() => handleToggleTag(h.ticker, h.tags || [], t)}
+                                style={{
+                                  fontSize: '0.7rem',
+                                  padding: '3px 8px',
+                                  borderRadius: '12px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  backgroundColor: isSelected ? '#3b82f6' : 'rgba(255,255,255,0.08)',
+                                  color: isSelected ? '#fff' : '#94a3b8'
+                                }}
+                              >
+                                {t} {isSelected && '✓'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <input
+                            type="text"
+                            placeholder="#EigenerTag..."
+                            value={newCustomTag}
+                            onChange={e => setNewCustomTag(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleAddCustomTag(h.ticker, h.tags || []); }}
+                            style={{
+                              flex: 1,
+                              fontSize: '0.75rem',
+                              padding: '4px 8px',
+                              background: 'rgba(0,0,0,0.3)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: '6px',
+                              color: '#fff'
+                            }}
+                          />
+                          <button
+                            onClick={() => handleAddCustomTag(h.ticker, h.tags || [])}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              background: '#10b981',
+                              border: 'none',
+                              color: '#fff',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -217,3 +446,4 @@ export const Holdings: React.FC<HoldingsProps> = ({
     </div>
   );
 };
+

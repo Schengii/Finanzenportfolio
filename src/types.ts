@@ -316,5 +316,38 @@ export interface OptionTrade {
   status: 'OPEN' | 'EXPIRED' | 'ASSIGNED' | 'CLOSED';
 }
 
+export interface PortfolioSnapshot {
+  id: string;
+  timestamp: string;
+  description: string;
+  portfolios: Portfolio[];
+  transactionCount: number;
+  totalValueEur: number;
+}
+
+export interface RebalancingPlanItem {
+  ticker: string;
+  name: string;
+  category: AssetCategory;
+  currentWeight: number;
+  targetWeight: number;
+  driftPercent: number;
+  isWithinBand: boolean;
+  action: 'BUY' | 'SELL' | 'HOLD';
+  deltaEur: number;
+  suggestedShares: number;
+}
+
+export interface FireMonteCarloSummary {
+  simulationsRun: number;
+  ruinProbabilityPercent: number;
+  percentile10EndingValue: number;
+  percentile50EndingValue: number;
+  percentile90EndingValue: number;
+  worstCaseRuinYear?: number;
+  paths: { year: number; p10: number; p50: number; p90: number }[];
+}
+
+
 
 

@@ -8,10 +8,10 @@
 1. [Über das Projekt](#-über-das-projekt)
 2. [✨ Feature-Highlights & Hauptfunktionen](#-feature-highlights--hauptfunktionen)
 3. [🚀 Schnellanleitung (Anleitung zur Nutzung)](#-schnellanleitung-anleitung-zur-nutzung)
-4. [🌐 1-Klick Deployment & Hosting](#-1-klick-deployment--hosting)
+4. [⌨️ Shortcuts & Command Palette](#️-shortcuts--command-palette)
 5. [🛠️ Technologie-Stack & Architektur](#️-technologie-stack--architektur)
 6. [⚖️ Steuer- & Finanzlogik (DACH-Region)](#️-steuer--und-finanzlogik-dach-region)
-7. [🔒 Sicherheit & Daten-Tresor (AES-GCM 256)](#-sicherheit--daten-tresor-aes-gcm-256)
+7. [🔒 Sicherheit, Auto-Lock & Daten-Tresor (AES-GCM 256)](#-sicherheit-auto-lock--daten-tresor-aes-gcm-256)
 8. [🚦 Entwicklungs- & Testbefehle](#-entwicklungs--und-testbefehle)
 
 ---
@@ -22,126 +22,71 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 
 ### Warum FinanzPortfolio CoPilot?
 - 🔒 **100% Datenschutz**: Keine Speicherung deiner Finanzdaten auf externen Servern. Alle Transaktionen bleiben ausschließlich lokal in deinem Browser.
-- ⚡ **Web Crypto Tresor**: AES-GCM 256-Bit Verschlüsselung aller Depotdaten via Master-PIN.
+- ⚡ **Web Crypto Tresor & Auto-Lock**: AES-GCM 256-Bit Verschlüsselung aller Depotdaten via Master-PIN inklusive konfigurierbarem Inaktivitäts-Auto-Lock.
+- 🔄 **Versionierte Snapshots**: Bis zu 5 automatische Wiederherstellungspunkte vor Massenimporten mit 1-Klick Rollback.
+- ⌨️ **Spotlight Command Palette**: Schnelle Suche und Tastaturnavigation via `Strg + K`.
 - 📱 **Mobile First PWA**: 1-Klick-Installation auf iOS und Android inklusive Offline-Verfügbarkeit.
-- 📈 **Profianalysen**: TTWRR, IRR, Sharpe Ratio, Max Drawdown, Alpha/Beta Benchmark-Engine, Monte-Carlo-Simulationen, ESG Audit, FIRE Entnahme-Studio und DRIP Reinvestitionsanalyse.
+- 📈 **Profianalysen**: TTWRR, IRR, Sharpe Ratio, Max Drawdown, Alpha/Beta Benchmark-Engine, 500-Pfade Monte-Carlo FIRE-Simulation, ESG Audit und Drift-Toleranzband Rebalancing.
 
 ---
 
 ## ✨ Feature-Highlights & Hauptfunktionen
 
-### 1. 📊 Dashboard & Performance-Analysen
+### 1. ⌨️ Globale Command Palette (`CommandPaletteModal.tsx` / `Strg + K`)
+- **Spotlight-Schnellsuche**: Mit `Strg + K` (oder `Cmd + K` auf Mac) öffnet sich blitzschnell das Suchfenster.
+- **Tastaturnavigation**: Schneller Wechsel zu jedem Modul (Dashboard, Aktivitäten, Zahltage, Immobilien, Optionen) und direktes Ausführen von Aktionen (PDF-Import, CSV-Import, Kurse aktualisieren, Dark Mode, Backup).
+
+### 2. 🏷️ Bestände-Tagging & Tag-Studio (`Holdings.tsx`)
+- **Strategie-Tags**: Klassifiziere Positionen flexibel mit Tags wie `#Core`, `#Satellite`, `#Dividende`, `#Tech`, `#Growth`, `#Value`, `#Krypto` oder eigenen Tags.
+- **Filter-Toolbar**: 1-Klick Filterung im Investment-Tab nach Tags zur sofortigen Klumpenrisiko- und Allokationsprüfung.
+
+### 3. 🔄 Versionierte Snapshots & 1-Klick Rollback (`SettingsModal.tsx`)
+- **Automatischer Schutz**: Vor jedem PDF- oder CSV-Import und vor destruktiven Aktionen wird automatisch ein Snapshot gesichert.
+- **Rollback Studio**: Anzeige der letzten 5 Stände mit Zeitstempel, Transaktionsanzahl und Gesamtwert sowie 1-Klick Wiederherstellung.
+
+### 4. 🛡️ Web Crypto Auto-Lock Inaktivitäts-Timer (`PortfolioContext.tsx`)
+- **Automatisches Sperren**: Konfigurierbarer Inaktivitäts-Timer (5, 15, 30, 60 Minuten oder Deaktiviert) sperrt den AES-256 Tresor automatisch bei Untätigkeit.
+
+### 5. ⚖️ Rebalancing-Engine mit Drift-Toleranzbändern (`RebalancingOrderPlanner.tsx`)
+- **Toleranzbänder ($\pm 1\%$ bis $\pm 5\%$):** Orders werden nur ausgelöst, wenn Positionen das definierte Band verlassen.
+- **Kauf- & Cash-Inflow Modus:** Flexible Auswahl zwischen vollständigem Rebalancing (Kauf + Verkauf) oder reinem Zukauf mit neuem Spar- oder Cash-Zufluss zur Minimierung von Steuern und Ordergebühren.
+
+### 6. 🎲 Probabilistisches FIRE & Monte-Carlo Studio (`FireFreedomWidget.tsx`)
+- **500 Monte-Carlo Pfade:** Visualisierung von Zufallspfaden unter Berücksichtigung von Volatilität ($10\% - 25\%$).
+- **Perzentil-Fächer:** Exakte Ausweisung von 90. Perzentil (Starkes Wachstum), Median (50.) und 10. Perzentil (Konservativer Bärenmarkt) sowie der mathematischen Ruin-Wahrscheinlichkeit.
+
+### 7. 📄 Universeller Multi-Format Importer (`universalCsvImporter.ts`)
+- **Erweiterte Formate:** Direkte Unterstützung für **Portfolio Performance (PP) CSV**, **Parqet CSV & JSON**, **Interactive Brokers (IBKR Activity Statements)** und **Trade Republic CSV**.
+
+### 8. 📊 Dashboard & Performance-Analysen (`Dashboard.tsx`)
 - **Echtzeit-Kennzahlen**: Gesamtvermögen, Einstandswert, Absolute & Prozentuale Rendite, Cash-Bestand.
 - **Interaktiver Zeitraum-Filter**: Dynamische Analyse im Chart (1M, 3M, 6M, 1Y, 3Y, 5Y, ALL).
 - **Professionelle Renditemetriken**: TTWRR (zeitgewichtet), IRR (geldgewichtet), Sharpe Ratio & Volatilität.
-- **Monatliche Performance-Matrix**: Historische Renditen pro Jahr und Monat im Heatmap-Stil.
 
-### 2. 🏢 Immobilien & Cashflow-Tracker (`RealEstateTracker.tsx`)
-- **Immobilien-Verwaltung**: Erfassung von Anschaffungskosten, aktuellem Marktwert, Darlehensrestschuld und Tilgungsraten.
-- **Cashflow & Renditekennzahlen**: Berechnung von monatlichem Netto-Cashflow (nach Bankrate & Instandhaltung), Netto-Eigenkapital (Equity), Beleihungsauslauf (LTV) sowie Brutto- und Netto-Mietrenditen.
+### 9. 🏢 Immobilien & Cashflow-Tracker (`RealEstateTracker.tsx`)
+- **Immobilien-Verwaltung**: Erfassung von Anschaffungskosten, Marktwert, Darlehensrestschuld und Tilgung.
+- **Cashflow & Renditekennzahlen**: Berechnung von monatlichem Netto-Cashflow, Equity, LTV sowie Brutto- und Netto-Mietrenditen.
 
-### 3. 🪜 Festgeld- & Tagesgeld-Zinstreppe (`DepositLadderWidget.tsx`)
+### 10. 🪜 Festgeld- & Tagesgeld-Zinstreppe (`DepositLadderWidget.tsx`)
 - **Zinstreppen-Management**: Gestaffelte Festgelder, Tagesgelder und Sparbriefe mit Laufzeiten und Zinssätzen.
-- **Fälligkeitskalender & Zinseszins**: Automatische Warnung bei bald ablaufenden Festgeldern und Berechnung des durchschnittlich gewichteten Zinssatzes.
+- **Fälligkeitskalender**: Automatische Warnung bei bald ablaufenden Festgeldern.
 
-### 4. 🔥 FIRE & Safe Withdrawal Rate Studio (`FireFreedomWidget.tsx`)
-- **Entnahmestrategien**: Simulation von 4%-Regel (Trinity Study), Guyton-Klinger Guardrails (dynamische Kürzungen/Erhöhungen) und VPW (Variable Percentage Withdrawal).
-- **Steuern & Krankenversicherung**: Realistische Kaufkraftprognose unter Berücksichtigung von Inflation, Abgeltungsteuer und monatlichen Krankenkassenbeiträgen.
+### 11. 🪙 Krypto FiFo Tranchen- & Steuer-Tracker (§ 23 EStG) (`CryptoTaxLossHarvestingModal.tsx`)
+- **1-Jahres Haltefristen-Tracker**: Trennung in steuerfreie (>365 Tage) vs. steuerpflichtige Bestände mit gezielter Verlustverrechnung.
 
-### 5. ✨ DRIP Dividenden-Zinseszins-Simulation (`DripAnalysisWidget.tsx`)
-- **Reinvestitions-Vergleich**: Interaktive Gegenüberstellung des Vermögenswachstums mit automatischer Dividenden-Reinvestition (DRIP) gegenüber Barauszahlung.
-
-### 6. 🌐 Währungsrisiko- & FX-Exposure Matrix (`FxExposureWidget.tsx`)
-- **Währungs-Aufteilung**: Aufschlüsselung des Portfolios nach EUR, USD, CHF, GBP etc. inklusive 10% FX-Stresstest.
-
-### 7. ⚖️ Erweiterte DACH-Steuer-Engine & Verlusttöpfe (`TaxReportModal.tsx`)
-- **Getrennte Verlusttöpfe**: Exakte Trennung nach § 20 Abs. 6 EStG in Aktien-Verlusttopf (nur mit Aktiengewinnen verrechenbar) und Sonstiger Verlusttopf.
-- **Günstigerprüfung & Kirchensteuer**: Simulation der Steuerersparnis bei persönlichem Grenzsteuersatz < 25%.
-
-### 8. 📄 Portfolio Performance (PP) Import & Export (`portfolioPerformanceImporter.ts`)
-- **Volle PP-Kompatibilität**: Nahtloser CSV- und Datentransfer zwischen FinanzPortfolio und Portfolio Performance.
-
-### 9. ⚡ Transaktions-Massenaktionen & Multi-Select (`Transactions.tsx`)
-- Mehrere Transaktionen markieren und gleichzeitig per Batch-Action löschen oder verwalten.
-
-### 10. 📑 Universeller PDF- & CSV-Abrechnungs-Parser & OCR Fallback (`ocrParser.ts`)
-- Automatische Erkennung von Kauf-, Verkauf- und Dividendenbelegen von **Trade Republic**, **Scalable Capital**, **ING-DiBa**, **comdirect**, **DKB**, **Consorsbank**, **finanzen.net zero**, **Flatex**, **Smartbroker+**, **Revolut** und **eToro**.
-- **OCR Scan-Erkennung**: Extraktion aus Bilddateien und gescannten Dokumenten via Canvas-Pipeline.
-
-### 11. ☁️ Nextcloud & WebDAV Private Cloud Sync (`CloudSyncModal.tsx`)
-- **Ende-zu-Ende verschlüsselte Synchronisation**: Sicheres automatisches Backup und Multi-Device-Sync auf deine private Nextcloud oder WebDAV-Server via AES-GCM 256-Bit Master-PIN.
-
-### 12. 🎯 Automatische ISIN-Stammdaten & Sektor-Anreicherung (`isinMetadataService.ts`)
-- **1-Klick ISIN Auto-Mapping**: Automatische Erkennung von Sektoren, Regionen, Asset-Klassen und ETF-Gesamtkostenquoten (TER) für Top globale ETFs und Bluechip-Aktien.
-
-### 13. 🛒 Neobroker Sparplan- & Order-Assistent (`OrderAssistantModal.tsx`)
-- **1-Klick Order-Vorlagen**: Erstellung von aggregierten Sparplan- und Kauflisten mit Copy-Paste-Schnellbuttons für Trade Republic, Scalable Capital, ING und Comdirect.
-
-### 14. 📊 Multi-Asset Korrelations-Matrix & Diversifikations-Heatmap (`CorrelationMatrixWidget.tsx`)
-- **Pearson-Korrelation ($r \in [-1, 1]$)**: Ermittlung paarweiser Korrelationen zwischen allen Beständen zur Erkennung von Klumpenrisiken und echter Portfolio-Diversifikation.
-
-### 15. 👑 Dividenden-Sicherheits- & Aristokraten-Score (`DividendSafetyScoreWidget.tsx`)
-- **Qualitäts-Rating**: Einstufung nach Payout Ratio, Dividendenwachstum und Jahren ohne Kürzung (Aristokraten &gt; 25J, Könige &gt; 50J, Contender).
-
-### 16. 🪙 Krypto-Staking & DeFi Steuer-Tracker (`CryptoStakingTaxWidget.tsx`)
-- **§ 22 Nr. 3 EStG Freigrenzen-Überwachung**: Automatische Erfassung von Staking-Rewards und Überprüfung der 256 € Freigrenze mit persönlicher Einkommensteuerprognose.
-
-### 17. 📱 Air-Gapped Offline QR-Code Vault Transfer (`QrSyncModal.tsx`)
-- **100% kontaktlose Datenübertragung**: Vollständig internetfreier Transfer des AES-GCM 256-Bit verschlüsselten Portfolios zwischen Geräten per animiertem QR-Code.
-
-### 18. 🎯 Option Greeks (Delta & Theta) Tracker (`OptionIncomeTracker.tsx`)
-- **Black-Scholes Bewertung**: Berechnung von Delta ($\Delta$) und täglichem Theta-Time-Decay ($\Theta$/Tag) für verkaufte Puts und Calls.
-
-### 19. 📈 Dynamischer Sparplan-Simulator & Gehaltssprung-Rechner (`SavingsSimulator.tsx`)
-- **Karriere- & Inflationsanpassung**: Simulation mit jährlicher Sparratenerhöhung (z.B. +2.5% bis +5% p.a.) im direkten Vergleich zum statischen Sparplan.
-
-### 20. 📑 Offizieller Anlage KAP Steuererklärungs-Report (`TaxReportModal.tsx`)
+### 12. 📑 Offizieller Anlage KAP Steuererklärungs-Report (`TaxReportModal.tsx`)
 - **WISO & Taxfix Export**: Exakte Aufschlüsselung aller Erträge und Verluste nach den offiziellen Zeilen der Anlage KAP (Zeile 7, 8, 14, 15, 16/17).
 
-### 21. 🌪️ Benutzerdefinierter Makro-Stresstest Designer (`StressTestModal.tsx`)
-- **Eigene Krisenszenarien**: Interaktive Konfiguration und Simulation von branchen- und assetklassenspezifischen Marktschocks.
+---
 
-### 22. 🪙 Krypto FiFo Tranchen- & Tax-Loss Harvesting Radar (`CryptoTaxLossHarvestingModal.tsx`)
-- **1-Jahres Haltefristen-Tracker (§ 23 EStG)**: Aufschlüsselung aller Krypto-Tranchen in steuerfreie (>365 Tage) vs. steuerpflichtige Bestände mit gezielter Verlustverrechnung.
+## ⌨️ Shortcuts & Command Palette
 
-### 23. 📄 Institutionelles Fonds-Factsheet & PDF Monatsbericht (`PdfFactsheetExporter.tsx`)
-- **2-seitiger A4 Druckbericht**: Hochwertiges druckfertiges Portfolio-Factsheet mit Allokation, Performancekennzahlen und Top-Positionen.
-
-### 24. 💱 Multi-Währungs-Absicherung & FX Hedging Rechner (`FxHedgingWidget.tsx`)
-- **Hedging-Kosten vs. Risikominimierung**: Simulation von Vorwärtskurs-Sicherungsquoten für USD, CHF und GBP.
-
-### 25. 📅 Dividenden-Saisonalität & Cashflow-Heatmap (`DividendSeasonalityWidget.tsx`)
-- **Monatliches Ausschüttungsprofil**: Historische Auswertung der Dividendenverteilung über 12 Monate zur Glättung des passiven Einkommens.
-
-### 26. 🏛️ Anleihen-Duration & Zinsänderungsrisiko (`BondDurationWidget.tsx`)
-- **Modified Duration Calculator**: Quantifizierung von Kursverlusten bzw. -gewinnen bei Zinsänderungen ($\Delta y = \pm 100$ bis $\pm 300$ BP).
-
-### 27. 📥 Rebalancing-Order Multi-Format Export (`RebalancingOrderPlanner.tsx`)
-- **1-Klick CSV Order-Export**: Direkte Generierung von standardisierten Orderlisten zur einfachen Ausführung bei Neo- und Direktbrokern.
-
-### 28. 🎛️ Dashboard-Widget Customizer & Fokus-Modi (`DashboardCustomizerModal.tsx`)
-- **Modulare Ansichtssteuerung**: Individuelles Ein-/Ausblenden von Modulen sowie 1-Klick Presets für *Dividenden-Fokus*, *Growth-Fokus* und *Allwetter/Sicherheit*.
-
-### 29. 🎯 Reale Kaufkraft- & Inflationsziel-Berechnung (`SavingsSimulator.tsx`)
-- **Inflationsbereinigte Freiheitsprognose**: Exakter Ausweis des realen Kaufkraftwerts des Endkapitals unter Berücksichtigung von Inflationsraten.
-
-### 30. 📑 PDF-Dividendenabrechnungs-Parser (`PdfParser.ts`)
-- **Automatisierte Ertragserkennung**: Direkte Erkennung und Buchung von Brutto-Dividenden, Quellensteuern und Nettoerträgen für alle gängigen Banken und Broker.
-
-### 31. 📈 Assetklassen Cumulative Return Performance-Overlay (`AssetClassPerformanceChart.tsx`)
-- **Kumulierter Rendite-Vergleich**: Multilineare Zeitreihen-Visualisierung der relativen Performance von Aktien vs. ETFs vs. Krypto vs. Rohstoffen.
-
-### 32. 💶 EZB-Referenzkurs Historie & FX-Engine (`fxRatesService.ts`)
-- **Offizielle EZB-Tageskurse**: Integrierter lokaler Cache für historische Währungsumrechnungen (USD, CHF, GBP zu EUR) bei Transaktionsbuchungen.
-
-### 33. 🛡️ Dynamischer Notgroschen- & Liquiditäts-Assistent (`EmergencyFundWidget.tsx`)
-- **3-6 Monats-Liquiditätsradar**: Berechnung des idealen Sicherheitspuffers basierend auf Lebenshaltungskosten mit Abgleich der Cash- & Geldmarktreserven.
-
-### 34. ⚖️ Side-by-Side Dual Portfolio Vergleichsmodus (`DualPortfolioCompareModal.tsx`)
-- **Multi-Depot Matrix**: Gegenüberstellung zweier Portfolios oder Strategien nach Performance, Risiko, Rendite und Einstandswert.
-
-### 35. 🗓️ Target2-Bankfeiertage & Sparplan-Ausführungskalender (`Target2CalendarWidget.tsx`)
-- **Feiertags-Verschiebungs-Radar**: Erkennt Wochenend- und europäische Target2-Bankfeiertags-Verschiebungen für den 1. und 15. des Monats.
+| Tastenkombination | Aktion |
+|---|---|
+| <kbd>Strg</kbd> + <kbd>K</kbd> / <kbd>Cmd</kbd> + <kbd>K</kbd> | Spotlight Command Palette öffnen |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | Befehl / Asset auswählen |
+| <kbd>Enter</kbd> | Ausgewählte Aktion ausführen |
+| <kbd>Esc</kbd> | Modal oder Suchfenster schließen |
 
 ---
 
@@ -153,7 +98,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, reine Client-Side Webapplikati
 | **Build Tool & Bundler** | Vite 8.1 (mit Rollup Manual Chunk-Splitting) |
 | **Mobile & PWA** | Web App Manifest, Service Worker Caching (`sw.js`) |
 | **Charts & Visualisierung** | Recharts (Area, Bar, Pie, Radar, Line) |
-| **Testing** | Vitest (39 Automatisierte Unit Tests), Testing Library React, JSDOM |
+| **Testing** | Vitest (48 Automatisierte Unit Tests), Testing Library React, JSDOM |
 | **Code Quality & Linting** | TypeScript `tsc --noEmit` |
 | **Verschlüsselung** | Web Crypto API (PBKDF2 + AES-GCM 256-Bit) |
 | **Deployment** | Vercel, Netlify, GitHub Actions CI/CD |
@@ -169,7 +114,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (39 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (48 Tests)
 npm run test
 
 # 4. Code-Qualitätsprüfung ausführen
@@ -178,3 +123,5 @@ npm run lint
 # 5. Produktions-Build erstellen
 npm run build
 ```
+
+---

@@ -24,6 +24,9 @@ export const ISIN_DATABASE: Record<string, Partial<IsinMetadata>> = {
   'IE00B0M62Q58': { ticker: 'IQQQ', name: 'iShares NASDAQ-100 UCITS ETF', category: 'ETF', sector: 'Technology', region: 'North America', terPercent: 0.33, isDistributing: true },
   'IE00B4X9L533': { ticker: 'HIGH', name: 'iShares European Property Yield', category: 'ETF', sector: 'Real Estate', region: 'Europe', terPercent: 0.40, isDistributing: true },
   'LU0290358497': { ticker: 'DBXG', name: 'Xtrackers Euro Stoxx 50', category: 'ETF', sector: 'Financials', region: 'Europe', terPercent: 0.09, isDistributing: false },
+  'LU1681043599': { ticker: 'CW8', name: 'Amundi MSCI World UCITS ETF', category: 'ETF', sector: 'Financials', region: 'Global', terPercent: 0.18, isDistributing: false },
+  'IE00B1XNHC34': { ticker: 'IQQH', name: 'iShares Global Clean Energy UCITS ETF', category: 'ETF', sector: 'Energy', region: 'Global', terPercent: 0.65, isDistributing: true },
+  'DE000A0S9GB0': { ticker: '4GLD', name: 'Xetra-Gold', category: 'PreciousMetal', sector: 'Materials', region: 'Global', terPercent: 0.00, isDistributing: false },
 
   // Big Tech & US Equities
   'US0378331002': { ticker: 'AAPL', name: 'Apple Inc.', category: 'Stock', sector: 'Technology', region: 'North America' },
@@ -34,6 +37,9 @@ export const ISIN_DATABASE: Record<string, Partial<IsinMetadata>> = {
   'US88160R1014': { ticker: 'TSLA', name: 'Tesla Inc.', category: 'Stock', sector: 'Consumer', region: 'North America' },
   'US30303M1027': { ticker: 'META', name: 'Meta Platforms Inc.', category: 'Stock', sector: 'Communication', region: 'North America' },
   'US92826C8394': { ticker: 'V', name: 'Visa Inc.', category: 'Stock', sector: 'Financials', region: 'North America' },
+  'US0846707026': { ticker: 'BRK.B', name: 'Berkshire Hathaway Inc.', category: 'Stock', sector: 'Financials', region: 'North America' },
+  'US1912161007': { ticker: 'KO', name: 'The Coca-Cola Company', category: 'Stock', sector: 'Consumer', region: 'North America' },
+  'US4781601046': { ticker: 'JNJ', name: 'Johnson & Johnson', category: 'Stock', sector: 'Healthcare', region: 'North America' },
 
   // European Bluechips (DAX / EuroStoxx)
   'DE0008404005': { ticker: 'ALV', name: 'Allianz SE', category: 'Stock', sector: 'Financials', region: 'Europe' },

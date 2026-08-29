@@ -2479,6 +2479,247 @@ export function calculateNextTarget2ExecutionDates(
   return results;
 }
 
+import type { RebalancingPlanItem, FireMonteCarloSummary } from '../types';
+
+export interface ToleranceBandRebalancingConfig {
+  toleranceBandPct: number; // e.g. 2 means +/- 2% drift tolerance
+  availableCashEur?: number;
+  mode?: 'BUY_ONLY' | 'FULL_REBALANCE';
+}
+
+/**
+ * Rebalancing engine with Drift Tolerance Bands.
+ * Only triggers orders when asset weight drifts beyond [target - band, target + band].
+ */
+export function calculateToleranceBandRebalancing(
+  holdings: Holding[],
+  targetWeightsPct: Record<string, number> = { Stock: 50, ETF: 40, Crypto: 10 },
+  config: ToleranceBandRebalancingConfig = { toleranceBandPct: 2, availableCashEur: 0, mode: 'FULL_REBALANCE' }
+): {
+  items: RebalancingPlanItem[];
+  totalBuyEur: number;
+  totalSellEur: number;
+  inBalanceCount: number;
+  rebalanceNeededCount: number;
+  estimatedTotalFeesEur: number;
+} {
+  const currentTotalVal = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  const cash = config.availableCashEur || 0;
+  const newTotalVal = currentTotalVal + cash;
+  const tolerance = Math.max(0.5, config.toleranceBandPct || 2);
+  const mode = config.mode || 'FULL_REBALANCE';
+
+  if (newTotalVal === 0) {
+    return {
+      items: [],
+      totalBuyEur: 0,
+      totalSellEur: 0,
+      inBalanceCount: 0,
+      rebalanceNeededCount: 0,
+      estimatedTotalFeesEur: 0
+    };
+  }
+
+  // Calculate current weight per holding and target category weights
+  const items: RebalancingPlanItem[] = [];
+  let totalBuyEur = 0;
+  let totalSellEur = 0;
+  let inBalanceCount = 0;
+  let rebalanceNeededCount = 0;
+
+  // Group holdings by category to distribute target category weights proportionally
+  const categoryHoldingsMap: Record<string, Holding[]> = {};
+  holdings.forEach(h => {
+    if (!categoryHoldingsMap[h.category]) categoryHoldingsMap[h.category] = [];
+    categoryHoldingsMap[h.category].push(h);
+  });
+
+  holdings.forEach(h => {
+    const currentWeight = (h.currentValue / currentTotalVal) * 100;
+    const catTargetPct = targetWeightsPct[h.category] ?? (100 / Math.max(1, Object.keys(targetWeightsPct).length));
+    
+    // Proportional target weight inside category
+    const catHoldings = categoryHoldingsMap[h.category] || [h];
+    const catTotalVal = catHoldings.reduce((sum, item) => sum + item.currentValue, 0);
+    const intraCatShare = catTotalVal > 0 ? (h.currentValue / catTotalVal) : (1 / catHoldings.length);
+    const targetWeight = catTargetPct * intraCatShare;
+
+    const driftPercent = currentWeight - targetWeight;
+    const isWithinBand = Math.abs(driftPercent) <= tolerance;
+
+    let action: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
+    let deltaEur = 0;
+    let suggestedShares = 0;
+
+    const targetValEur = (targetWeight / 100) * newTotalVal;
+    const rawDeltaEur = targetValEur - h.currentValue;
+
+    if (!isWithinBand) {
+      if (rawDeltaEur > 10) {
+        action = 'BUY';
+        deltaEur = rawDeltaEur;
+        totalBuyEur += deltaEur;
+        rebalanceNeededCount++;
+      } else if (rawDeltaEur < -10 && mode === 'FULL_REBALANCE') {
+        action = 'SELL';
+        deltaEur = Math.abs(rawDeltaEur);
+        totalSellEur += deltaEur;
+        rebalanceNeededCount++;
+      } else {
+        inBalanceCount++;
+      }
+    } else {
+      inBalanceCount++;
+    }
+
+    const price = h.currentPrice > 0 ? h.currentPrice : (h.averageBuyPrice > 0 ? h.averageBuyPrice : 100);
+    suggestedShares = action !== 'HOLD' ? Math.round((deltaEur / price) * 100) / 100 : 0;
+
+    items.push({
+      ticker: h.ticker,
+      name: h.name,
+      category: h.category,
+      currentWeight: Math.round(currentWeight * 100) / 100,
+      targetWeight: Math.round(targetWeight * 100) / 100,
+      driftPercent: Math.round(driftPercent * 100) / 100,
+      isWithinBand,
+      action,
+      deltaEur: Math.round(deltaEur * 100) / 100,
+      suggestedShares
+    });
+  });
+
+  const estimatedTotalFeesEur = (rebalanceNeededCount * 1.0); // 1€ flat fee assumption
+
+  return {
+    items,
+    totalBuyEur: Math.round(totalBuyEur * 100) / 100,
+    totalSellEur: Math.round(totalSellEur * 100) / 100,
+    inBalanceCount,
+    rebalanceNeededCount,
+    estimatedTotalFeesEur
+  };
+}
+
+/**
+ * Runs statistical Monte Carlo simulation on FIRE retirement paths.
+ * Generates 500 randomized return paths considering volatility and sequence of returns risk.
+ */
+export function runFireMonteCarloSimulation(
+  config: FireWithdrawalConfig,
+  volatilityPercent: number = 15.0,
+  trials: number = 500
+): FireMonteCarloSummary {
+  const {
+    initialPortfolioValue,
+    monthlyExpensesEur,
+    annualInflationPercent,
+    expectedAnnualReturnPercent,
+    retirementYears,
+    withdrawalStrategy,
+    includeCapitalGainsTax,
+    effectiveTaxRatePercent,
+    monthlyHealthInsuranceEur
+  } = config;
+
+  const mu = expectedAnnualReturnPercent / 100;
+  const sigma = volatilityPercent / 100;
+  const inflationRate = annualInflationPercent / 100;
+  const baseAnnualExpense = (monthlyExpensesEur + monthlyHealthInsuranceEur) * 12;
+
+  // Box-Muller transform for normal distribution
+  const randNormal = () => {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  };
+
+  const simulationPaths: number[][] = Array.from({ length: trials }, () => []);
+  let ruinCount = 0;
+  let worstCaseRuinYear: number | undefined = undefined;
+
+  for (let t = 0; t < trials; t++) {
+    let currentVal = initialPortfolioValue;
+    simulationPaths[t].push(currentVal);
+    let currentExpense = baseAnnualExpense;
+    let trialRuined = false;
+
+    for (let year = 1; year <= retirementYears; year++) {
+      if (currentVal <= 0) {
+        currentVal = 0;
+        if (!trialRuined) {
+          trialRuined = true;
+          ruinCount++;
+          if (!worstCaseRuinYear || year < worstCaseRuinYear) {
+            worstCaseRuinYear = year;
+          }
+        }
+        simulationPaths[t].push(0);
+        continue;
+      }
+
+      // Determine withdrawal
+      let withdrawal = currentExpense;
+      if (withdrawalStrategy === 'FIXED_4_PERCENT') {
+        withdrawal = currentVal * 0.04;
+      } else if (withdrawalStrategy === 'VARIABLE_GUARDRAILS') {
+        const yieldRate = currentVal > 0 ? (currentExpense / currentVal) : 0;
+        if (yieldRate > 0.055) withdrawal = currentExpense * 0.90;
+        else if (yieldRate < 0.035) withdrawal = currentExpense * 1.05;
+        else withdrawal = currentExpense;
+      } else if (withdrawalStrategy === 'VPW') {
+        const remYears = Math.max(1, retirementYears - year + 1);
+        withdrawal = currentVal * (1 / remYears + (mu * 0.5));
+      }
+
+      const actualWithdrawal = Math.min(currentVal, withdrawal);
+      let tax = 0;
+      if (includeCapitalGainsTax) {
+        tax = (actualWithdrawal * 0.5) * (effectiveTaxRatePercent / 100);
+      }
+
+      const totalOutflow = Math.min(currentVal, actualWithdrawal + tax);
+      const remainingCapital = Math.max(0, currentVal - totalOutflow);
+
+      // Random annual return with drift & volatility
+      const z = randNormal();
+      const annualReturn = Math.exp((mu - 0.5 * sigma * sigma) + sigma * z) - 1;
+      const endingVal = Math.max(0, remainingCapital * (1 + annualReturn));
+
+      simulationPaths[t].push(Math.round(endingVal));
+      currentVal = endingVal;
+      currentExpense = currentExpense * (1 + inflationRate);
+    }
+  }
+
+  // Calculate percentiles per year
+  const paths: { year: number; p10: number; p50: number; p90: number }[] = [];
+  for (let y = 0; y <= retirementYears; y++) {
+    const yearVals = simulationPaths.map(p => p[y]).sort((a, b) => a - b);
+    paths.push({
+      year: y,
+      p10: yearVals[Math.floor(trials * 0.10)] || 0,
+      p50: yearVals[Math.floor(trials * 0.50)] || 0,
+      p90: yearVals[Math.floor(trials * 0.90)] || 0
+    });
+  }
+
+  const ruinProbabilityPercent = Math.round((ruinCount / trials) * 1000) / 10;
+  const finalVals = paths[paths.length - 1];
+
+  return {
+    simulationsRun: trials,
+    ruinProbabilityPercent,
+    percentile10EndingValue: finalVals.p10,
+    percentile50EndingValue: finalVals.p50,
+    percentile90EndingValue: finalVals.p90,
+    worstCaseRuinYear,
+    paths
+  };
+}
+
+
 
 
 

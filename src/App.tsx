@@ -19,7 +19,8 @@ import { QrSyncModal } from './components/QrSyncModal';
 import { CryptoTaxLossHarvestingModal } from './components/CryptoTaxLossHarvestingModal';
 import { PdfFactsheetExporter } from './components/PdfFactsheetExporter';
 import { DualPortfolioCompareModal } from './components/DualPortfolioCompareModal';
-import { Cloud, ShoppingCart, QrCode, Coins, Columns } from 'lucide-react';
+import { CommandPaletteModal } from './components/CommandPaletteModal';
+import { Cloud, ShoppingCart, QrCode, Coins, Columns, Search } from 'lucide-react';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
@@ -67,6 +68,7 @@ function App() {
   } = usePortfolio();
 
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'dividend_calendar' | 'watchlist' | 'savings' | 'options' | 'real_estate' | 'deposit_ladder' | 'mapping_rules'>('dashboard');
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showBatchPdfModal, setShowBatchPdfModal] = useState(false);
   const [showTaxReportModal, setShowTaxReportModal] = useState(false);
   const [showTaxHarvestingModal, setShowTaxHarvestingModal] = useState(false);
@@ -81,6 +83,18 @@ function App() {
   const [showFactsheetModal, setShowFactsheetModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Global Keyboard Shortcut: Ctrl+K / Cmd+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleAddTransaction = (tx: any) => {
     addTransaction({ ...tx, id: `tx-${Date.now()}` });
@@ -164,6 +178,16 @@ function App() {
 
         {/* Action Controls & Switcher */}
         <div className="header-controls-group">
+          <button
+            onClick={() => setShowCommandPalette(true)}
+            className="theme-toggle-btn"
+            title="Befehlspalette / Spotlight-Suche öffnen (Strg + K)"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 0.6rem', width: 'auto' }}
+          >
+            <Search size={15} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Strg+K</span>
+          </button>
+
           <button
             onClick={() => setShowCompareModal(true)}
             className="theme-toggle-btn"
@@ -624,6 +648,31 @@ function App() {
           baseCurrency={baseCurrency}
         />
       )}
+
+      {/* Global Command Palette (Strg + K) */}
+      <CommandPaletteModal
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onNavigateTab={(tab) => { setCurrentTab(tab); setShowCommandPalette(false); }}
+        holdings={holdings}
+        onOpenBatchPdf={() => setShowBatchPdfModal(true)}
+        onOpenCsvImport={() => setShowCsvImportModal(true)}
+        onOpenSettings={() => setShowSettingsModal(true)}
+        onOpenTaxHarvesting={() => setShowTaxHarvestingModal(true)}
+        onOpenTaxReport={() => setShowTaxReportModal(true)}
+        onOpenStressTest={() => setShowStressTestModal(true)}
+        onOpenOrderAssistant={() => setShowOrderAssistantModal(true)}
+        onOpenCryptoTax={() => setShowCryptoTaxModal(true)}
+        onOpenFactsheet={() => setShowFactsheetModal(true)}
+        onOpenQrSync={() => setShowQrSyncModal(true)}
+        onOpenCloudSync={() => setShowCloudSyncModal(true)}
+        onOpenCompare={() => setShowCompareModal(true)}
+        onRefreshPrices={handleRefreshPrices}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        onExportBackup={handleExportBackup}
+        onSelectHolding={(_h) => { setCurrentTab('holdings'); setShowCommandPalette(false); }}
+      />
 
       {/* Security Master PIN Unlock Modal */}
       <VaultUnlockModal

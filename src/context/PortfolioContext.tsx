@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Portfolio, Transaction, WatchlistItem, SavingsPlan, AssetMappingRule, PortfolioStats, Holding } from '../types';
+import type { Portfolio, Transaction, WatchlistItem, SavingsPlan, AssetMappingRule, PortfolioStats, Holding, PortfolioSnapshot } from '../types';
 import { fetchLiveExchangeRates, fetchLiveCryptoPrices, fetchLiveStockPrices } from '../services/marketDataApi';
 import { calculateIRR, calculateTTWRR, calculateRealizedGains, calculateCryptoTaxFreeShares } from '../components/performanceUtils';
 
@@ -16,8 +16,15 @@ interface PortfolioContextType {
   activeBrokerFilter: string;
   setActiveBrokerFilter: (broker: string) => void;
   isVaultLocked: boolean;
+  lockVault: () => void;
   unlockVault: (unlockedPortfolios: Portfolio[]) => void;
   resetVault: () => void;
+  autoLockMinutes: number;
+  setAutoLockMinutes: (min: number) => void;
+  snapshots: PortfolioSnapshot[];
+  createSnapshot: (description: string) => void;
+  restoreSnapshot: (snapshotId: string) => void;
+  deleteSnapshot: (snapshotId: string) => void;
   holdings: Holding[];
   stats: PortfolioStats;
   switchPortfolio: (id: string) => void;
@@ -37,6 +44,7 @@ interface PortfolioContextType {
   refreshPrices: () => Promise<void>;
   importBackup: (data: Portfolio[]) => void;
   updateHoldingNotes: (ticker: string, notes: string) => void;
+  updateHoldingTags: (ticker: string, tags: string[]) => void;
   addRealEstate: (prop: any) => void;
   deleteRealEstate: (id: string) => void;
   addDepositLadderItem: (item: any) => void;
@@ -141,6 +149,25 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return Boolean(localStorage.getItem('finanz_encrypted_vault'));
   });
 
+  const [autoLockMinutes, setAutoLockMinutes] = useState<number>(() => {
+    const saved = localStorage.getItem('finanz_autolock_minutes');
+    return saved ? parseInt(saved, 10) : 15;
+  });
+
+  const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>(() => {
+    const saved = localStorage.getItem('finanz_snapshots');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [holdingTagsMap, setHoldingTagsMap] = useState<Record<string, string[]>>(() => {
+    const saved = localStorage.getItem('finanz_holding_tags');
+    return saved ? JSON.parse(saved) : {
+      AAPL: ['#Core', '#Tech', '#Dividende'],
+      EUNL: ['#Core', '#Weltweit'],
+      BTC: ['#Satellite', '#Krypto']
+    };
+  });
+
   const [portfolios, setPortfolios] = useState<Portfolio[]>(() => {
     const saved = localStorage.getItem('finanz_portfolios');
     if (saved) {
@@ -183,8 +210,50 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [portfolios, isVaultLocked]);
 
   useEffect(() => {
+    localStorage.setItem('finanz_snapshots', JSON.stringify(snapshots));
+  }, [snapshots]);
+
+  useEffect(() => {
+    localStorage.setItem('finanz_holding_tags', JSON.stringify(holdingTagsMap));
+  }, [holdingTagsMap]);
+
+  useEffect(() => {
+    localStorage.setItem('finanz_autolock_minutes', autoLockMinutes.toString());
+  }, [autoLockMinutes]);
+
+  useEffect(() => {
     localStorage.setItem('finanz_active_portfolio', activePortfolioId);
   }, [activePortfolioId]);
+
+  const lockVault = () => {
+    if (localStorage.getItem('finanz_encrypted_vault')) {
+      setIsVaultLocked(true);
+    }
+  };
+
+  // Activity listener for Auto-Lock
+  useEffect(() => {
+    if (isVaultLocked || autoLockMinutes <= 0) return;
+    
+    let timer: ReturnType<typeof setTimeout>;
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (localStorage.getItem('finanz_encrypted_vault')) {
+          setIsVaultLocked(true);
+        }
+      }, autoLockMinutes * 60 * 1000);
+    };
+
+    resetTimer();
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll'];
+    events.forEach(ev => window.addEventListener(ev, resetTimer));
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach(ev => window.removeEventListener(ev, resetTimer));
+    };
+  }, [isVaultLocked, autoLockMinutes]);
 
   const unlockVault = (unlockedPortfolios: Portfolio[]) => {
     setPortfolios(unlockedPortfolios);
@@ -306,10 +375,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         sector: a.sector,
         region: a.region,
         notes: a.notes,
+        tags: holdingTagsMap[a.ticker] || ['#Core'],
         cryptoTaxFreeShares: cryptoTaxFree
       };
     });
-  }, [filteredTransactions, currentPrices, activePortfolio.transactions]);
+  }, [filteredTransactions, currentPrices, activePortfolio.transactions, holdingTagsMap]);
 
   // Cash Balance
   const cashBalance = useMemo(() => {
@@ -356,6 +426,33 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [holdings, activePortfolio.transactions, cashBalance]);
 
+  // Snapshots Management
+  const createSnapshot = (description: string) => {
+    const totalVal = holdings.reduce((sum, h) => sum + h.currentValue, 0) + cashBalance;
+    const txCount = portfolios.reduce((sum, p) => sum + (p.transactions?.length || 0), 0);
+    const newSnapshot: PortfolioSnapshot = {
+      id: `snap-${Date.now()}`,
+      timestamp: new Date().toLocaleString('de-DE'),
+      description,
+      portfolios: JSON.parse(JSON.stringify(portfolios)),
+      transactionCount: txCount,
+      totalValueEur: Math.round(totalVal)
+    };
+    setSnapshots(prev => [newSnapshot, ...prev].slice(0, 5));
+  };
+
+  const restoreSnapshot = (snapshotId: string) => {
+    const match = snapshots.find(s => s.id === snapshotId);
+    if (match && match.portfolios) {
+      createSnapshot(`Automatischer Stand vor Rollback auf "${match.description}"`);
+      setPortfolios(match.portfolios);
+    }
+  };
+
+  const deleteSnapshot = (snapshotId: string) => {
+    setSnapshots(prev => prev.filter(s => s.id !== snapshotId));
+  };
+
   // Actions
   const switchPortfolio = (id: string) => setActivePortfolioId(id);
 
@@ -372,14 +469,16 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deletePortfolio = (id: string) => {
     if (portfolios.length <= 1) return;
-    setPortfolios(prev => prev.filter(p => p.id !== id));
-    setActivePortfolioId(portfolios[0].id);
+    createSnapshot(`Vor dem Löschen von Portfolio ID "${id}"`);
+    const remaining = portfolios.filter(p => p.id !== id);
+    setPortfolios(remaining);
+    setActivePortfolioId(remaining[0].id);
   };
 
   const addTransaction = (tx: Transaction) => {
     setPortfolios(prev => prev.map(p => {
       if (p.id === activePortfolioId) {
-        return { ...p, transactions: [tx, ...p.transactions] };
+        return { ...p, transactions: [tx, ...(p.transactions || [])] };
       }
       return p;
     }));
@@ -388,7 +487,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const deleteTransaction = (id: string) => {
     setPortfolios(prev => prev.map(p => {
       if (p.id === activePortfolioId) {
-        return { ...p, transactions: p.transactions.filter(t => t.id !== id) };
+        return { ...p, transactions: (p.transactions || []).filter(t => t.id !== id) };
       }
       return p;
     }));
@@ -516,6 +615,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const importBackup = (data: Portfolio[]) => {
+    createSnapshot('Automatischer Stand vor Backup-Import');
     setPortfolios(data);
     if (data.length > 0) setActivePortfolioId(data[0].id);
   };
@@ -529,6 +629,13 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         };
       }
       return p;
+    }));
+  };
+
+  const updateHoldingTags = (ticker: string, tags: string[]) => {
+    setHoldingTagsMap(prev => ({
+      ...prev,
+      [ticker]: tags
     }));
   };
 
@@ -582,8 +689,15 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       activeBrokerFilter,
       setActiveBrokerFilter,
       isVaultLocked,
+      lockVault,
       unlockVault,
       resetVault,
+      autoLockMinutes,
+      setAutoLockMinutes,
+      snapshots,
+      createSnapshot,
+      restoreSnapshot,
+      deleteSnapshot,
       holdings,
       stats,
       switchPortfolio,
@@ -603,6 +717,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       refreshPrices,
       importBackup,
       updateHoldingNotes,
+      updateHoldingTags,
       addRealEstate,
       deleteRealEstate,
       addDepositLadderItem,
