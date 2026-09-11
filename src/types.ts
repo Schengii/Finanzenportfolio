@@ -6,6 +6,8 @@ export type Sector = 'Technology' | 'Healthcare' | 'Financials' | 'Consumer' | '
 
 export type Region = 'North America' | 'Europe' | 'Emerging Markets' | 'Asia Pacific' | 'Global' | 'Other';
 
+export type BenchmarkIndex = 'MSCI_WORLD' | 'SP500' | 'DAX40' | 'BTC';
+
 export interface AssetMappingRule {
   id: string;
   pattern: string;
@@ -19,7 +21,7 @@ export interface AssetMappingRule {
 
 export interface Transaction {
   id: string;
-  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL' | 'STAKING' | 'OPTION_PREMIUM' | 'OPTION_EXPIRE' | 'OPTION_ASSIGN' | 'INTEREST' | 'RENT_INCOME' | 'MAINTENANCE_EXPENSE';
+  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL' | 'STAKING' | 'AIRDROP' | 'MINING' | 'FEE' | 'OPTION_PREMIUM' | 'OPTION_EXPIRE' | 'OPTION_ASSIGN' | 'INTEREST' | 'RENT_INCOME' | 'MAINTENANCE_EXPENSE';
   date: string;
   ticker: string;
   name: string;

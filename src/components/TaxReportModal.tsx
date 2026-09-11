@@ -79,6 +79,13 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
   const cryptoFreigrenze = 1000;
   const isCryptoTaxFree = cryptoTaxableGains <= cryptoFreigrenze;
 
+  // Staking, Airdrop, Mining under § 22 Nr. 3 EStG
+  const cryptoStakingIncome = portfolio.transactions
+    .filter(t => (t.type === 'STAKING' || t.type === 'AIRDROP' || t.type === 'MINING'))
+    .reduce((sum, t) => sum + (t.amount * t.price) / (t.exchangeRate || 1.0), 0);
+  const cryptoStakingFreigrenze = 256; // 256 € Freigrenze p.a. gem. § 22 Nr. 3 Satz 2 EStG
+  const isCryptoStakingTaxFree = cryptoStakingIncome <= cryptoStakingFreigrenze;
+
   const handlePrint = () => {
     window.print();
   };
@@ -100,6 +107,8 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
 - Steuerpflichtige Krypto-Gewinne (< 1 Jahr Haltefrist): ${cryptoTaxableGains.toFixed(2)} €
 - Steuerfreie Krypto-Gewinne (> 1 Jahr Haltefrist): ${cryptoFifo.totalTaxFreeGainEur.toFixed(2)} €
 - Freigrenze (§ 23 Abs. 3 EStG): 1.000,00 € (Status: ${isCryptoTaxFree ? 'Steuerfrei unter Freigrenze' : 'Voll steuerpflichtig zum pers. Steuersatz'})
+- Einkünfte aus Staking / Airdrops / Mining (§ 22 Nr. 3 EStG): ${cryptoStakingIncome.toFixed(2)} €
+- Freigrenze Staking/Mining (§ 22 Nr. 3 EStG): 256,00 € (Status: ${isCryptoStakingTaxFree ? 'Steuerfrei unter Freigrenze' : 'Voll steuerpflichtig zum pers. Steuersatz'})
 `;
     } else if (selectedCountry === 'AT') {
       text = `=== FINANZPORTFOLIO COPILOT - STEUERBERICHT ÖSTERREICH (${currentYear}) ===
@@ -492,7 +501,7 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
 
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
                 <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                  Krypto-Besteuerung nach FiFo-Prinzip
+                  Krypto-Besteuerung nach FiFo-Prinzip (§ 23 EStG)
                 </div>
                 <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -510,9 +519,36 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
                     <strong>1.000,00 €</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', color: isCryptoTaxFree ? '#10b981' : '#f59e0b', fontWeight: 'bold' }}>
-                    <span>Steuer-Status Anlage SO</span>
+                    <span>Steuer-Status private Veräußerung</span>
                     <span>{isCryptoTaxFree ? '✅ Steuerfrei (Gewinn unter Freigrenze)' : '⚠️ Steuerpflichtig zum pers. Einkommensteuersatz'}</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Staking / Airdrops / Mining Section § 22 Nr. 3 EStG */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden', marginTop: '1rem' }}>
+                <div style={{ padding: '0.75rem 1rem', background: 'rgba(245, 158, 11, 0.06)', fontWeight: 'bold', fontSize: '0.85rem', color: '#f59e0b', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>⛏️ Staking, Airdrops & Mining (§ 22 Nr. 3 EStG)</span>
+                  <span>Freigrenze: 256 € p.a.</span>
+                </div>
+                <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Zufluss-Einkünfte (Staking / Airdrop / Mining)</span>
+                    <strong style={{ color: isCryptoStakingTaxFree ? '#10b981' : '#ef4444' }}>
+                      {cryptoStakingIncome.toFixed(2)} €
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Freigrenze gem. § 22 Nr. 3 Satz 2 EStG</span>
+                    <strong>256,00 €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', color: isCryptoStakingTaxFree ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
+                    <span>Steuer-Status Zufluss</span>
+                    <span>{isCryptoStakingTaxFree ? '✅ Steuerfrei (Einnahmen unter 256 € Freigrenze)' : '⚠️ Voll steuerpflichtig (Freigrenze überschritten)'}</span>
+                  </div>
+                  <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Hinweis nach BMF-Schreiben: Der Zufluss von Staking/Mining ist als sonstige Leistung bei Erhalt steuerbar. Die Haltefrist für die veräußerten Coins beträgt dennoch regulär 1 Jahr ab Zufluss.
+                  </p>
                 </div>
               </div>
             </>

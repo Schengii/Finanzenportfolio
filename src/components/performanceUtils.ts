@@ -2083,7 +2083,7 @@ export function calculateCryptoFifoTranches(
   transactions: Transaction[],
   currentPrices: Record<string, number> = {}
 ): CryptoFifoTranchesResult {
-  const cryptoBuys = transactions.filter(t => t.category === 'Crypto' && t.type === 'BUY');
+  const cryptoBuys = transactions.filter(t => t.category === 'Crypto' && (t.type === 'BUY' || t.type === 'STAKING' || t.type === 'AIRDROP' || t.type === 'MINING'));
   const now = new Date();
   const tranches: CryptoTrancheItem[] = [];
 

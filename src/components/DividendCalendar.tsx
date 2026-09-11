@@ -5,6 +5,7 @@ import { convertCurrency } from './performanceUtils';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 import { downloadIcalCalendar } from '../services/icalExporter';
+import { CalendarExportModal } from './CalendarExportModal';
 
 interface DividendCalendarProps {
   transactions: Transaction[];
@@ -20,6 +21,7 @@ export const DividendCalendar: React.FC<DividendCalendarProps> = ({
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-indexed
   const [viewMode, setViewMode] = useState<'history' | 'forecast'>('history');
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
 
   const monthsList = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -189,9 +191,9 @@ export const DividendCalendar: React.FC<DividendCalendarProps> = ({
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <button
-            onClick={() => downloadIcalCalendar(transactions)}
+            onClick={() => setShowCalendarModal(true)}
             className="btn btn-secondary flex items-center gap-1.5 text-xs font-semibold"
-            title="Dividenden-Termine in Apple/Google/Outlook Kalender (.ics) exportieren"
+            title="Dividenden- und Zinstermine in Apple/Google/Outlook Kalender (.ics) exportieren"
           >
             <Calendar size={14} /> Kalender Export (.ics)
           </button>
@@ -391,6 +393,15 @@ export const DividendCalendar: React.FC<DividendCalendarProps> = ({
             </table>
           </div>
         </>
+      )}
+
+      {showCalendarModal && (
+        <CalendarExportModal
+          isOpen={showCalendarModal}
+          onClose={() => setShowCalendarModal(false)}
+          transactions={transactions}
+          holdings={holdings}
+        />
       )}
     </div>
   );

@@ -21,7 +21,10 @@ import { PdfFactsheetExporter } from './components/PdfFactsheetExporter';
 import { DualPortfolioCompareModal } from './components/DualPortfolioCompareModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { WithholdingTaxRefundModal } from './components/WithholdingTaxRefundModal';
-import { Cloud, ShoppingCart, QrCode, Coins, Columns, Search, Landmark } from 'lucide-react';
+import { DripCompoundModal } from './components/DripCompoundModal';
+import { ReceiptScannerModal } from './components/ReceiptScannerModal';
+import { CalendarExportModal } from './components/CalendarExportModal';
+import { Cloud, ShoppingCart, QrCode, Coins, Columns, Search, Landmark, Repeat, Camera } from 'lucide-react';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
@@ -93,6 +96,9 @@ function App() {
   const [showCryptoTaxModal, setShowCryptoTaxModal] = useState(false);
   const [showFactsheetModal, setShowFactsheetModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const [showDripModal, setShowDripModal] = useState(false);
+  const [showReceiptScannerModal, setShowReceiptScannerModal] = useState(false);
+  const [showCalendarExportModal, setShowCalendarExportModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Global Keyboard Shortcut: Ctrl+K / Cmd+K
@@ -269,6 +275,20 @@ function App() {
                       <FileSpreadsheet size={14} style={{ color: '#8b5cf6' }} /> Fonds-Factsheet (PDF)
                     </button>
                     <button
+                      onClick={() => { setShowDripModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Repeat size={14} style={{ color: '#10b981' }} /> DRIP Dividenden-Zinseszins
+                    </button>
+                    <button
+                      onClick={() => { setShowCalendarExportModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Calendar size={14} style={{ color: '#f59e0b' }} /> Finanzkalender & iCal Export
+                    </button>
+                    <button
                       onClick={() => { setShowStressTestModal(true); setShowToolsDropdown(false); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
                       className="hover:bg-slate-800"
@@ -334,6 +354,13 @@ function App() {
                       className="hover:bg-slate-800"
                     >
                       <Upload size={14} style={{ color: '#3b82f6' }} /> Stapel PDF Upload
+                    </button>
+                    <button
+                      onClick={() => { setShowReceiptScannerModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Camera size={14} style={{ color: '#06b6d4' }} /> Smart Beleg- & Foto-Scanner
                     </button>
                     <button
                       onClick={() => { setShowCsvImportModal(true); setShowToolsDropdown(false); }}
@@ -751,12 +778,48 @@ function App() {
         onOpenCloudSync={() => setShowCloudSyncModal(true)}
         onOpenCompare={() => setShowCompareModal(true)}
         onOpenWithholdingTax={() => setShowWithholdingTaxModal(true)}
+        onOpenDrip={() => setShowDripModal(true)}
+        onOpenReceiptScanner={() => setShowReceiptScannerModal(true)}
+        onOpenCalendarExport={() => setShowCalendarExportModal(true)}
         onRefreshPrices={handleRefreshPrices}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         onExportBackup={handleExportBackup}
         onSelectHolding={(_h) => { setCurrentTab('holdings'); setShowCommandPalette(false); }}
       />
+
+      {/* DRIP Dividenden Reinvestitions Automatik Modal */}
+      {showDripModal && (
+        <DripCompoundModal
+          isOpen={showDripModal}
+          onClose={() => setShowDripModal(false)}
+          holdings={holdings}
+          transactions={activePortfolio.transactions}
+          onAddTransaction={handleAddTransaction}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Smart Beleg & Foto Importer Modal */}
+      {showReceiptScannerModal && (
+        <ReceiptScannerModal
+          isOpen={showReceiptScannerModal}
+          onClose={() => setShowReceiptScannerModal(false)}
+          onAddTransaction={handleAddTransaction}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Comprehensive Finanzkalender iCal Export Modal */}
+      {showCalendarExportModal && (
+        <CalendarExportModal
+          isOpen={showCalendarExportModal}
+          onClose={() => setShowCalendarExportModal(false)}
+          transactions={activePortfolio.transactions}
+          holdings={holdings}
+          depositLadder={activePortfolio.depositLadder || []}
+        />
+      )}
 
       {/* Security Master PIN Unlock Modal */}
       <VaultUnlockModal

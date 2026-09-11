@@ -142,11 +142,14 @@ export const Transactions: React.FC<TransactionsProps> = ({
       setTicker('CASH');
       setName(type === 'DEPOSIT' ? 'Einzahlung (Cash)' : 'Auszahlung (Cash)');
       setPrice('1');
-      setCategory('Stock');
-    } else if (type === 'STAKING') {
+      setCategory('Cash');
+    } else if (type === 'STAKING' || type === 'AIRDROP' || type === 'MINING') {
       setCategory('Crypto');
-      setPrice('1');
+      if (!price) setPrice('1');
       setTicker(t => (t === 'CASH' ? '' : t));
+    } else if (type === 'FEE') {
+      setTicker(t => (t === 'CASH' ? '' : t));
+      if (!price) setPrice('1');
     } else {
       setTicker(t => {
         if (t === 'CASH') {
@@ -361,6 +364,9 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   <option value="SELL">Verkauf</option>
                   <option value="DIVIDEND">Dividende</option>
                   <option value="STAKING">Staking (Crypto)</option>
+                  <option value="AIRDROP">Airdrop (Crypto)</option>
+                  <option value="MINING">Mining (Crypto)</option>
+                  <option value="FEE">Gebühr / Kosten</option>
                   <option value="DEPOSIT">Einzahlung (Cash)</option>
                   <option value="WITHDRAWAL">Auszahlung (Cash)</option>
                 </select>
@@ -374,12 +380,17 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   value={category} 
                   title="Asset-Kategorie"
                   aria-label="Asset-Kategorie"
-                  disabled={isReadOnly || type === 'DEPOSIT' || type === 'WITHDRAWAL' || type === 'STAKING'}
+                  disabled={isReadOnly || type === 'DEPOSIT' || type === 'WITHDRAWAL'}
                   onChange={(e) => setCategory(e.target.value as AssetCategory)}
                 >
                   <option value="Stock">Aktie</option>
                   <option value="ETF">ETF</option>
                   <option value="Crypto">Krypto</option>
+                  <option value="Bond">Anleihe</option>
+                  <option value="RealEstate">Immobilie</option>
+                  <option value="PreciousMetal">Edelmetall</option>
+                  <option value="P2P">P2P Kredite</option>
+                  <option value="Cash">Cash / Liquidität</option>
                 </select>
               </div>
             </div>
@@ -483,7 +494,7 @@ export const Transactions: React.FC<TransactionsProps> = ({
               </div>
             </div>
 
-            {(type !== 'DEPOSIT' && type !== 'WITHDRAWAL' && type !== 'STAKING') && (
+            {(type !== 'DEPOSIT' && type !== 'WITHDRAWAL' && type !== 'STAKING' && type !== 'AIRDROP' && type !== 'MINING') && (
               <div className="tx-form-row-2">
                 <div className="form-group">
                   <label htmlFor="tx-fee" className="form-label">Gebühren</label>
@@ -565,8 +576,13 @@ export const Transactions: React.FC<TransactionsProps> = ({
               <option value="BUY">Kauf</option>
               <option value="SELL">Verkauf</option>
               <option value="DIVIDEND">Dividende</option>
+              <option value="STAKING">Staking</option>
+              <option value="AIRDROP">Airdrop</option>
+              <option value="MINING">Mining</option>
+              <option value="FEE">Gebühr</option>
               <option value="DEPOSIT">Einzahlung</option>
               <option value="WITHDRAWAL">Auszahlung</option>
+            </select>
             <button
               type="button"
               onClick={handleExportTransactionsCsv}
@@ -629,6 +645,9 @@ export const Transactions: React.FC<TransactionsProps> = ({
               const isBuy = tx.type === 'BUY';
               const isDiv = tx.type === 'DIVIDEND';
               const isStaking = tx.type === 'STAKING';
+              const isAirdrop = tx.type === 'AIRDROP';
+              const isMining = tx.type === 'MINING';
+              const isFee = tx.type === 'FEE';
               const isDeposit = tx.type === 'DEPOSIT';
               const isWithdrawal = tx.type === 'WITHDRAWAL';
               
@@ -644,6 +663,34 @@ export const Transactions: React.FC<TransactionsProps> = ({
 
               const isSelected = selectedIds.includes(tx.id);
 
+              const badgeColor = isDeposit ? 'rgba(16, 185, 129, 0.2)' 
+                : isWithdrawal ? 'rgba(239, 68, 68, 0.2)' 
+                : isStaking ? 'rgba(245, 158, 11, 0.2)' 
+                : isAirdrop ? 'rgba(6, 182, 212, 0.2)' 
+                : isMining ? 'rgba(234, 179, 8, 0.2)' 
+                : isFee ? 'rgba(168, 85, 247, 0.2)' 
+                : undefined;
+
+              const badgeTextColor = isDeposit ? 'var(--accent-emerald)' 
+                : isWithdrawal ? 'var(--accent-rose)' 
+                : isStaking ? 'var(--accent-gold)' 
+                : isAirdrop ? '#06b6d4' 
+                : isMining ? '#eab308' 
+                : isFee ? '#a855f7' 
+                : undefined;
+
+              const badgeText = tx.type === 'BUY' ? 'Kauf' 
+                : tx.type === 'SELL' ? 'Verkauf' 
+                : tx.type === 'DIVIDEND' ? 'Div.' 
+                : tx.type === 'STAKING' ? 'Staking' 
+                : tx.type === 'AIRDROP' ? 'Airdrop' 
+                : tx.type === 'MINING' ? 'Mining' 
+                : tx.type === 'FEE' ? 'Gebühr' 
+                : tx.type === 'DEPOSIT' ? 'Einz.' 
+                : 'Ausz.';
+
+              const isNegative = isBuy || isWithdrawal || isFee;
+
               return (
                 <div key={tx.id} className="tx-item-box" style={{ background: isSelected ? 'rgba(59, 130, 246, 0.08)' : undefined }}>
                   <div className="tx-item-left">
@@ -656,10 +703,10 @@ export const Transactions: React.FC<TransactionsProps> = ({
                       />
                     )}
                     <span className={`badge badge-${tx.type.toLowerCase()}`} style={{
-                      backgroundColor: isDeposit ? 'rgba(16, 185, 129, 0.2)' : isWithdrawal ? 'rgba(239, 68, 68, 0.2)' : isStaking ? 'rgba(245, 158, 11, 0.2)' : undefined,
-                      color: isDeposit ? 'var(--accent-emerald)' : isWithdrawal ? 'var(--accent-rose)' : isStaking ? 'var(--accent-gold)' : undefined
+                      backgroundColor: badgeColor,
+                      color: badgeTextColor
                     }}>
-                      {tx.type === 'BUY' ? 'Kauf' : tx.type === 'SELL' ? 'Verkauf' : tx.type === 'DIVIDEND' ? 'Div.' : tx.type === 'STAKING' ? 'Staking' : tx.type === 'DEPOSIT' ? 'Einz.' : 'Ausz.'}
+                      {badgeText}
                     </span>
                     <div>
                       <span className="tx-item-name-bold">{tx.name}</span>
@@ -674,9 +721,9 @@ export const Transactions: React.FC<TransactionsProps> = ({
                   <div className="tx-item-right-wrap">
                     <div className="tx-item-right-text">
                       <span className="tx-item-total-value" style={{ 
-                        color: (isBuy || isWithdrawal) ? 'var(--accent-rose)' : (isDiv || isDeposit || isStaking) ? 'var(--accent-emerald)' : 'var(--text-color)' 
+                        color: isNegative ? 'var(--accent-rose)' : (isDiv || isDeposit || isStaking || isAirdrop || isMining) ? 'var(--accent-emerald)' : 'var(--text-color)' 
                       }}>
-                        {(isBuy || isWithdrawal) ? '-' : '+'}{displayVal}
+                        {isNegative ? '-' : '+'}{displayVal}
                       </span>
                       {tx.fee > 0 && (
                         <span className="tx-item-fee-text">
@@ -766,6 +813,9 @@ export const Transactions: React.FC<TransactionsProps> = ({
                     <option value="DEPOSIT">Einzahlung</option>
                     <option value="WITHDRAWAL">Auszahlung</option>
                     <option value="STAKING">Staking</option>
+                    <option value="AIRDROP">Airdrop</option>
+                    <option value="MINING">Mining</option>
+                    <option value="FEE">Gebühr</option>
                   </select>
                 </div>
                 <div>

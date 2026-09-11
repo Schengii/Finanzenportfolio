@@ -32,46 +32,81 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
 
 ## ✨ Feature-Highlights & Hauptfunktionen
 
-### 1. ⚖️ DACH-Steueroptimierung (`TaxReportModal.tsx` & `SettingsModal.tsx`)
+### 1. 📅 Finanzkalender mit iCal / .ics-Export (`CalendarExportModal.tsx` & `DividendCalendar.tsx`)
+- **Universeller Kalender-Export**: Synchronisiere alle Zahltage, Ex-Dividenden-Termine und Festgeld-Fälligkeiten direkt mit Apple Kalender (macOS/iOS), Google Calendar oder Microsoft Outlook.
+- **Drei Ereignis-Kategorien**:
+  - *Erhaltener Cashflow:* Vergangene Dividendenzahlungen inklusive Betrag und Broker.
+  - *Zukunfts-Prognose:* Hochrechnung zukünftiger Dividendenausschüttungen (3, 6 oder 12 Monate im Voraus) basierend auf deinen aktuellen Beständen.
+  - *Zinstreppe & Festgelder:* Fälligkeitstermine von Sparbriefen und Termingeldern mit Benachrichtigung am Tag der Gutschrift.
+- **Komfortable Bereitstellung**: 1-Klick-Download als `.ics`-Datei oder Direktkopieren des iCal-Contents in die Zwischenablage.
+
+### 2. 🔁 DRIP Dividenden-Reinvestitions-Automatik (`DripCompoundModal.tsx`)
+- **Zinseszins-Simulator (5 bis 30 Jahre)**: Interaktiver Vergleich des Vermögenszuwachses mit automatischer Wiederanlage der Dividenden (DRIP) vs. ohne Reinvestition (Ausschüttung auf das Verrechnungskonto).
+- **Dualer AreaChart & Kennzahlen**: Visuelle Gegenüberstellung von Endvermögen, absolutem Zinseszins-Mehrwert (+X €) und annualisierter Überrendite.
+- **1-Klick Ausführung**: Reinvestiere alle im laufenden Jahr erhaltenen Brutto-Dividenden mit einem einzigen Klick direkt als reale Nachkäufe in dein aktives Portfolio.
+
+### 3. ⛏️ Erweiterte Krypto-Transaktionen & § 22 Nr. 3 EStG Steuerreport (`Transactions.tsx` & `TaxReportModal.tsx`)
+- **Umfassende Transaktionstypen**: Volle Unterstützung für `STAKING`, `AIRDROP`, `MINING` und `FEE` (Gebühren) zusätzlich zu Kauf, Verkauf, Dividende und Cash-Buchungen.
+- **Assetklassen-Katalog**: Transaktionserfassung für alle 8 Kategorien (Aktien, ETFs, Krypto, Anleihen, Immobilien, Edelmetalle, P2P Kredite, Cash).
+- **Steuerlogik nach BMF-Richtlinien**:
+  - Berücksichtigung der **256 € Freigrenze p.a.** gem. § 22 Nr. 3 Satz 2 EStG für Einkünfte aus Staking, Mining und Airdrops.
+  - FiFo-Haltedauer-Tracking: Veräußerungsgewinne nach 1 Jahr Haltefrist bleiben auch bei gestakten Coins 100% steuerfrei (§ 23 EStG).
+
+### 4. 📈 Benchmark-Vergleich & Alpha/Beta Engine (`BenchmarkComparison.tsx` & `Dashboard.tsx`)
+- **Interaktiver Index-Wechsler**: Wähle flexibel zwischen den globalen Leitindizes **MSCI World**, **S&P 500**, **DAX 40** und **Bitcoin**.
+- **Systematische Risiko-Attribution**:
+  - *Jensen's Alpha ($\alpha$):* Exakte Messung deiner Outperformance über die risikofreie Marktrendite (2,0% EZB-Referenzzins).
+  - *Markt-Beta ($\beta$):* Einstufung deines Portfolios in defensiv ($\beta < 0,9$), marktkonform ($\beta \approx 1,0$) oder volatil/aggressiv ($\beta > 1,1$).
+  - *Tracking Error (p.a.):* Volatilität der Renditedifferenz zum gewählten Leitindex.
+- **Interaktive Chartkurven**: Einzelne Benchmarkkurven können in der Legende per Klick ein- und ausgeblendet werden.
+
+### 5. 📸 Smart Beleg & Foto Importer (`ReceiptScannerModal.tsx`)
+- **Client-seitige Abrechnungserkennung**: Lade Screenshots, Fotos (PNG, JPG, WebP) oder PDF-Abrechnungen per Drag & Drop hoch.
+- **Automatische Mustererkennung**:
+  - Extrahiert Broker, Transaktionstyp (Kauf, Verkauf, Dividende, Staking), Ausführungsdatum, WKN / ISIN, Symbol, Stückzahl, Kurs, Gebühren und Steuern.
+  - Optimiert für Trade Republic, Scalable Capital, ING, comdirect, Consorsbank und Bitpanda.
+- **1-Klick Demo-Simulation**: Sofortiges Testen via voreingestellter Testabrechnungen mit interaktiver Buchungs-Übernahme.
+
+### 6. ⚖️ DACH-Steueroptimierung (`TaxReportModal.tsx` & `SettingsModal.tsx`)
 - **🇩🇪 Deutschland**: Abgeltungsteuer (26,375% inkl. Soli), Kirchensteuer, Sparer-Pauschbetrag (1.000 € / 2.000 € konfigurierbar), Vorabpauschale (§ 18 InvStG) basierend auf echten Beständen, Aktien- vs. Sonstiger Verlusttopf sowie Günstigerprüfung.
 - **🇦🇹 Österreich**: Automatische Berechnung der Kapitalertragsteuer (**27,5% KESt flat**) auf Realisationsgewinne und Dividenden, OeKB-Meldefonds-Hinweise und Regelbesteuerungsoption (E1kv).
 - **🇨🇭 Schweiz**: Private Kapitalgewinne auf Wertschriften sind **100% steuerfrei**! Getrennte Ausweisung der ordentlich steuerbaren Dividenden- & Zinserträge sowie Verrechnungssteuer-Anrechnung (35% VSt) im Wertschriftenverzeichnis.
 
-### 2. ⚡ Werkzeuge & Assistenten Hub (`App.tsx`)
-- **Aufgeräumte Navbar**: Statt überladener Einzelsymbole bündelt das neue "⚡ Werkzeuge"-Dropdown alle Spezialfunktionen strukturiert in drei Kategorien:
-  - *📊 Analyse & Berichte:* Dual Portfolio-Vergleich, Institutionelles Factsheet (PDF), Monte Carlo Stresstests, PDF-Monatsbericht.
+### 7. ⚡ Werkzeuge & Assistenten Hub (`App.tsx`)
+- **Aufgeräumte Navbar**: Statt überladener Einzelsymbole bündelt das "⚡ Werkzeuge"-Dropdown alle Spezialfunktionen strukturiert in drei Kategorien:
+  - *📊 Analyse & Berichte:* DRIP Dividenden-Zinseszins, Finanzkalender & iCal Export, Dual Portfolio-Vergleich, Institutionelles Factsheet (PDF), Monte Carlo Stresstests, PDF-Monatsbericht.
   - *📑 Steuern & DACH:* Steuer- & Verlusttöpfe Report, Tax Loss Harvesting & Freibetrag, Ausländische Quellensteuer-Rückerstattung, Krypto FiFo Radar.
-  - *📥 Daten & Cloud:* Universal CSV Importer, Stapel PDF Upload, Neobroker Order-Assistent, Nextcloud / WebDAV Sync, Offline QR-Code Transfer.
+  - *📥 Daten & Cloud:* Smart Beleg- & Foto-Scanner, Universal CSV Importer, Stapel PDF Upload, Neobroker Order-Assistent, Nextcloud / WebDAV Sync, Offline QR-Code Transfer.
 
-### 3. 🛡️ Gesetzliche Einlagensicherung in der Zinstreppe (`DepositLadderWidget.tsx`)
+### 8. 🛡️ Gesetzliche Einlagensicherung in der Zinstreppe (`DepositLadderWidget.tsx`)
 - **Klumpenrisiko-Frühwarnung**: Warnt sofort auffällig, sobald das aggregierte Anlagevolumen bei einem einzelnen Bankinstitut die gesetzliche Einlagensicherung von **100.000 €** übersteigt.
 - **Vollständige Bearbeitbarkeit**: In-Place Bearbeitung von Festgeldern, Tagesgeldern und Sparbriefen inklusive Fälligkeitskalender.
 
-### 4. 🏢 Immobilien & Cashflow-Tracker (`RealEstateTracker.tsx`)
+### 9. 🏢 Immobilien & Cashflow-Tracker (`RealEstateTracker.tsx`)
 - **Vollständige Objektdaten**: Verwaltung von Kaufpreis, aktuellem Marktwert, Darlehensrestschuld, Sollzins, Kaltmiete, monatlicher Bankrate und Bewirtschaftungskosten/Hausgeld.
 - **KPIs & Renditen**: Brutto- und Netto-Mietrendite, Beleihungsquote (LTV), Netto-Eigenkapital (Equity) und monatlicher Netto-Cashflow nach Kosten.
 - **In-Place Bearbeitung**: Editier-Modal zur direkten Anpassung existierender Immobilien.
 
-### 5. ⚡ Sparplan-Sofortausführung (`SavingsSimulator.tsx`)
+### 10. ⚡ Sparplan-Sofortausführung (`SavingsSimulator.tsx`)
 - **1-Klick Ausführung**: Mit dem Button "⚡ Jetzt ausführen" werden alle aktiven Sparpläne sofort als reale Kaufbuchungen zum aktuellen Datum und Kurs in die Transaktionshistorie eingebucht.
 
-### 6. 📊 Interaktive Tabellen-Sortierung & CSV-Export (`Holdings.tsx` & `Transactions.tsx`)
-- **Flexible Sortierung**: 1-Klick Sortierung auf allen Spalten (Asset, Kategorie, Anteile, Kaufkurs, aktueller Kurs, Depotwert, Gewinn/Verlust, Portfoliogewichtung) auf- und absteigend.
+### 11. 📊 Interaktive Tabellen-Sortierung & CSV-Export (`Holdings.tsx` & `Transactions.tsx`)
+- **Flexible Sortierung**: 1-Klick Sortierung auf allen Spalten auf- und absteigend.
 - **1-Klick CSV Export**: Direkter Export der aktuellen Depotbestände und gefilterten Aktivitäten als formatierte CSV-Datei für Excel oder Steuersoftware.
 - **Transaktionen bearbeiten**: Transaktionen können direkt in der Tabelle über das Bearbeiten-Symbol editiert werden.
 
-### 7. 🎯 Echte Options-Prämienrendite & Greeks (`OptionIncomeTracker.tsx`)
+### 12. 🎯 Echte Options-Prämienrendite & Greeks (`OptionIncomeTracker.tsx`)
 - **Annualisierte Rendite**: Dynamische Berechnung der tatsächlichen annualisierten Rendite p.a. bezogen auf das gebundene Cash-Kollateral statt statischer Schätzwerte.
 - **Delta-Hedging**: Portfolio-Delta-Aggregation und Absicherungsempfehlungen für Tail-Risk (Protective Puts).
 
-### 8. 🏛️ Ausländische Quellensteuer-Rückerstattung (`WithholdingTaxRefundModal.tsx`)
+### 13. 🏛️ Ausländische Quellensteuer-Rückerstattung (`WithholdingTaxRefundModal.tsx`)
 - **Schweiz, Frankreich, Österreich & USA:** Automatische Berechnung rückforderbarer Quellensteuern (z. B. Schweiz 20% via ESTV Form 82 I / Tax Voucher, Frankreich 10% via Form 5000/5001, Österreich 12,5% via ZS-RD1).
 - **Vollständig integriert:** Auch direkt über die Command Palette (`Strg + K` -> "Quellensteuer") erreichbar.
 
-### 9. 🧬 Fama-French 5-Faktoren Risiko-Zerlegung (`FactorExposureWidget.tsx`)
+### 14. 🧬 Fama-French 5-Faktoren Risiko-Zerlegung (`FactorExposureWidget.tsx`)
 - **Multi-Faktor Screening:** Quantifizierung von Marktrisiko (Beta $\beta$), Size-Prämie ($\text{SMB}$), Value/Growth-Tilt ($\text{HML}$), Profitabilitäts-Güte ($\text{RMW}$) und Investitions-Verhalten ($\text{CMA}$).
 
-### 10. 🔒 Master-PIN Management & Web Crypto Tresor (`SettingsModal.tsx`)
+### 15. 🔒 Master-PIN Management & Web Crypto Tresor (`SettingsModal.tsx`)
 - **PIN ändern & Tresor deaktivieren**: Sichere Änderung der Master-PIN unter Verifikation der alten PIN und Option zur dauerhaften Deaktivierung der Verschlüsselung.
 - **Automatischer Inaktivitäts-Timer**: Automatisches Sperren nach 5, 15, 30 oder 60 Minuten.
 

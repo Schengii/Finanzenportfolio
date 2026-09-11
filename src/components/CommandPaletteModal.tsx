@@ -23,7 +23,9 @@ import {
   Sun, 
   Download,
   Columns,
-  DollarSign
+  DollarSign,
+  Camera,
+  Repeat
 } from 'lucide-react';
 import type { Holding } from '../types';
 
@@ -55,6 +57,9 @@ interface CommandPaletteModalProps {
   onOpenCloudSync: () => void;
   onOpenCompare: () => void;
   onOpenWithholdingTax?: () => void;
+  onOpenDrip?: () => void;
+  onOpenReceiptScanner?: () => void;
+  onOpenCalendarExport?: () => void;
   onRefreshPrices: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -80,6 +85,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenCloudSync,
   onOpenCompare,
   onOpenWithholdingTax,
+  onOpenDrip,
+  onOpenReceiptScanner,
+  onOpenCalendarExport,
   onRefreshPrices,
   isDarkMode,
   onToggleDarkMode,
@@ -274,6 +282,33 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         icon: <Sparkles size={18} color="#a855f7" />,
         perform: () => { onClose(); onOpenStressTest(); },
         keywords: 'stresstest monte carlo krisen crash simulation'
+      },
+      {
+        id: 'act-drip-compound',
+        title: 'DRIP Zinseszins & Dividenden-Reinvestition',
+        subtitle: 'Zinseszins-Simulation (5-30J) & 1-Klick Dividenden-Reinvestition',
+        category: 'ACTION',
+        icon: <Repeat size={18} color="#10b981" />,
+        perform: () => { onClose(); if (onOpenDrip) onOpenDrip(); },
+        keywords: 'drip reinvestition dividenden zinseszins compound sparplan yield'
+      },
+      {
+        id: 'act-receipt-scanner',
+        title: 'Smart Beleg & Foto Importer',
+        subtitle: 'Trade Republic, Scalable, ING & Bitpanda Abrechnungen einlesen',
+        category: 'ACTION',
+        icon: <Camera size={18} color="#3b82f6" />,
+        perform: () => { onClose(); if (onOpenReceiptScanner) onOpenReceiptScanner(); },
+        keywords: 'beleg foto screenshot receipt ocr scanner pdf abrechnung import'
+      },
+      {
+        id: 'act-calendar-export',
+        title: 'Finanzkalender & iCal / .ics Export',
+        subtitle: 'Zahltage & Zinstreppen-Fälligkeiten für Apple/Google Calendar',
+        category: 'ACTION',
+        icon: <Calendar size={18} color="#f59e0b" />,
+        perform: () => { onClose(); if (onOpenCalendarExport) onOpenCalendarExport(); },
+        keywords: 'kalender ical ics export zahltage dividenden termine outlook google apple'
       },
       {
         id: 'act-order-assistant',
