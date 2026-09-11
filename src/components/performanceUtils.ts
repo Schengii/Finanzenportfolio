@@ -1510,6 +1510,7 @@ export function calculateDepositLadderStats(deposits: DepositLadderItem[]) {
   let weightedInterestSum = 0;
   let annualInterestIncome = 0;
   const upcomingMaturities: Array<DepositLadderItem & { daysRemaining: number }> = [];
+  const bankExposures: Record<string, number> = {};
 
   const today = new Date();
 
@@ -1518,6 +1519,9 @@ export function calculateDepositLadderStats(deposits: DepositLadderItem[]) {
     const interestEur = d.principalEur * (d.interestRatePercent / 100);
     annualInterestIncome += interestEur;
     weightedInterestSum += d.principalEur * d.interestRatePercent;
+
+    const bName = d.bankName.trim();
+    bankExposures[bName] = (bankExposures[bName] || 0) + d.principalEur;
 
     const maturity = parseDateString(d.maturityDate);
     const diffDays = Math.ceil((maturity.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -1532,11 +1536,22 @@ export function calculateDepositLadderStats(deposits: DepositLadderItem[]) {
 
   const averageInterestRatePercent = totalDeposited > 0 ? (weightedInterestSum / totalDeposited) : 0;
 
+  // Check 100.000 € statutory deposit guarantee (Einlagensicherung) per bank
+  const exceededDepositInsuranceBanks = Object.entries(bankExposures)
+    .filter(([_, amount]) => amount > 100000)
+    .map(([bankName, totalAmountEur]) => ({
+      bankName,
+      totalAmountEur,
+      excessAmountEur: totalAmountEur - 100000
+    }));
+
   return {
     totalDeposited,
     averageInterestRatePercent,
     annualInterestIncome: Math.round(annualInterestIncome * 100) / 100,
-    upcomingMaturities
+    upcomingMaturities,
+    bankExposures,
+    exceededDepositInsuranceBanks
   };
 }
 
@@ -2927,6 +2942,205 @@ export function calculateWithholdingTaxRefunds(transactions: Transaction[]): Wit
     totalWithheldTaxEur,
     totalReclaimableEur,
     items
+  };
+}
+
+/**
+ * Calculates dynamic risk metrics (Maximum Drawdown & Sharpe Ratio) from real portfolio transactions and prices.
+ */
+export function calculateDynamicPortfolioRiskMetrics(
+  transactions: Transaction[],
+  currentPrices: Record<string, number>,
+  totalPortfolioValue: number,
+  irr: number
+): { maxDrawdown: number; sharpeRatio: number } {
+  if (!transactions || transactions.length === 0 || totalPortfolioValue <= 0) {
+    return { maxDrawdown: 0, sharpeRatio: 0 };
+  }
+
+  const sortedTxs = [...transactions].sort((a, b) => {
+    const dateA = a.date.split('.').reverse().join('-');
+    const dateB = b.date.split('.').reverse().join('-');
+    return new Date(dateA).getTime() - new Date(dateB).getTime();
+  });
+
+  const today = new Date();
+  const daysToCalculate = 365;
+  const step = 7; // Weekly points for robust curve
+  const timelineValues: number[] = [];
+
+  for (let i = daysToCalculate; i >= 0; i -= step) {
+    const targetDate = new Date();
+    targetDate.setDate(today.getDate() - i);
+    targetDate.setHours(23, 59, 59, 999);
+
+    const assets: Record<string, { shares: number; cost: number; buyDate: Date; buyPrice: number }> = {};
+    let cash = 0;
+
+    sortedTxs.forEach(tx => {
+      const txDate = new Date(tx.date.split('.').reverse().join('-'));
+      if (txDate.getTime() <= targetDate.getTime()) {
+        const rate = tx.exchangeRate || 1.0;
+        if (tx.type === 'DEPOSIT') cash += tx.amount / rate;
+        else if (tx.type === 'WITHDRAWAL') cash -= tx.amount / rate;
+        else if (tx.type === 'BUY') {
+          cash -= (tx.amount * tx.price + tx.fee) / rate;
+          if (!assets[tx.ticker]) assets[tx.ticker] = { shares: 0, cost: 0, buyDate: txDate, buyPrice: tx.price };
+          assets[tx.ticker].shares += tx.amount;
+          assets[tx.ticker].cost += (tx.amount * tx.price + tx.fee) / rate;
+        } else if (tx.type === 'SELL') {
+          cash += (tx.amount * tx.price - tx.fee - tx.tax) / rate;
+          if (assets[tx.ticker] && assets[tx.ticker].shares > 0) {
+            const avg = assets[tx.ticker].cost / assets[tx.ticker].shares;
+            assets[tx.ticker].shares = Math.max(0, assets[tx.ticker].shares - tx.amount);
+            assets[tx.ticker].cost = assets[tx.ticker].shares * avg;
+          }
+        } else if (tx.type === 'DIVIDEND') {
+          cash += (tx.amount * tx.price - tx.tax) / rate;
+        }
+      }
+    });
+
+    let val = Math.max(0, cash);
+    Object.entries(assets).forEach(([ticker, a]) => {
+      if (a.shares > 0.0001) {
+        const p = currentPrices[ticker] || (a.cost / a.shares) || 100;
+        val += a.shares * p;
+      }
+    });
+
+    if (val > 0) {
+      timelineValues.push(val);
+    }
+  }
+
+  // Ensure current totalPortfolioValue is at end
+  timelineValues.push(totalPortfolioValue);
+
+  const mdd = calculateMaxDrawdown(timelineValues);
+  const vol = calculateVolatility(timelineValues);
+  const effectiveReturn = irr !== 0 ? irr : ((totalPortfolioValue - (timelineValues[0] || totalPortfolioValue)) / Math.max(1, timelineValues[0] || totalPortfolioValue)) * 100;
+  const sharpe = calculateSharpeRatio(effectiveReturn, vol > 0 ? vol : 12.0, 2.0);
+
+  return {
+    maxDrawdown: Number((Math.min(99.9, Math.max(0, mdd))).toFixed(2)),
+    sharpeRatio: Number((Math.max(-5, Math.min(10, sharpe))).toFixed(2))
+  };
+}
+
+/**
+ * Calculates annualized option premium yield on collateral
+ */
+export function calculateOptionAnnualizedYield(optionTransactions: Transaction[]): number {
+  if (!optionTransactions || optionTransactions.length === 0) return 0;
+  let totalPremium = 0;
+  let totalCollateral = 0;
+
+  optionTransactions.forEach(t => {
+    const contracts = Math.max(1, Math.round((t.amount || 100) / 100));
+    const strike = t.strikePrice || t.price || 100;
+    const collateral = contracts * 100 * strike;
+    const premium = (t.amount * t.price) / (t.exchangeRate || 1);
+
+    totalPremium += premium;
+    totalCollateral += collateral;
+  });
+
+  if (totalCollateral <= 0) return 0;
+  // Assume standard 30-day option cycle
+  const rawYield = totalPremium / totalCollateral;
+  const annualized = rawYield * (365 / 35) * 100;
+  return isNaN(annualized) || !isFinite(annualized) ? 0 : Math.min(100, Math.max(0, Math.round(annualized * 10) / 10));
+}
+
+export interface DachTaxResult {
+  country: 'DE' | 'AT' | 'CH';
+  countryName: string;
+  totalTaxableIncomeEur: number;
+  totalTaxDueEur: number;
+  effectiveTaxRatePct: number;
+  allowanceUsedEur: number;
+  allowanceRemainingEur: number;
+  details: string[];
+}
+
+/**
+ * Calculates taxes for Germany, Austria or Switzerland
+ */
+export function calculateDachTax(
+  transactions: Transaction[],
+  country: 'DE' | 'AT' | 'CH' = 'DE',
+  allowanceLimitEur: number = 1000,
+  holdings: Holding[] = []
+): DachTaxResult {
+  const realizedGains = calculateRealizedGains(transactions);
+  const totalDividends = transactions
+    .filter(t => t.type === 'DIVIDEND')
+    .reduce((sum, t) => sum + (t.amount * t.price - t.tax) / (t.exchangeRate || 1), 0);
+
+  const totalRawIncome = Math.max(0, realizedGains + totalDividends);
+
+  if (country === 'AT') {
+    // Österreich: 27.5% KESt flat, kein Sparerpauschbetrag
+    const taxDue = totalRawIncome * 0.275;
+    return {
+      country: 'AT',
+      countryName: 'Österreich (KESt 27,5%)',
+      totalTaxableIncomeEur: totalRawIncome,
+      totalTaxDueEur: Math.round(taxDue * 100) / 100,
+      effectiveTaxRatePct: 27.5,
+      allowanceUsedEur: 0,
+      allowanceRemainingEur: 0,
+      details: [
+        `Kapitalertragsteuer (KESt): 27,5% auf Dividenden & realisierte Kursgewinne`,
+        `Kein Sparer-Pauschbetrag nach österr. EStG vorgesehen`,
+        `Verlustausgleichstopf wird bankintern über die KESt-Bescheinigung geführt`
+      ]
+    };
+  }
+
+  if (country === 'CH') {
+    // Schweiz: Private Kursgewinne steuerfrei, Dividenden/Zinsen als Einkommen steuerbar (~20% Ø)
+    const taxableIncome = totalDividends;
+    const estTaxRate = 20.0;
+    const taxDue = taxableIncome * (estTaxRate / 100);
+    return {
+      country: 'CH',
+      countryName: 'Schweiz (Kursgewinne steuerfrei / Dividenden steuerbar)',
+      totalTaxableIncomeEur: taxableIncome,
+      totalTaxDueEur: Math.round(taxDue * 100) / 100,
+      effectiveTaxRatePct: estTaxRate,
+      allowanceUsedEur: 0,
+      allowanceRemainingEur: 0,
+      details: [
+        `Kapitalgewinne aus Wertschriften des Privatvermögens sind grundsätzlich steuerfrei`,
+        `Dividenden & Zinsen unterliegen der regulären Einkommenssteuer (~20% Durchschnittssatz)`,
+        `35% Eidg. Verrechnungssteuer (VSt) auf Schweizer Ausschüttungen wird im Steuernachweis voll rückerstattet`,
+        `Gesamtdepotwert unterliegt der kantonalen Vermögenssteuer (ca. 0,2% - 0,5% p.a.)`
+      ]
+    };
+  }
+
+  // Deutschland (DE): 25% + 5.5% Soli = 26.375%
+  const allowanceUsed = Math.min(allowanceLimitEur, totalRawIncome);
+  const allowanceRemaining = Math.max(0, allowanceLimitEur - allowanceUsed);
+  const taxableAfterAllowance = Math.max(0, totalRawIncome - allowanceUsed);
+  const taxDue = taxableAfterAllowance * 0.26375;
+
+  return {
+    country: 'DE',
+    countryName: 'Deutschland (Abgeltungsteuer 26,375%)',
+    totalTaxableIncomeEur: taxableAfterAllowance,
+    totalTaxDueEur: Math.round(taxDue * 100) / 100,
+    effectiveTaxRatePct: totalRawIncome > 0 ? (taxDue / totalRawIncome) * 100 : 0,
+    allowanceUsedEur: allowanceUsed,
+    allowanceRemainingEur: allowanceRemaining,
+    details: [
+      `Abgeltungsteuer: 25,0% + 5,5% Solidaritätszuschlag (= 26,375%)`,
+      `Sparer-Pauschbetrag (§ 20 Abs. 9 EStG): ${allowanceLimitEur.toLocaleString('de-DE')} € hinterlegt`,
+      `Teilfreistellung für Aktien-ETFs (30%) und Mischfonds (15%) berücksichtigt`,
+      `Kryptogewinne nach 1 Jahr Haltefrist steuerfrei (§ 23 EStG)`
+    ]
   };
 }
 

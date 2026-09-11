@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import type { Portfolio, Transaction, WatchlistItem, SavingsPlan, AssetMappingRule, PortfolioStats, Holding, PortfolioSnapshot } from '../types';
+import type { Portfolio, Transaction, WatchlistItem, SavingsPlan, AssetMappingRule, PortfolioStats, Holding, PortfolioSnapshot, TaxCountry, RealEstateAsset, DepositLadderItem } from '../types';
 import { fetchLiveExchangeRates, fetchLiveCryptoPrices, fetchLiveStockPrices } from '../services/marketDataApi';
-import { calculateIRR, calculateTTWRR, calculateRealizedGains, calculateCryptoTaxFreeShares } from '../components/performanceUtils';
+import { calculateIRR, calculateTTWRR, calculateRealizedGains, calculateCryptoTaxFreeShares, calculateDynamicPortfolioRiskMetrics } from '../components/performanceUtils';
+import { encryptData, decryptData } from '../services/cryptoStorage';
 
 interface PortfolioContextType {
   portfolios: Portfolio[];
@@ -13,12 +14,18 @@ interface PortfolioContextType {
   setBaseCurrency: (cur: 'EUR' | 'USD' | 'CHF' | 'GBP') => void;
   isDarkMode: boolean;
   setIsDarkMode: (dark: boolean) => void;
+  taxCountry: TaxCountry;
+  setTaxCountry: (country: TaxCountry) => void;
+  taxAllowanceEur: number;
+  setTaxAllowanceEur: (allowance: number) => void;
   activeBrokerFilter: string;
   setActiveBrokerFilter: (broker: string) => void;
   isVaultLocked: boolean;
   lockVault: () => void;
   unlockVault: (unlockedPortfolios: Portfolio[]) => void;
   resetVault: () => void;
+  changeVaultPin: (oldPin: string, newPin: string) => Promise<boolean>;
+  disableVault: (pin: string) => Promise<boolean>;
   autoLockMinutes: number;
   setAutoLockMinutes: (min: number) => void;
   snapshots: PortfolioSnapshot[];
@@ -31,6 +38,7 @@ interface PortfolioContextType {
   createPortfolio: (name: string) => void;
   deletePortfolio: (id: string) => void;
   addTransaction: (tx: Transaction) => void;
+  updateTransaction: (tx: Transaction) => void;
   deleteTransaction: (id: string) => void;
   addWatchlistItem: (item: WatchlistItem) => void;
   removeWatchlistItem: (id: string) => void;
@@ -45,9 +53,11 @@ interface PortfolioContextType {
   importBackup: (data: Portfolio[]) => void;
   updateHoldingNotes: (ticker: string, notes: string) => void;
   updateHoldingTags: (ticker: string, tags: string[]) => void;
-  addRealEstate: (prop: any) => void;
+  addRealEstate: (prop: RealEstateAsset) => void;
+  updateRealEstate: (prop: RealEstateAsset) => void;
   deleteRealEstate: (id: string) => void;
-  addDepositLadderItem: (item: any) => void;
+  addDepositLadderItem: (item: DepositLadderItem) => void;
+  updateDepositLadderItem: (item: DepositLadderItem) => void;
   deleteDepositLadderItem: (id: string) => void;
 }
 
@@ -187,6 +197,15 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [baseCurrency, setBaseCurrency] = useState<'EUR' | 'USD' | 'CHF' | 'GBP'>('EUR');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [activeBrokerFilter, setActiveBrokerFilter] = useState<string>('ALL');
+
+  const [taxCountry, setTaxCountry] = useState<TaxCountry>(() => {
+    return (localStorage.getItem('finanz_tax_country') as TaxCountry) || 'DE';
+  });
+
+  const [taxAllowanceEur, setTaxAllowanceEur] = useState<number>(() => {
+    const saved = localStorage.getItem('finanz_tax_allowance');
+    return saved ? parseFloat(saved) : 1000;
+  });
   
   const [fxRates, setFxRates] = useState<Record<string, number>>({
     EUR: 1.0,
@@ -210,6 +229,14 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [portfolios, isVaultLocked]);
 
   useEffect(() => {
+    localStorage.setItem('finanz_tax_country', taxCountry);
+  }, [taxCountry]);
+
+  useEffect(() => {
+    localStorage.setItem('finanz_tax_allowance', taxAllowanceEur.toString());
+  }, [taxAllowanceEur]);
+
+  useEffect(() => {
     localStorage.setItem('finanz_snapshots', JSON.stringify(snapshots));
   }, [snapshots]);
 
@@ -228,6 +255,42 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const lockVault = () => {
     if (localStorage.getItem('finanz_encrypted_vault')) {
       setIsVaultLocked(true);
+    }
+  };
+
+  // Change PIN with old PIN verification
+  const changeVaultPin = async (oldPin: string, newPin: string): Promise<boolean> => {
+    const cipher = localStorage.getItem('finanz_encrypted_vault');
+    if (!cipher) return false;
+    try {
+      const decrypted = await decryptData(cipher, oldPin);
+      const newCipher = await encryptData(decrypted, newPin);
+      localStorage.setItem('finanz_encrypted_vault', newCipher);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Safely disable vault encryption
+  const disableVault = async (pin: string): Promise<boolean> => {
+    const cipher = localStorage.getItem('finanz_encrypted_vault');
+    if (!cipher) {
+      localStorage.removeItem('finanz_encrypted_vault');
+      setIsVaultLocked(false);
+      return true;
+    }
+    try {
+      const decrypted = await decryptData(cipher, pin);
+      const parsed = JSON.parse(decrypted);
+      if (Array.isArray(parsed)) {
+        setPortfolios(parsed);
+      }
+      localStorage.removeItem('finanz_encrypted_vault');
+      setIsVaultLocked(false);
+      return true;
+    } catch {
+      return false;
     }
   };
 
@@ -270,24 +333,32 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const allTxs = portfolios.flatMap(p => p.transactions || []);
       const allWatchlist = portfolios.flatMap(p => p.watchlist || []);
       const allSavings = portfolios.flatMap(p => p.savingsPlans || []);
+      const allRealEstate = portfolios.flatMap(p => p.realEstate || []);
+      const allDepositLadder = portfolios.flatMap(p => p.depositLadder || []);
+      const allMapping = portfolios.flatMap(p => p.mappingRules || []);
       return {
         id: 'FAMILY_ALL',
         name: '👨‍👩‍👧‍👦 Familien-Gesamtsicht (Alle Portfolios)',
         transactions: allTxs,
         watchlist: allWatchlist,
-        savingsPlans: allSavings
+        savingsPlans: allSavings,
+        realEstate: allRealEstate,
+        depositLadder: allDepositLadder,
+        mappingRules: allMapping
       };
     }
     return portfolios.find(p => p.id === activePortfolioId) || portfolios[0] || DEFAULT_PORTFOLIO;
   }, [portfolios, activePortfolioId]);
 
-  // Live Prices refresh handler
+  // Live Prices refresh handler: includes both transactions and watchlist tickers
   const refreshPrices = async () => {
     const cryptoPrices = await fetchLiveCryptoPrices();
     const fx = await fetchLiveExchangeRates();
     setFxRates(fx);
     
-    const tickers = Array.from(new Set(activePortfolio.transactions.map(t => t.ticker))).filter(t => t !== 'CASH');
+    const txTickers = (activePortfolio.transactions || []).map(t => t.ticker);
+    const wlTickers = (activePortfolio.watchlist || []).map(w => w.ticker);
+    const tickers = Array.from(new Set([...txTickers, ...wlTickers])).filter(t => t && t !== 'CASH');
     const stockPrices = await fetchLiveStockPrices(tickers);
 
     setCurrentPrices(prev => ({
@@ -406,12 +477,20 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       .filter(t => t.type === 'DIVIDEND')
       .reduce((sum, t) => sum + (t.amount * t.price - t.tax) / (t.exchangeRate || 1), 0);
 
+    const totalValWithCash = totalValue + cashBalance;
     const irr = calculateIRR(activePortfolio.transactions, totalValue, cashBalance);
     const ttwrr = calculateTTWRR(activePortfolio.transactions, totalValue, cashBalance);
     const realizedGains = calculateRealizedGains(activePortfolio.transactions);
 
+    const dynamicRisk = calculateDynamicPortfolioRiskMetrics(
+      activePortfolio.transactions,
+      currentPrices,
+      totalValWithCash,
+      irr
+    );
+
     return {
-      totalValue: totalValue + cashBalance,
+      totalValue: totalValWithCash,
       totalCost,
       totalGains,
       totalGainsPercent,
@@ -419,12 +498,14 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       cashBalance,
       irr,
       ttwrr,
-      maxDrawdown: 5.2,
-      sharpeRatio: 1.45,
+      maxDrawdown: dynamicRisk.maxDrawdown,
+      sharpeRatio: dynamicRisk.sharpeRatio,
       realizedGains,
-      taxExemptionUsed: Math.min(1000, realizedGains + divSum)
+      taxExemptionUsed: Math.min(taxAllowanceEur, realizedGains + divSum),
+      taxCountry,
+      taxAllowanceEur
     };
-  }, [holdings, activePortfolio.transactions, cashBalance]);
+  }, [holdings, activePortfolio.transactions, cashBalance, currentPrices, taxAllowanceEur, taxCountry]);
 
   // Snapshots Management
   const createSnapshot = (description: string) => {
@@ -476,9 +557,23 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const addTransaction = (tx: Transaction) => {
+    const targetId = activePortfolioId === 'FAMILY_ALL' ? (portfolios[0]?.id || 'default') : activePortfolioId;
     setPortfolios(prev => prev.map(p => {
-      if (p.id === activePortfolioId) {
+      if (p.id === targetId) {
         return { ...p, transactions: [tx, ...(p.transactions || [])] };
+      }
+      return p;
+    }));
+  };
+
+  const updateTransaction = (updatedTx: Transaction) => {
+    setPortfolios(prev => prev.map(p => {
+      const exists = (p.transactions || []).some(t => t.id === updatedTx.id);
+      if (exists) {
+        return {
+          ...p,
+          transactions: (p.transactions || []).map(t => t.id === updatedTx.id ? updatedTx : t)
+        };
       }
       return p;
     }));
@@ -486,7 +581,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteTransaction = (id: string) => {
     setPortfolios(prev => prev.map(p => {
-      if (p.id === activePortfolioId) {
+      if (activePortfolioId === 'FAMILY_ALL' || p.id === activePortfolioId) {
         return { ...p, transactions: (p.transactions || []).filter(t => t.id !== id) };
       }
       return p;
@@ -639,10 +734,24 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
-  const addRealEstate = (prop: any) => {
+  const addRealEstate = (prop: RealEstateAsset) => {
+    const targetId = activePortfolioId === 'FAMILY_ALL' ? (portfolios[0]?.id || 'default') : activePortfolioId;
     setPortfolios(prev => prev.map(p => {
-      if (p.id === activePortfolioId) {
+      if (p.id === targetId) {
         return { ...p, realEstate: [...(p.realEstate || []), prop] };
+      }
+      return p;
+    }));
+  };
+
+  const updateRealEstate = (prop: RealEstateAsset) => {
+    setPortfolios(prev => prev.map(p => {
+      const exists = (p.realEstate || []).some(r => r.id === prop.id);
+      if (exists) {
+        return {
+          ...p,
+          realEstate: (p.realEstate || []).map(r => r.id === prop.id ? prop : r)
+        };
       }
       return p;
     }));
@@ -650,17 +759,31 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteRealEstate = (id: string) => {
     setPortfolios(prev => prev.map(p => {
-      if (p.id === activePortfolioId) {
+      if (activePortfolioId === 'FAMILY_ALL' || p.id === activePortfolioId) {
         return { ...p, realEstate: (p.realEstate || []).filter(r => r.id !== id) };
       }
       return p;
     }));
   };
 
-  const addDepositLadderItem = (item: any) => {
+  const addDepositLadderItem = (item: DepositLadderItem) => {
+    const targetId = activePortfolioId === 'FAMILY_ALL' ? (portfolios[0]?.id || 'default') : activePortfolioId;
     setPortfolios(prev => prev.map(p => {
-      if (p.id === activePortfolioId) {
+      if (p.id === targetId) {
         return { ...p, depositLadder: [...(p.depositLadder || []), item] };
+      }
+      return p;
+    }));
+  };
+
+  const updateDepositLadderItem = (item: DepositLadderItem) => {
+    setPortfolios(prev => prev.map(p => {
+      const exists = (p.depositLadder || []).some(d => d.id === item.id);
+      if (exists) {
+        return {
+          ...p,
+          depositLadder: (p.depositLadder || []).map(d => d.id === item.id ? item : d)
+        };
       }
       return p;
     }));
@@ -668,7 +791,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteDepositLadderItem = (id: string) => {
     setPortfolios(prev => prev.map(p => {
-      if (p.id === activePortfolioId) {
+      if (activePortfolioId === 'FAMILY_ALL' || p.id === activePortfolioId) {
         return { ...p, depositLadder: (p.depositLadder || []).filter(d => d.id !== id) };
       }
       return p;
@@ -686,12 +809,18 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setBaseCurrency,
       isDarkMode,
       setIsDarkMode,
+      taxCountry,
+      setTaxCountry,
+      taxAllowanceEur,
+      setTaxAllowanceEur,
       activeBrokerFilter,
       setActiveBrokerFilter,
       isVaultLocked,
       lockVault,
       unlockVault,
       resetVault,
+      changeVaultPin,
+      disableVault,
       autoLockMinutes,
       setAutoLockMinutes,
       snapshots,
@@ -704,6 +833,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       createPortfolio,
       deletePortfolio,
       addTransaction,
+      updateTransaction,
       deleteTransaction,
       addWatchlistItem,
       removeWatchlistItem,
@@ -719,8 +849,10 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       updateHoldingNotes,
       updateHoldingTags,
       addRealEstate,
+      updateRealEstate,
       deleteRealEstate,
       addDepositLadderItem,
+      updateDepositLadderItem,
       deleteDepositLadderItem
     }}>
       {children}

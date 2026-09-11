@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import type { DepositLadderItem } from '../types';
-import { Layers, Plus, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Layers, Plus, Trash2, AlertCircle, CheckCircle2, ShieldAlert, Edit3, X, Check } from 'lucide-react';
 import { calculateDepositLadderStats } from './performanceUtils';
 
 interface DepositLadderWidgetProps {
   deposits: DepositLadderItem[];
   onAddDeposit: (deposit: DepositLadderItem) => void;
+  onUpdateDeposit?: (deposit: DepositLadderItem) => void;
   onDeleteDeposit: (id: string) => void;
   baseCurrency?: string;
 }
@@ -13,10 +14,12 @@ interface DepositLadderWidgetProps {
 export const DepositLadderWidget: React.FC<DepositLadderWidgetProps> = ({
   deposits,
   onAddDeposit,
+  onUpdateDeposit,
   onDeleteDeposit,
   baseCurrency = 'EUR'
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingDeposit, setEditingDeposit] = useState<DepositLadderItem | null>(null);
 
   const [bankName, setBankName] = useState('');
   const [depositType, setDepositType] = useState<'FESTGELD' | 'TAGESGELD' | 'SPARBRIEF'>('FESTGELD');
@@ -47,6 +50,15 @@ export const DepositLadderWidget: React.FC<DepositLadderWidgetProps> = ({
     setBankName('');
   };
 
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDeposit) return;
+    if (onUpdateDeposit) {
+      onUpdateDeposit(editingDeposit);
+    }
+    setEditingDeposit(null);
+  };
+
   return (
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -62,6 +74,31 @@ export const DepositLadderWidget: React.FC<DepositLadderWidgetProps> = ({
           <Plus size={16} /> Anlage hinzufügen
         </button>
       </div>
+
+      {/* Deposit Insurance Warning Banner */}
+      {stats.exceededDepositInsuranceBanks && stats.exceededDepositInsuranceBanks.length > 0 && (
+        <div style={{
+          padding: '1rem 1.25rem',
+          borderRadius: '10px',
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '0.85rem'
+        }}>
+          <ShieldAlert size={24} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <div style={{ fontWeight: '600', color: '#ef4444', marginBottom: '0.25rem' }}>
+              Achtung: Gesetzliche Einlagensicherung überschritten (> 100.000 € je Institut)
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', opacity: 0.9 }}>
+              Folgende Banken weisen ein Anlagevolumen über 100.000 € auf:{' '}
+              <strong style={{ color: '#fca5a5' }}>{stats.exceededDepositInsuranceBanks.join(', ')}</strong>.
+              Guthaben oberhalb von 100.000 € je Bank und Anleger sind im Falle einer Bankeninsolvenz nicht durch die gesetzliche EU-Einlagensicherung abgesichert. Bitte streue das Kapital auf mehrere unabhängige Institute.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
@@ -162,6 +199,13 @@ export const DepositLadderWidget: React.FC<DepositLadderWidgetProps> = ({
                       </td>
                       <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
                         <button
+                          onClick={() => setEditingDeposit({ ...d })}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem', marginRight: '0.5rem' }}
+                          title="Bearbeiten"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button
                           onClick={() => onDeleteDeposit(d.id)}
                           style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.25rem' }}
                           title="Löschen"
@@ -178,6 +222,7 @@ export const DepositLadderWidget: React.FC<DepositLadderWidgetProps> = ({
         )}
       </div>
 
+      {/* Modal to add deposit */}
       {showAddModal && (
         <div className="modal-overlay" style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -256,6 +301,100 @@ export const DepositLadderWidget: React.FC<DepositLadderWidgetProps> = ({
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Speichern
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal to edit deposit */}
+      {editingDeposit && (
+        <div className="modal-overlay" style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: 'var(--card-bg, #1e293b)', padding: '1.5rem', borderRadius: '12px', width: '90%', maxWidth: '460px',
+            border: '1px solid var(--border-color)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Edit3 size={20} /> Zinsanlage bearbeiten
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingDeposit(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Bank / Plattform</label>
+                <input
+                  type="text"
+                  value={editingDeposit.bankName}
+                  onChange={e => setEditingDeposit({ ...editingDeposit, bankName: e.target.value })}
+                  required
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', marginTop: '0.25rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Anlageform</label>
+                <select
+                  value={editingDeposit.depositType}
+                  onChange={e => setEditingDeposit({ ...editingDeposit, depositType: e.target.value as any })}
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', marginTop: '0.25rem' }}
+                >
+                  <option value="FESTGELD">Festgeld</option>
+                  <option value="TAGESGELD">Tagesgeld (täglich fällig)</option>
+                  <option value="SPARBRIEF">Sparbrief / Anleihe</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Anlagebetrag (€)</label>
+                  <input
+                    type="number"
+                    value={editingDeposit.principalEur}
+                    onChange={e => setEditingDeposit({ ...editingDeposit, principalEur: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '6px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Zinssatz (% p.a.)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingDeposit.interestRatePercent}
+                    onChange={e => setEditingDeposit({ ...editingDeposit, interestRatePercent: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '6px' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Fälligkeitsdatum (DD.MM.YYYY)</label>
+                <input
+                  type="text"
+                  value={editingDeposit.maturityDate}
+                  onChange={e => setEditingDeposit({ ...editingDeposit, maturityDate: e.target.value })}
+                  placeholder="31.12.2026"
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', marginTop: '0.25rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setEditingDeposit(null)}>
+                  Abbrechen
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Check size={16} /> Übernehmen
                 </button>
               </div>
             </form>

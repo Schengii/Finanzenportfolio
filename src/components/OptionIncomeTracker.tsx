@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { Transaction } from '../types';
 import { DollarSign, Plus } from 'lucide-react';
-import { convertCurrency, calculateOptionGreeks } from './performanceUtils';
+import { convertCurrency, calculateOptionGreeks, calculateOptionAnnualizedYield } from './performanceUtils';
 
 interface OptionIncomeTrackerProps {
   transactions: Transaction[];
@@ -35,6 +35,10 @@ export const OptionIncomeTracker: React.FC<OptionIncomeTrackerProps> = ({
 
   const totalPremiumEur = useMemo(() => {
     return optionTxs.reduce((acc, t) => acc + (t.amount * t.price) / (t.exchangeRate || 1), 0);
+  }, [optionTxs]);
+
+  const annualizedYield = useMemo(() => {
+    return calculateOptionAnnualizedYield(optionTxs);
   }, [optionTxs]);
 
   const handleAddOption = (e: React.FormEvent) => {
@@ -95,7 +99,7 @@ export const OptionIncomeTracker: React.FC<OptionIncomeTrackerProps> = ({
         <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl">
           <span className="text-xs text-slate-400 font-semibold block">Ø Prämienrendite p.a.</span>
           <span className="text-2xl font-black text-blue-400 block mt-1">
-            {optionTxs.length > 0 ? '+14.2%' : '0.0%'}
+            {optionTxs.length > 0 ? `+${annualizedYield.toFixed(1)}%` : '0.0%'}
           </span>
         </div>
       </div>

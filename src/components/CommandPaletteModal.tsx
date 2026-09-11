@@ -54,6 +54,7 @@ interface CommandPaletteModalProps {
   onOpenQrSync: () => void;
   onOpenCloudSync: () => void;
   onOpenCompare: () => void;
+  onOpenWithholdingTax?: () => void;
   onRefreshPrices: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -78,6 +79,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenQrSync,
   onOpenCloudSync,
   onOpenCompare,
+  onOpenWithholdingTax,
   onRefreshPrices,
   isDarkMode,
   onToggleDarkMode,
@@ -236,6 +238,15 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         icon: <FileSpreadsheet size={18} color="#ec4899" />,
         perform: () => { onClose(); onOpenTaxReport(); },
         keywords: 'steuererklaerung kap anlage wiso taxfix finanzamt'
+      },
+      {
+        id: 'act-withholding-tax',
+        title: 'Ausländische Quellensteuer-Rückerstattung',
+        subtitle: 'Schweiz (Form 82 I), Frankreich, Österreich & USA DBA',
+        category: 'ACTION',
+        icon: <Scale size={18} color="#06b6d4" />,
+        perform: () => { onClose(); if (onOpenWithholdingTax) onOpenWithholdingTax(); },
+        keywords: 'quellensteuer schweiz erstattung dividenden formular 82 dba frankreich oesterreich'
       },
       {
         id: 'act-crypto-tax',

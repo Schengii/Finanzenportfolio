@@ -56,19 +56,28 @@ function App() {
     createPortfolio,
     deletePortfolio,
     addTransaction,
+    updateTransaction,
     deleteTransaction,
     addWatchlistItem,
     removeWatchlistItem,
     addSavingsPlan,
     toggleSavingsPlan,
     removeSavingsPlan,
+    executeSavingsPlans,
     addMappingRule,
     deleteMappingRule,
     refreshPrices,
-    importBackup
+    importBackup,
+    addRealEstate,
+    updateRealEstate,
+    deleteRealEstate,
+    addDepositLadderItem,
+    updateDepositLadderItem,
+    deleteDepositLadderItem
   } = usePortfolio();
 
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'dividend_calendar' | 'watchlist' | 'savings' | 'options' | 'real_estate' | 'deposit_ladder' | 'mapping_rules'>('dashboard');
+  const [showToolsDropdown, setShowToolsDropdown] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showBatchPdfModal, setShowBatchPdfModal] = useState(false);
   const [showTaxReportModal, setShowTaxReportModal] = useState(false);
@@ -190,62 +199,6 @@ function App() {
             <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Strg+K</span>
           </button>
 
-          <button
-            onClick={() => setShowCompareModal(true)}
-            className="theme-toggle-btn"
-            title="Side-by-Side Dual Portfolio-Vergleich"
-          >
-            <Columns size={16} />
-          </button>
-
-          <button
-            onClick={() => setShowWithholdingTaxModal(true)}
-            className="theme-toggle-btn"
-            title="Ausländische Quellensteuer-Rückerstattung (Schweiz Form 82 I, Frankreich, Österreich)"
-          >
-            <Landmark size={16} />
-          </button>
-
-          <button
-            onClick={() => setShowCryptoTaxModal(true)}
-            className="theme-toggle-btn"
-            title="Krypto FiFo Tranchen- & Steuer-Optimierer (§ 23 EStG)"
-          >
-            <Coins size={16} />
-          </button>
-
-          <button
-            onClick={() => setShowFactsheetModal(true)}
-            className="theme-toggle-btn"
-            title="Institutionelles Portfolio-Factsheet (Druck/PDF)"
-          >
-            <FileSpreadsheet size={16} />
-          </button>
-
-          <button
-            onClick={() => setShowQrSyncModal(true)}
-            className="theme-toggle-btn"
-            title="Air-Gapped Offline QR-Code Vault Transfer"
-          >
-            <QrCode size={16} />
-          </button>
-
-          <button
-            onClick={() => setShowOrderAssistantModal(true)}
-            className="theme-toggle-btn"
-            title="Neobroker Sparplan- & Order-Assistent"
-          >
-            <ShoppingCart size={16} />
-          </button>
-
-          <button
-            onClick={() => setShowCloudSyncModal(true)}
-            className="theme-toggle-btn"
-            title="WebDAV & Nextcloud Private Cloud Sync"
-          >
-            <Cloud size={16} />
-          </button>
-
           <button 
             onClick={handleRefreshPrices}
             disabled={isRefreshing}
@@ -255,44 +208,166 @@ function App() {
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
           </button>
 
-          <button
-            onClick={() => setShowBatchPdfModal(true)}
-            className="theme-toggle-btn"
-            title="Stapel PDF Upload (Batch Import)"
-          >
-            <Upload size={16} />
-          </button>
+          {/* Categorized Tools & Assistants Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowToolsDropdown(prev => !prev)}
+              className="theme-toggle-btn"
+              title="Werkzeuge, Steuern & Assistenten öffnen"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '0 0.75rem',
+                width: 'auto',
+                background: showToolsDropdown ? 'var(--accent-blue, #3b82f6)' : undefined,
+                color: showToolsDropdown ? '#fff' : undefined,
+                fontWeight: 600
+              }}
+            >
+              <Sparkles size={15} />
+              <span style={{ fontSize: '0.75rem' }}>Werkzeuge</span>
+            </button>
 
-          <button
-            onClick={() => setShowCsvImportModal(true)}
-            className="theme-toggle-btn"
-            title="Universal CSV Auto-Detector Importer"
-          >
-            <FileSpreadsheet size={16} />
-          </button>
+            {showToolsDropdown && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '115%',
+                  right: 0,
+                  width: '320px',
+                  background: 'var(--card-bg, #0f172a)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+                  padding: '0.75rem',
+                  zIndex: 200,
+                  backdropFilter: 'blur(12px)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem'
+                }}
+              >
+                {/* Section 1: Analyse & Berichte */}
+                <div>
+                  <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 700 }}>
+                    📊 Analyse & Berichte
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <button
+                      onClick={() => { setShowCompareModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Columns size={14} style={{ color: '#3b82f6' }} /> Dual Portfolio-Vergleich
+                    </button>
+                    <button
+                      onClick={() => { setShowFactsheetModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <FileSpreadsheet size={14} style={{ color: '#8b5cf6' }} /> Fonds-Factsheet (PDF)
+                    </button>
+                    <button
+                      onClick={() => { setShowStressTestModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Sparkles size={14} style={{ color: '#ec4899' }} /> Monte Carlo & Stresstests
+                    </button>
+                    <button
+                      onClick={() => { setShowPdfExportModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <FileText size={14} style={{ color: '#10b981' }} /> PDF Monatsbericht drucken
+                    </button>
+                  </div>
+                </div>
 
-          <button
-            onClick={() => setShowStressTestModal(true)}
-            className="theme-toggle-btn"
-            title="Monte Carlo & Stress-Testing"
-          >
-            <Sparkles size={16} />
-          </button>
+                {/* Section 2: Steuern & DACH */}
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                  <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 700 }}>
+                    📑 Steuern & DACH
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <button
+                      onClick={() => { setShowTaxReportModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <FileText size={14} style={{ color: '#f59e0b' }} /> Steuer- & Verlusttöpfe Report
+                    </button>
+                    <button
+                      onClick={() => { setShowTaxHarvestingModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Scale size={14} style={{ color: '#10b981' }} /> Tax Loss Harvesting & Freibetrag
+                    </button>
+                    <button
+                      onClick={() => { setShowWithholdingTaxModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Landmark size={14} style={{ color: '#06b6d4' }} /> Quellensteuer-Rückerstattung
+                    </button>
+                    <button
+                      onClick={() => { setShowCryptoTaxModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Coins size={14} style={{ color: '#eab308' }} /> Krypto FiFo Tranchen-Radar
+                    </button>
+                  </div>
+                </div>
 
-          <button
-            onClick={() => setShowPdfExportModal(true)}
-            className="theme-toggle-btn"
-            title="PDF Bericht drucken / speichern"
-          >
-            <FileText size={16} />
-          </button>
-          <button
-            onClick={() => setShowTaxHarvestingModal(true)}
-            className="theme-toggle-btn"
-            title="Steuer-Optimierung (Freibetrag & Tax Loss Harvesting)"
-          >
-            <Scale size={16} />
-          </button>
+                {/* Section 3: Daten & Cloud */}
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                  <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 700 }}>
+                    📥 Daten, Import & Sync
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <button
+                      onClick={() => { setShowBatchPdfModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Upload size={14} style={{ color: '#3b82f6' }} /> Stapel PDF Upload
+                    </button>
+                    <button
+                      onClick={() => { setShowCsvImportModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <FileSpreadsheet size={14} style={{ color: '#10b981' }} /> Universal CSV Importer
+                    </button>
+                    <button
+                      onClick={() => { setShowOrderAssistantModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <ShoppingCart size={14} style={{ color: '#14b8a6' }} /> Neobroker Order-Assistent
+                    </button>
+                    <button
+                      onClick={() => { setShowCloudSyncModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Cloud size={14} style={{ color: '#6366f1' }} /> Nextcloud / WebDAV Sync
+                    </button>
+                    <button
+                      onClick={() => { setShowQrSyncModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <QrCode size={14} style={{ color: '#a855f7' }} /> Offline QR-Code Transfer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={() => setShowSettingsModal(true)}
@@ -438,6 +513,7 @@ function App() {
           <Transactions 
             transactions={activePortfolio.transactions || []}
             onAddTransaction={handleAddTransaction}
+            onUpdateTransaction={updateTransaction}
             onDeleteTransaction={deleteTransaction}
             mappingRules={activePortfolio.mappingRules || []}
             onAddRule={handleAddRule}
@@ -483,6 +559,7 @@ function App() {
             onAddSavingsPlan={handleAddSavingsPlan} 
             onDeleteSavingsPlan={removeSavingsPlan} 
             onToggleSavingsPlan={toggleSavingsPlan} 
+            onExecuteSavingsPlans={executeSavingsPlans}
           />
         )}
         {currentTab === 'options' && (
@@ -495,32 +572,18 @@ function App() {
         {currentTab === 'real_estate' && (
           <RealEstateTracker 
             properties={activePortfolio.realEstate || []}
-            onAddProperty={(prop) => {
-              if (activePortfolio.realEstate) {
-                activePortfolio.realEstate.push(prop);
-              } else {
-                activePortfolio.realEstate = [prop];
-              }
-            }}
-            onDeleteProperty={(id) => {
-              activePortfolio.realEstate = (activePortfolio.realEstate || []).filter(p => p.id !== id);
-            }}
+            onAddProperty={addRealEstate}
+            onUpdateProperty={updateRealEstate}
+            onDeleteProperty={deleteRealEstate}
             baseCurrency={baseCurrency}
           />
         )}
         {currentTab === 'deposit_ladder' && (
           <DepositLadderWidget 
             deposits={activePortfolio.depositLadder || []}
-            onAddDeposit={(dep) => {
-              if (activePortfolio.depositLadder) {
-                activePortfolio.depositLadder.push(dep);
-              } else {
-                activePortfolio.depositLadder = [dep];
-              }
-            }}
-            onDeleteDeposit={(id) => {
-              activePortfolio.depositLadder = (activePortfolio.depositLadder || []).filter(d => d.id !== id);
-            }}
+            onAddDeposit={addDepositLadderItem}
+            onUpdateDeposit={updateDepositLadderItem}
+            onDeleteDeposit={deleteDepositLadderItem}
             baseCurrency={baseCurrency}
           />
         )}
@@ -687,6 +750,7 @@ function App() {
         onOpenQrSync={() => setShowQrSyncModal(true)}
         onOpenCloudSync={() => setShowCloudSyncModal(true)}
         onOpenCompare={() => setShowCompareModal(true)}
+        onOpenWithholdingTax={() => setShowWithholdingTaxModal(true)}
         onRefreshPrices={handleRefreshPrices}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}

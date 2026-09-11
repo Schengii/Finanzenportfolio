@@ -1,5 +1,7 @@
 export type AssetCategory = 'Stock' | 'ETF' | 'Crypto' | 'Bond' | 'Cash' | 'RealEstate' | 'P2P' | 'PreciousMetal';
 
+export type TaxCountry = 'DE' | 'AT' | 'CH';
+
 export type Sector = 'Technology' | 'Healthcare' | 'Financials' | 'Consumer' | 'Industrials' | 'Energy' | 'Utilities' | 'Real Estate' | 'Materials' | 'Communication' | 'Other';
 
 export type Region = 'North America' | 'Europe' | 'Emerging Markets' | 'Asia Pacific' | 'Global' | 'Other';
@@ -189,6 +191,8 @@ export interface PortfolioStats {
   sharpeRatio: number;
   realizedGains: number;
   taxExemptionUsed: number;
+  taxCountry?: TaxCountry;
+  taxAllowanceEur?: number;
   stakingRewards?: number;
   vorabpauschaleEstimate?: number;
   stockLossPool?: number;

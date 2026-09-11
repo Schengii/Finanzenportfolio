@@ -27,13 +27,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     createSnapshot, 
     autoLockMinutes, 
     setAutoLockMinutes, 
-    lockVault 
+    lockVault,
+    taxCountry,
+    setTaxCountry,
+    taxAllowanceEur,
+    setTaxAllowanceEur,
+    changeVaultPin,
+    disableVault
   } = usePortfolio();
 
   const [pinPassword, setPinPassword] = useState('');
   const [encryptionStatus, setEncryptionStatus] = useState<string | null>(null);
   const [autoRefreshMin, setAutoRefreshMin] = useState<number>(5);
   const [snapshotSuccess, setSnapshotSuccess] = useState<string | null>(null);
+
+  // PIN Change & Disable states
+  const [isChangingPin, setIsChangingPin] = useState(false);
+  const [oldPin, setOldPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [disablePin, setDisablePin] = useState('');
+  const [isDisablingVault, setIsDisablingVault] = useState(false);
+
+  const isVaultConfigured = typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('finanz_encrypted_vault'));
 
   if (!isOpen) return null;
 
@@ -51,6 +66,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setPinPassword('');
     } catch {
       alert('Fehler beim Verschlüsseln der Daten.');
+    }
+  };
+
+  const handleChangePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!oldPin || !newPin) return;
+    const success = await changeVaultPin(oldPin, newPin);
+    if (success) {
+      setEncryptionStatus('Master-PIN erfolgreich geändert!');
+      setIsChangingPin(false);
+      setOldPin('');
+      setNewPin('');
+    } else {
+      alert('Alte PIN ist leider falsch. PIN konnte nicht geändert werden.');
+    }
+  };
+
+  const handleDisableVaultSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!disablePin) return;
+    const success = await disableVault(disablePin);
+    if (success) {
+      setEncryptionStatus('Verschlüsselung aufgehoben. Daten werden wieder unverschlüsselt lokal gespeichert.');
+      setIsDisablingVault(false);
+      setDisablePin('');
+    } else {
+      alert('Falsche PIN. Verschlüsselung konnte nicht deaktiviert werden.');
     }
   };
 
@@ -109,21 +151,89 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               Sichere deine Depotdaten lokal mit einem Master-Passwort. Nur mit korrekter PIN lassen sich die Daten entschlüsseln.
             </p>
 
-            <div className="flex gap-2">
-              <input
-                type="password"
-                value={pinPassword}
-                onChange={(e) => setPinPassword(e.target.value)}
-                placeholder="Master PIN oder Passwort..."
-                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500"
-              />
-              <button
-                onClick={handleEnableEncryption}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-white rounded-lg transition-colors"
-              >
-                Aktivieren
-              </button>
-            </div>
+            {isVaultConfigured ? (
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setIsChangingPin(!isChangingPin); setIsDisablingVault(false); }}
+                    className="px-3 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 rounded-lg border border-blue-500/30 font-semibold"
+                  >
+                    {isChangingPin ? 'Abbrechen' : 'PIN ändern'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsDisablingVault(!isDisablingVault); setIsChangingPin(false); }}
+                    className="px-3 py-1.5 bg-rose-600/20 text-rose-300 hover:bg-rose-600/30 rounded-lg border border-rose-500/30 font-semibold"
+                  >
+                    {isDisablingVault ? 'Abbrechen' : 'Verschlüsselung aufheben'}
+                  </button>
+                </div>
+
+                {isChangingPin && (
+                  <form onSubmit={handleChangePinSubmit} className="p-3 bg-slate-900 border border-slate-700 rounded-lg space-y-2">
+                    <span className="font-semibold text-slate-300 block">Master-PIN ändern</span>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={oldPin}
+                        onChange={(e) => setOldPin(e.target.value)}
+                        placeholder="Aktuelle PIN"
+                        required
+                        className="flex-1 bg-slate-950 border border-slate-700 rounded p-1.5 text-slate-200"
+                      />
+                      <input
+                        type="password"
+                        value={newPin}
+                        onChange={(e) => setNewPin(e.target.value)}
+                        placeholder="Neue PIN"
+                        required
+                        className="flex-1 bg-slate-950 border border-slate-700 rounded p-1.5 text-slate-200"
+                      />
+                      <button type="submit" className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 font-semibold text-white rounded">
+                        Übernehmen
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {isDisablingVault && (
+                  <form onSubmit={handleDisableVaultSubmit} className="p-3 bg-slate-900 border border-rose-900/50 rounded-lg space-y-2">
+                    <span className="font-semibold text-rose-300 block">Verschlüsselung entfernen</span>
+                    <p className="text-[11px] text-slate-400">Gib deine aktuelle PIN ein, um den Tresor dauerhaft zu entschlüsseln.</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={disablePin}
+                        onChange={(e) => setDisablePin(e.target.value)}
+                        placeholder="Aktuelle PIN eingeben"
+                        required
+                        className="flex-1 bg-slate-950 border border-slate-700 rounded p-1.5 text-slate-200"
+                      />
+                      <button type="submit" className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 font-semibold text-white rounded">
+                        Entschlüsseln
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={pinPassword}
+                  onChange={(e) => setPinPassword(e.target.value)}
+                  placeholder="Master PIN oder Passwort..."
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={handleEnableEncryption}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-white rounded-lg transition-colors"
+                >
+                  Aktivieren
+                </button>
+              </div>
+            )}
 
             {encryptionStatus && (
               <p className="text-emerald-400 font-semibold text-[11px]">{encryptionStatus}</p>
@@ -257,6 +367,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               placeholder="https://n8n.meinedomain.de/webhook/portfolio-backup"
               className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 font-mono text-slate-200 text-xs"
             />
+          </div>
+
+          {/* DACH Tax Residence & Sparer-Pauschbetrag */}
+          <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-bold text-slate-200 block">Steuerwohnsitz & Freibetrag (DACH)</span>
+                <span className="text-slate-400 block">Regelt die steuerlichen Berechnungen, KESt und Freibeträge</span>
+              </div>
+              <div className="flex bg-slate-900 border border-slate-700 rounded-lg p-1">
+                {(['DE', 'AT', 'CH'] as const).map((country) => (
+                  <button
+                    key={country}
+                    type="button"
+                    onClick={() => {
+                      setTaxCountry(country);
+                      if (country === 'DE' && taxAllowanceEur === 0) setTaxAllowanceEur(1000);
+                      if (country !== 'DE') setTaxAllowanceEur(0);
+                    }}
+                    className={`px-3 py-1 rounded font-bold transition-all ${taxCountry === country ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    {country === 'DE' ? '🇩🇪 Deutschland' : country === 'AT' ? '🇦🇹 Österreich' : '🇨🇭 Schweiz'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {taxCountry === 'DE' && (
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                <span className="text-slate-300">Sparer-Pauschbetrag (€ / Jahr)</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTaxAllowanceEur(1000)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold border ${taxAllowanceEur === 1000 ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-300' : 'bg-slate-900 border-slate-700 text-slate-400'}`}
+                  >
+                    1.000 € (Single)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaxAllowanceEur(2000)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold border ${taxAllowanceEur === 2000 ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-300' : 'bg-slate-900 border-slate-700 text-slate-400'}`}
+                  >
+                    2.000 € (Verheiratet)
+                  </button>
+                  <input
+                    type="number"
+                    value={taxAllowanceEur}
+                    onChange={(e) => setTaxAllowanceEur(Math.max(0, Number(e.target.value)))}
+                    className="w-24 bg-slate-900 border border-slate-700 rounded p-1 text-right text-slate-200"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Currency Selection */}

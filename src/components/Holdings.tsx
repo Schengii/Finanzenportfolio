@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Holding, Transaction } from '../types';
-import { TrendingUp, TrendingDown, RefreshCw, Sparkles, Check, Tag, Plus, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Sparkles, Check, Tag, Plus, X, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { convertCurrency } from './performanceUtils';
 import { HoldingDetailModal } from './HoldingDetailModal';
 import { lookupIsinMetadata } from '../services/isinMetadataService';
@@ -16,6 +16,8 @@ interface HoldingsProps {
 
 const PREDEFINED_TAGS = ['#Core', '#Satellite', '#Dividende', '#Tech', '#Growth', '#Value', '#Krypto', '#Defensiv'];
 
+type SortKey = 'name' | 'category' | 'shares' | 'averageBuyPrice' | 'currentPrice' | 'currentValue' | 'totalGain' | 'portfolioWeight';
+
 export const Holdings: React.FC<HoldingsProps> = ({ 
   holdings, 
   transactions, 
@@ -30,6 +32,8 @@ export const Holdings: React.FC<HoldingsProps> = ({
   const [enrichedCount, setEnrichedCount] = useState<number | null>(null);
   const [editingTagTicker, setEditingTagTicker] = useState<string | null>(null);
   const [newCustomTag, setNewCustomTag] = useState('');
+  const [sortColumn, setSortColumn] = useState<SortKey>('currentValue');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const handleAutoEnrich = () => {
     let count = 0;
@@ -88,7 +92,7 @@ export const Holdings: React.FC<HoldingsProps> = ({
   }, [holdings, baseCurrency]);
 
   const filteredHoldings = useMemo(() => {
-    return convertedHoldings.filter(h => {
+    const list = convertedHoldings.filter(h => {
       // Search text filter
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch = !q || (
@@ -102,7 +106,60 @@ export const Holdings: React.FC<HoldingsProps> = ({
 
       return matchesSearch && matchesTag;
     });
-  }, [convertedHoldings, searchQuery, activeTagFilter]);
+
+    // Apply sorting
+    return list.sort((a, b) => {
+      let aVal: any = a[sortColumn];
+      let bVal: any = b[sortColumn];
+
+      if (sortColumn === 'name') {
+        aVal = a.name.toLowerCase();
+        bVal = b.name.toLowerCase();
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [convertedHoldings, searchQuery, activeTagFilter, sortColumn, sortDirection]);
+
+  const handleSort = (column: SortKey) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
+
+  const handleExportHoldingsCsv = () => {
+    const headers = ['Ticker', 'Name', 'Kategorie', 'Sektor', 'Region', 'Anteile', `Kaufkurs (${baseCurrency})`, `Aktueller Kurs (${baseCurrency})`, `Gesamtwert (${baseCurrency})`, `G/V (${baseCurrency})`, 'G/V (%)', 'Depotanteil (%)', 'Tags'];
+    const rows = filteredHoldings.map(h => [
+      `"${h.ticker}"`,
+      `"${h.name.replace(/"/g, '""')}"`,
+      `"${h.category}"`,
+      `"${h.sector || ''}"`,
+      `"${h.region || ''}"`,
+      h.shares.toFixed(4),
+      h.averageBuyPrice.toFixed(2),
+      h.currentPrice.toFixed(2),
+      h.currentValue.toFixed(2),
+      h.totalGain.toFixed(2),
+      h.totalGainPercent.toFixed(2),
+      h.portfolioWeight.toFixed(2),
+      `"${(h.tags || []).join(', ')}"`
+    ]);
+
+    const csvContent = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `finanzportfolio_holdings_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleToggleTag = (ticker: string, currentTags: string[], tagToToggle: string) => {
     const exists = currentTags.includes(tagToToggle);
@@ -165,6 +222,14 @@ export const Holdings: React.FC<HoldingsProps> = ({
               ))}
             </div>
           </div>
+
+          <button 
+            className="btn btn-secondary"
+            onClick={handleExportHoldingsCsv}
+            title="Bestände als CSV herunterladen"
+          >
+            <Download size={16} /> Export CSV
+          </button>
 
           <button 
             className="btn btn-secondary"
@@ -263,14 +328,46 @@ export const Holdings: React.FC<HoldingsProps> = ({
           <table className="custom-table">
             <thead>
               <tr>
-                <th>Asset / Ticker</th>
-                <th>Kategorie & Tags</th>
-                <th>Anteile</th>
-                <th>Kaufkurs (Ø)</th>
-                <th>Aktueller Kurs</th>
-                <th>Gesamtwert</th>
-                <th>Gewinn / Verlust</th>
-                <th>Depotanteil</th>
+                <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Nach Asset/Ticker sortieren">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    Asset / Ticker {sortColumn === 'name' ? (sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={12} opacity={0.4} />}
+                  </span>
+                </th>
+                <th onClick={() => handleSort('category')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Nach Kategorie sortieren">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    Kategorie & Tags {sortColumn === 'category' ? (sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={12} opacity={0.4} />}
+                  </span>
+                </th>
+                <th onClick={() => handleSort('shares')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Nach Anteilen sortieren">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    Anteile {sortColumn === 'shares' ? (sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={12} opacity={0.4} />}
+                  </span>
+                </th>
+                <th onClick={() => handleSort('averageBuyPrice')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Nach Kaufkurs sortieren">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    Kaufkurs (Ø) {sortColumn === 'averageBuyPrice' ? (sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={12} opacity={0.4} />}
+                  </span>
+                </th>
+                <th onClick={() => handleSort('currentPrice')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Nach aktuellem Kurs sortieren">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    Aktueller Kurs {sortColumn === 'currentPrice' ? (sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={12} opacity={0.4} />}
+                  </span>
+                </th>
+                <th onClick={() => handleSort('currentValue')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Nach Gesamtwert sortieren">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    Gesamtwert {sortColumn === 'currentValue' ? (sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={12} opacity={0.4} />}
+                  </span>
+                </th>
+                <th onClick={() => handleSort('totalGain')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Nach Gewinn/Verlust sortieren">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    Gewinn / Verlust {sortColumn === 'totalGain' ? (sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={12} opacity={0.4} />}
+                  </span>
+                </th>
+                <th onClick={() => handleSort('portfolioWeight')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Nach Depotanteil sortieren">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    Depotanteil {sortColumn === 'portfolioWeight' ? (sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={12} opacity={0.4} />}
+                  </span>
+                </th>
                 <th>Aktionen</th>
               </tr>
             </thead>

@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Transaction, AssetCategory, AssetMappingRule } from '../types';
 import { parseBrokerPdf, parseBrokerText, MOCK_PDF_TEXTS } from './PdfParser';
-import { Upload, Plus, Trash2, Info } from 'lucide-react';
+import { Upload, Plus, Trash2, Info, Edit3, Download, X, Check } from 'lucide-react';
 import { PdfPreviewModal } from './PdfPreviewModal';
 
 interface TransactionsProps {
   transactions: Transaction[];
   onAddTransaction: (transaction: Omit<Transaction, 'id'>) => void;
+  onUpdateTransaction?: (transaction: Transaction) => void;
   onDeleteTransaction: (id: string) => void;
   prefilledData?: { ticker: string; name: string; category: AssetCategory; price: number } | null;
   onClearPrefilledData?: () => void;
@@ -18,6 +19,7 @@ interface TransactionsProps {
 export const Transactions: React.FC<TransactionsProps> = ({
   transactions,
   onAddTransaction,
+  onUpdateTransaction,
   onDeleteTransaction,
   prefilledData,
   onClearPrefilledData,
@@ -49,6 +51,9 @@ export const Transactions: React.FC<TransactionsProps> = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [parsedTx, setParsedTx] = useState<Omit<Transaction, 'id'> | null>(null);
 
+  // In-place Edit state
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+
   const filteredTransactions = React.useMemo(() => {
     return transactions.filter(t => {
       const matchType = filterType === 'ALL' || t.type === filterType;
@@ -75,6 +80,45 @@ export const Transactions: React.FC<TransactionsProps> = ({
       selectedIds.forEach(id => onDeleteTransaction(id));
       setSelectedIds([]);
     }
+  };
+
+  const handleExportTransactionsCsv = () => {
+    const headers = ['ID', 'Datum', 'Typ', 'Ticker', 'Name', 'Kategorie', 'Anteile', 'Kurs', 'Gebuehr', 'Steuer', 'Waehrung', 'Wechselkurs', 'Broker', 'Notizen'];
+    const rows = filteredTransactions.map(t => [
+      `"${t.id}"`,
+      `"${t.date}"`,
+      `"${t.type}"`,
+      `"${t.ticker}"`,
+      `"${(t.name || '').replace(/"/g, '""')}"`,
+      `"${t.category || ''}"`,
+      t.amount.toString(),
+      t.price.toString(),
+      (t.fee || 0).toString(),
+      (t.tax || 0).toString(),
+      `"${t.currency || 'EUR'}"`,
+      (t.exchangeRate || 1.0).toString(),
+      `"${t.broker || ''}"`,
+      `"${(t.notes || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `finanzportfolio_transaktionen_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTx) return;
+    if (onUpdateTransaction) {
+      onUpdateTransaction(editingTx);
+    }
+    setEditingTx(null);
   };
 
 
@@ -523,7 +567,15 @@ export const Transactions: React.FC<TransactionsProps> = ({
               <option value="DIVIDEND">Dividende</option>
               <option value="DEPOSIT">Einzahlung</option>
               <option value="WITHDRAWAL">Auszahlung</option>
-            </select>
+            <button
+              type="button"
+              onClick={handleExportTransactionsCsv}
+              className="btn btn-secondary"
+              title="Gefilterte Transaktionen als CSV exportieren"
+              style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Download size={13} /> CSV
+            </button>
           </div>
         </div>
 
@@ -633,14 +685,25 @@ export const Transactions: React.FC<TransactionsProps> = ({
                       )}
                     </div>
                     {!isReadOnly && (
-                      <button 
-                        onClick={() => onDeleteTransaction(tx.id)}
-                        className="tx-item-trash-btn"
-                        title="Transaktion löschen"
-                        aria-label="Transaktion löschen"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <button 
+                          onClick={() => setEditingTx({ ...tx })}
+                          className="tx-item-trash-btn"
+                          title="Transaktion bearbeiten"
+                          aria-label="Transaktion bearbeiten"
+                          style={{ color: 'var(--accent-blue, #3b82f6)' }}
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                        <button 
+                          onClick={() => onDeleteTransaction(tx.id)}
+                          className="tx-item-trash-btn"
+                          title="Transaktion löschen"
+                          aria-label="Transaktion löschen"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -666,6 +729,172 @@ export const Transactions: React.FC<TransactionsProps> = ({
           setParsedTx(null);
         }}
       />
+
+      {/* In-Place Transaction Edit Modal */}
+      {editingTx && (
+        <div className="modal-overlay" style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          backdropFilter: 'blur(4px)', padding: '1rem'
+        }}>
+          <div style={{
+            background: 'var(--card-bg, #1e293b)', border: '1px solid var(--border-color)', borderRadius: '14px',
+            maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '1.5rem',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Edit3 size={18} className="text-blue-400" /> Transaktion bearbeiten
+              </h3>
+              <button onClick={() => setEditingTx(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Typ</label>
+                  <select
+                    className="form-select"
+                    value={editingTx.type}
+                    onChange={e => setEditingTx({ ...editingTx, type: e.target.value as any })}
+                  >
+                    <option value="BUY">Kauf</option>
+                    <option value="SELL">Verkauf</option>
+                    <option value="DIVIDEND">Dividende</option>
+                    <option value="DEPOSIT">Einzahlung</option>
+                    <option value="WITHDRAWAL">Auszahlung</option>
+                    <option value="STAKING">Staking</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Datum</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="DD.MM.YYYY"
+                    value={editingTx.date}
+                    onChange={e => setEditingTx({ ...editingTx, date: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.75rem' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Ticker / Symbol</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editingTx.ticker}
+                    onChange={e => setEditingTx({ ...editingTx, ticker: e.target.value.toUpperCase() })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Name / Bezeichnung</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editingTx.name}
+                    onChange={e => setEditingTx({ ...editingTx, name: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Stückzahl / Betrag</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="form-input"
+                    value={editingTx.amount}
+                    onChange={e => setEditingTx({ ...editingTx, amount: parseFloat(e.target.value) || 0 })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Ausführungskurs</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="form-input"
+                    value={editingTx.price}
+                    onChange={e => setEditingTx({ ...editingTx, price: parseFloat(e.target.value) || 0 })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Gebühren</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="form-input"
+                    value={editingTx.fee || 0}
+                    onChange={e => setEditingTx({ ...editingTx, fee: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Steuern</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="form-input"
+                    value={editingTx.tax || 0}
+                    onChange={e => setEditingTx({ ...editingTx, tax: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.75rem' }}>Broker / Depot</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="z.B. Trade Republic, Scalable, ING..."
+                  value={editingTx.broker || ''}
+                  onChange={e => setEditingTx({ ...editingTx, broker: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.75rem' }}>Notizen</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Optionale Notiz..."
+                  value={editingTx.notes || ''}
+                  onChange={e => setEditingTx({ ...editingTx, notes: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingTx(null)}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Check size={14} /> Änderungen speichern
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
