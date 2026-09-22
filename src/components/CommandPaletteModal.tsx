@@ -60,6 +60,8 @@ interface CommandPaletteModalProps {
   onOpenDrip?: () => void;
   onOpenReceiptScanner?: () => void;
   onOpenCalendarExport?: () => void;
+  onOpenMultiCurrency?: () => void;
+  onOpenEmailWebhook?: () => void;
   onRefreshPrices: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -88,6 +90,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenDrip,
   onOpenReceiptScanner,
   onOpenCalendarExport,
+  onOpenMultiCurrency,
+  onOpenEmailWebhook,
   onRefreshPrices,
   isDarkMode,
   onToggleDarkMode,
@@ -309,6 +313,24 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         icon: <Calendar size={18} color="#f59e0b" />,
         perform: () => { onClose(); if (onOpenCalendarExport) onOpenCalendarExport(); },
         keywords: 'kalender ical ics export zahltage dividenden termine outlook google apple'
+      },
+      {
+        id: 'act-multi-currency',
+        title: 'Multi-Währungs Cash-Konten & FX Währungstausch',
+        subtitle: 'EUR, USD, CHF & GBP Guthaben verwalten und FX-Swaps buchen',
+        category: 'ACTION',
+        icon: <DollarSign size={18} color="#10b981" />,
+        perform: () => { onClose(); if (onOpenMultiCurrency) onOpenMultiCurrency(); },
+        keywords: 'fx cash multi currency waehrung fremdwaehrung dollar franken pfund swap umtausch'
+      },
+      {
+        id: 'act-email-webhook',
+        title: 'E-Mail & Webhook Abrechnungs-Dispatcher',
+        subtitle: 'Automatischer PDF- & JSON-Import via n8n, Gmail & Apple Shortcuts',
+        category: 'ACTION',
+        icon: <Cloud size={18} color="#06b6d4" />,
+        perform: () => { onClose(); if (onOpenEmailWebhook) onOpenEmailWebhook(); },
+        keywords: 'webhook email dispatcher api automations n8n zapier shortcuts pdf abrechnung'
       },
       {
         id: 'act-order-assistant',

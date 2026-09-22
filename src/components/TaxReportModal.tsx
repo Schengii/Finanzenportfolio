@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Portfolio, TaxCountry } from '../types';
+import type { Portfolio, TaxCountry, Holding } from '../types';
 import {
   calculateEnhancedGermanTax,
   calculateVorabpauschaleDetails,
@@ -13,18 +13,25 @@ interface TaxReportModalProps {
   onClose: () => void;
   portfolio: Portfolio;
   taxExemptionLimit: number;
+  holdings?: Holding[];
+  taxCountry?: TaxCountry;
 }
 
 export const TaxReportModal: React.FC<TaxReportModalProps> = ({
   isOpen,
   onClose,
   portfolio,
-  taxExemptionLimit
+  taxExemptionLimit,
+  holdings = [],
+  taxCountry
 }) => {
-  const [selectedCountry, setSelectedCountry] = useState<TaxCountry>(portfolio.stats.taxCountry || 'DE');
+  const [selectedCountry, setSelectedCountry] = useState<TaxCountry>(
+    taxCountry || (localStorage.getItem('finanz_tax_country') as TaxCountry) || 'DE'
+  );
   const [personalTaxRate, setPersonalTaxRate] = useState<number>(18);
   const [enableGuenstiger, setEnableGuenstiger] = useState<boolean>(true);
   const [hasChurchTax, setHasChurchTax] = useState<boolean>(false);
+  const [churchTaxRate, setChurchTaxRate] = useState<number>(9); // 9% oder 8% (BY, BW)
   const [copied, setCopied] = useState<boolean>(false);
   const [activeTaxTab, setActiveTaxTab] = useState<'KAP' | 'SO'>('KAP');
 
@@ -32,12 +39,31 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
 
   const currentYear = new Date().getFullYear();
 
+  // Effective holdings either from props or reconstructed from transactions
+  const effectiveHoldings: Holding[] = holdings.length > 0
+    ? holdings
+    : (portfolio.transactions || []).map(t => ({
+        ticker: t.ticker,
+        name: t.name,
+        category: t.category,
+        shares: t.amount,
+        averageBuyPrice: t.price,
+        currentPrice: t.price,
+        totalCost: t.amount * t.price,
+        currentValue: t.amount * t.price,
+        totalGain: 0,
+        totalGainPercent: 0,
+        portfolioWeight: 0,
+        yieldOnCost: 0,
+        teilfreistellungRate: 0.30
+      }));
+
   // DACH Tax calculation
   const dachTax = calculateDachTax(
     portfolio.transactions,
     selectedCountry,
     taxExemptionLimit,
-    portfolio.holdings
+    effectiveHoldings
   );
 
   // Enhanced German Tax for DE details
@@ -47,28 +73,13 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
     portfolio.taxLossPools?.stockLossPool || 0,
     portfolio.taxLossPools?.generalLossPool || 0,
     enableGuenstiger ? personalTaxRate : undefined,
-    hasChurchTax
+    hasChurchTax,
+    churchTaxRate
   );
 
   // Vorabpauschale calculation on real holdings
   const vorabpauschaleRes = calculateVorabpauschaleDetails(
-    portfolio.holdings && portfolio.holdings.length > 0
-      ? portfolio.holdings
-      : portfolio.transactions.map(t => ({
-          ticker: t.ticker,
-          name: t.name,
-          category: t.category,
-          shares: t.amount,
-          averageBuyPrice: t.price,
-          currentPrice: t.price,
-          totalCost: t.amount * t.price,
-          currentValue: t.amount * t.price,
-          totalGain: 0,
-          totalGainPercent: 0,
-          portfolioWeight: 0,
-          yieldOnCost: 0,
-          teilfreistellungRate: 0.30
-        })),
+    effectiveHoldings,
     0.0229
   );
   const vorabpauschale = vorabpauschaleRes.totalVorabpauschale;
@@ -390,14 +401,26 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
                   />
                   <label htmlFor="guenstiger" style={{ fontSize: '0.8rem', cursor: 'pointer' }}>Günstigerprüfung anwenden</label>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
-                  <input
-                    type="checkbox"
-                    id="churchTax"
-                    checked={hasChurchTax}
-                    onChange={e => setHasChurchTax(e.target.checked)}
-                  />
-                  <label htmlFor="churchTax" style={{ fontSize: '0.8rem', cursor: 'pointer' }}>Kirchensteuerpflicht (8-9%)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      type="checkbox"
+                      id="churchTax"
+                      checked={hasChurchTax}
+                      onChange={e => setHasChurchTax(e.target.checked)}
+                    />
+                    <label htmlFor="churchTax" style={{ fontSize: '0.8rem', cursor: 'pointer' }}>Kirchensteuerpflicht</label>
+                  </div>
+                  {hasChurchTax && (
+                    <select
+                      value={churchTaxRate}
+                      onChange={e => setChurchTaxRate(Number(e.target.value))}
+                      style={{ padding: '0.2rem 0.5rem', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '0.75rem', color: 'var(--text-main)' }}
+                    >
+                      <option value={9}>9% (Übrige Bundesländer)</option>
+                      <option value={8}>8% (Bayern & Baden-Württemberg)</option>
+                    </select>
+                  )}
                 </div>
               </div>
 

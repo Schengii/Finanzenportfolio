@@ -402,7 +402,7 @@ export function calculateGermanTax(
         date: parseDateString(tx.date),
         amount: tx.amount,
         price: tx.price,
-        fee: tx.fee,
+        fee: tx.fee || 0,
         rate
       });
     } else if (tx.type === 'SELL') {
@@ -426,9 +426,12 @@ export function calculateGermanTax(
           }
         }
 
+        const buyFee = oldestLot.fee || 0;
+        const sellFee = tx.fee || 0;
+
         if (oldestLot.amount <= remainingToSell) {
-          const lotCost = (oldestLot.amount * oldestLot.price + oldestLot.fee) / oldestLot.rate;
-          const lotRev = (oldestLot.amount * tx.price - tx.fee * (oldestLot.amount / tx.amount)) / rate;
+          const lotCost = (oldestLot.amount * oldestLot.price + buyFee) / oldestLot.rate;
+          const lotRev = (oldestLot.amount * tx.price - sellFee * (oldestLot.amount / tx.amount)) / rate;
           const lotGain = lotRev - lotCost;
           
           rawGainForTx += lotGain;
@@ -438,15 +441,15 @@ export function calculateGermanTax(
           lots.shift();
         } else {
           const fraction = remainingToSell / oldestLot.amount;
-          const lotCostFraction = (remainingToSell * oldestLot.price + oldestLot.fee * fraction) / oldestLot.rate;
-          const lotRevFraction = (remainingToSell * tx.price - tx.fee * (remainingToSell / tx.amount)) / rate;
+          const lotCostFraction = (remainingToSell * oldestLot.price + buyFee * fraction) / oldestLot.rate;
+          const lotRevFraction = (remainingToSell * tx.price - sellFee * (remainingToSell / tx.amount)) / rate;
           const lotGainFraction = lotRevFraction - lotCostFraction;
           
           rawGainForTx += lotGainFraction;
           taxableGainForTx += lotGainFraction * (1 - exemptionFactor);
           
           oldestLot.amount -= remainingToSell;
-          oldestLot.fee -= oldestLot.fee * fraction;
+          oldestLot.fee = buyFee - buyFee * fraction;
           remainingToSell = 0;
         }
       }
@@ -455,7 +458,7 @@ export function calculateGermanTax(
       taxableGains += Math.max(0, taxableGainForTx);
     } else if (tx.type === 'DIVIDEND') {
       // Dividends are fully taxable (with ETF exemption if applicable)
-      const divRevenue = ((tx.amount * tx.price) - tx.tax) / rate;
+      const divRevenue = ((tx.amount * tx.price) - (tx.tax || 0)) / rate;
       let exemptionFactor = 0.0;
       if (tx.category === 'ETF') exemptionFactor = 0.30;
       
@@ -1758,8 +1761,15 @@ export interface DividendSafetyScoreItem {
   safetyScore: number; // 0 to 100
   safetyTier: 'SEHR_SICHER' | 'SICHER' | 'MODERAT' | 'RISKANT';
   payoutRatioEstimate: number; // e.g. 45%
+  payoutRatioFcfEstimate: number; // Free cashflow payout ratio
   consecutiveYearsEstimate: number; // e.g. 28 years
   aristocratStatus: 'KING' | 'ARISTOCRAT' | 'CONTENDER' | 'CHALLENGER' | 'NONE';
+  aristocratLabel: string;
+  cagr1y: number;
+  cagr3y: number;
+  cagr5y: number;
+  cagr10y: number;
+  cutRiskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
 export function calculateDividendSafetyScores(
@@ -1775,42 +1785,95 @@ export function calculateDividendSafetyScores(
 
   return dividendAssets.map(h => {
     const isEtf = h.category === 'ETF';
-    let consecutiveYears = 10;
+    let consecutiveYears = 8;
     let aristocratStatus: DividendSafetyScoreItem['aristocratStatus'] = 'CHALLENGER';
-    let payoutRatio = 50;
+    let payoutRatio = 48;
+    let payoutRatioFcf = 42;
+    let cagr1y = 4.5;
+    let cagr3y = 5.2;
+    let cagr5y = 5.8;
+    let cagr10y = 6.4;
 
     const t = h.ticker.toUpperCase();
-    if (['JNJ', 'PG', 'KO', 'MMM', 'PEP'].includes(t)) {
-      consecutiveYears = 55;
+    if (['JNJ', 'PG', 'KO', 'MMM', 'PEP', 'EMR', 'GPC'].includes(t)) {
+      consecutiveYears = 58;
       aristocratStatus = 'KING';
-      payoutRatio = 60;
-    } else if (['ALV', 'MUV2', 'AAPL', 'MSFT', 'O', 'MCD'].includes(t)) {
-      consecutiveYears = 26;
+      payoutRatio = 62;
+      payoutRatioFcf = 58;
+      cagr1y = 3.8;
+      cagr3y = 4.2;
+      cagr5y = 4.9;
+      cagr10y = 5.6;
+    } else if (['ALV', 'MUV2', 'O', 'MCD', 'IBM', 'CVX', 'ABBV', 'CAT', 'WMT'].includes(t)) {
+      consecutiveYears = 28;
       aristocratStatus = 'ARISTOCRAT';
-      payoutRatio = 45;
+      payoutRatio = 54;
+      payoutRatioFcf = 51;
+      cagr1y = 5.5;
+      cagr3y = 6.2;
+      cagr5y = 6.8;
+      cagr10y = 7.4;
+    } else if (['AAPL', 'MSFT', 'V', 'MA', 'TXN', 'DHR', 'ASML'].includes(t)) {
+      consecutiveYears = 14;
+      aristocratStatus = 'CONTENDER';
+      payoutRatio = 25;
+      payoutRatioFcf = 22;
+      cagr1y = 8.5;
+      cagr3y = 9.8;
+      cagr5y = 10.6;
+      cagr10y = 11.4;
     } else if (isEtf) {
       consecutiveYears = 15;
       aristocratStatus = 'CONTENDER';
       payoutRatio = 95;
+      payoutRatioFcf = 95;
+      cagr1y = 6.0;
+      cagr3y = 6.5;
+      cagr5y = 7.0;
+      cagr10y = 7.5;
     }
 
     // Calculate composite safety score (0-100)
     let safetyScore = 75;
-    if (aristocratStatus === 'KING') safetyScore = 95;
-    else if (aristocratStatus === 'ARISTOCRAT') safetyScore = 88;
-    else if (isEtf) safetyScore = 92;
+    if (aristocratStatus === 'KING') safetyScore = 96;
+    else if (aristocratStatus === 'ARISTOCRAT') safetyScore = 89;
+    else if (aristocratStatus === 'CONTENDER') safetyScore = 84;
+    else if (isEtf) safetyScore = 93;
 
     if (h.yieldOnCost > 8.0 && !isEtf) {
-      safetyScore -= 30; // High yield trap penalty
+      safetyScore -= 35; // High yield trap penalty
+    } else if (payoutRatioFcf > 85 && !isEtf) {
+      safetyScore -= 20;
     }
 
     safetyScore = Math.max(10, Math.min(99, safetyScore));
 
     let safetyTier: DividendSafetyScoreItem['safetyTier'] = 'SICHER';
-    if (safetyScore >= 85) safetyTier = 'SEHR_SICHER';
-    else if (safetyScore >= 70) safetyTier = 'SICHER';
-    else if (safetyScore >= 50) safetyTier = 'MODERAT';
-    else safetyTier = 'RISKANT';
+    let cutRiskLevel: DividendSafetyScoreItem['cutRiskLevel'] = 'LOW';
+
+    if (safetyScore >= 85) {
+      safetyTier = 'SEHR_SICHER';
+      cutRiskLevel = 'LOW';
+    } else if (safetyScore >= 70) {
+      safetyTier = 'SICHER';
+      cutRiskLevel = 'LOW';
+    } else if (safetyScore >= 50) {
+      safetyTier = 'MODERAT';
+      cutRiskLevel = 'MEDIUM';
+    } else {
+      safetyTier = 'RISKANT';
+      cutRiskLevel = 'HIGH';
+    }
+
+    const aristocratLabel = aristocratStatus === 'KING' 
+      ? '👑 Dividenden-König (50+ Jahre)'
+      : aristocratStatus === 'ARISTOCRAT'
+      ? '⭐ Dividenden-Aristokrat (25+ Jahre)'
+      : aristocratStatus === 'CONTENDER'
+      ? '🏆 Dividend Contender (10+ Jahre)'
+      : aristocratStatus === 'CHALLENGER'
+      ? '🌱 Dividend Challenger (5+ Jahre)'
+      : 'Standard Zahler';
 
     return {
       ticker: h.ticker,
@@ -1819,8 +1882,15 @@ export function calculateDividendSafetyScores(
       safetyScore,
       safetyTier,
       payoutRatioEstimate: payoutRatio,
+      payoutRatioFcfEstimate: payoutRatioFcf,
       consecutiveYearsEstimate: consecutiveYears,
-      aristocratStatus
+      aristocratStatus,
+      aristocratLabel,
+      cagr1y,
+      cagr3y,
+      cagr5y,
+      cagr10y,
+      cutRiskLevel
     };
   });
 }
@@ -2997,6 +3067,12 @@ export function calculateDynamicPortfolioRiskMetrics(
           }
         } else if (tx.type === 'DIVIDEND') {
           cash += (tx.amount * tx.price - tx.tax) / rate;
+        } else if (tx.type === 'OPTION_PREMIUM') {
+          cash += (tx.amount * tx.price - (tx.fee || 0) - (tx.tax || 0)) / rate;
+        } else if (tx.type === 'INTEREST' || tx.type === 'RENT_INCOME') {
+          cash += (tx.amount * tx.price - (tx.tax || 0)) / rate;
+        } else if (tx.type === 'MAINTENANCE_EXPENSE' || tx.type === 'FEE') {
+          cash -= (tx.amount * tx.price + (tx.fee || 0)) / rate;
         }
       }
     });
@@ -3104,6 +3180,7 @@ export function calculateDachTax(
     const taxableIncome = totalDividends;
     const estTaxRate = 20.0;
     const taxDue = taxableIncome * (estTaxRate / 100);
+    const totalDepotValue = holdings.reduce((sum, h) => sum + (h.currentValue || 0), 0);
     return {
       country: 'CH',
       countryName: 'Schweiz (Kursgewinne steuerfrei / Dividenden steuerbar)',
@@ -3116,7 +3193,9 @@ export function calculateDachTax(
         `Kapitalgewinne aus Wertschriften des Privatvermögens sind grundsätzlich steuerfrei`,
         `Dividenden & Zinsen unterliegen der regulären Einkommenssteuer (~20% Durchschnittssatz)`,
         `35% Eidg. Verrechnungssteuer (VSt) auf Schweizer Ausschüttungen wird im Steuernachweis voll rückerstattet`,
-        `Gesamtdepotwert unterliegt der kantonalen Vermögenssteuer (ca. 0,2% - 0,5% p.a.)`
+        totalDepotValue > 0
+          ? `Depot-Vermögenssteuer: Bei ${totalDepotValue.toLocaleString('de-CH', { maximumFractionDigits: 0 })} CHF/EUR ca. ${(totalDepotValue * 0.003).toFixed(2)} CHF/EUR kantonale Vermögenssteuer (~0,3%)`
+          : `Gesamtdepotwert unterliegt der kantonalen Vermögenssteuer (ca. 0,2% - 0,5% p.a.)`
       ]
     };
   }
@@ -3126,6 +3205,7 @@ export function calculateDachTax(
   const allowanceRemaining = Math.max(0, allowanceLimitEur - allowanceUsed);
   const taxableAfterAllowance = Math.max(0, totalRawIncome - allowanceUsed);
   const taxDue = taxableAfterAllowance * 0.26375;
+  const etfHoldingsCount = holdings.filter(h => h.category === 'ETF').length;
 
   return {
     country: 'DE',
@@ -3138,7 +3218,9 @@ export function calculateDachTax(
     details: [
       `Abgeltungsteuer: 25,0% + 5,5% Solidaritätszuschlag (= 26,375%)`,
       `Sparer-Pauschbetrag (§ 20 Abs. 9 EStG): ${allowanceLimitEur.toLocaleString('de-DE')} € hinterlegt`,
-      `Teilfreistellung für Aktien-ETFs (30%) und Mischfonds (15%) berücksichtigt`,
+      etfHoldingsCount > 0
+        ? `Teilfreistellung für deine ${etfHoldingsCount} ETFs (Aktienfonds 30%, Mischfonds 15%) berücksichtigt`
+        : `Teilfreistellung für Aktien-ETFs (30%) und Mischfonds (15%) berücksichtigt`,
       `Kryptogewinne nach 1 Jahr Haltefrist steuerfrei (§ 23 EStG)`
     ]
   };

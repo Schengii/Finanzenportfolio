@@ -24,6 +24,8 @@ import { WithholdingTaxRefundModal } from './components/WithholdingTaxRefundModa
 import { DripCompoundModal } from './components/DripCompoundModal';
 import { ReceiptScannerModal } from './components/ReceiptScannerModal';
 import { CalendarExportModal } from './components/CalendarExportModal';
+import { MultiCurrencyCashModal } from './components/MultiCurrencyCashModal';
+import { EmailWebhookDispatcherModal } from './components/EmailWebhookDispatcherModal';
 import { Cloud, ShoppingCart, QrCode, Coins, Columns, Search, Landmark, Repeat, Camera } from 'lucide-react';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
@@ -66,6 +68,7 @@ function App() {
     addSavingsPlan,
     toggleSavingsPlan,
     removeSavingsPlan,
+    updateSavingsPlan,
     executeSavingsPlans,
     addMappingRule,
     deleteMappingRule,
@@ -76,7 +79,8 @@ function App() {
     deleteRealEstate,
     addDepositLadderItem,
     updateDepositLadderItem,
-    deleteDepositLadderItem
+    deleteDepositLadderItem,
+    updateTargetAllocations
   } = usePortfolio();
 
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'holdings' | 'transactions' | 'strategy' | 'dividend_calendar' | 'watchlist' | 'savings' | 'options' | 'real_estate' | 'deposit_ladder' | 'mapping_rules'>('dashboard');
@@ -99,6 +103,8 @@ function App() {
   const [showDripModal, setShowDripModal] = useState(false);
   const [showReceiptScannerModal, setShowReceiptScannerModal] = useState(false);
   const [showCalendarExportModal, setShowCalendarExportModal] = useState(false);
+  const [showMultiCurrencyModal, setShowMultiCurrencyModal] = useState(false);
+  const [showEmailWebhookModal, setShowEmailWebhookModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Global Keyboard Shortcut: Ctrl+K / Cmd+K
@@ -302,6 +308,13 @@ function App() {
                     >
                       <FileText size={14} style={{ color: '#10b981' }} /> PDF Monatsbericht drucken
                     </button>
+                    <button
+                      onClick={() => { setShowMultiCurrencyModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <DollarSign size={14} style={{ color: '#10b981' }} /> Multi-Währungs Cash & FX
+                    </button>
                   </div>
                 </div>
 
@@ -390,6 +403,14 @@ function App() {
                     >
                       <QrCode size={14} style={{ color: '#a855f7' }} /> Offline QR-Code Transfer
                     </button>
+                    <button
+                      onClick={() => { setShowEmailWebhookModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Cloud size={14} style={{ color: '#06b6d4' }} /> E-Mail & Webhook Dispatcher
+'
+'                    </button>
                   </div>
                 </div>
               </div>
@@ -550,6 +571,8 @@ function App() {
           <Strategy 
             holdings={holdings} 
             totalValue={stats.totalValue} 
+            targetAllocations={activePortfolio.targetAllocations}
+            onUpdateTargetAllocations={updateTargetAllocations}
           />
         )}
         {currentTab === 'dividend_calendar' && (
@@ -584,6 +607,7 @@ function App() {
             savingsPlans={activePortfolio.savingsPlans || []} 
             portfolioValue={stats.totalValue} 
             onAddSavingsPlan={handleAddSavingsPlan} 
+            onUpdateSavingsPlan={updateSavingsPlan}
             onDeleteSavingsPlan={removeSavingsPlan} 
             onToggleSavingsPlan={toggleSavingsPlan} 
             onExecuteSavingsPlans={executeSavingsPlans}
@@ -638,7 +662,9 @@ function App() {
             isOpen={showTaxReportModal}
             onClose={() => setShowTaxReportModal(false)}
             portfolio={activePortfolio}
-            taxExemptionLimit={1000}
+            taxExemptionLimit={stats.taxAllowanceEur || 1000}
+            holdings={holdings}
+            taxCountry={stats.taxCountry}
           />
         )}
         {showTaxHarvestingModal && (
@@ -756,6 +782,7 @@ function App() {
           onClose={() => setShowCompareModal(false)}
           portfolios={portfolios}
           baseCurrency={baseCurrency}
+          currentPrices={currentPrices}
         />
       )}
 
@@ -781,6 +808,8 @@ function App() {
         onOpenDrip={() => setShowDripModal(true)}
         onOpenReceiptScanner={() => setShowReceiptScannerModal(true)}
         onOpenCalendarExport={() => setShowCalendarExportModal(true)}
+        onOpenMultiCurrency={() => setShowMultiCurrencyModal(true)}
+        onOpenEmailWebhook={() => setShowEmailWebhookModal(true)}
         onRefreshPrices={handleRefreshPrices}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
@@ -817,7 +846,28 @@ function App() {
           onClose={() => setShowCalendarExportModal(false)}
           transactions={activePortfolio.transactions}
           holdings={holdings}
-          depositLadder={activePortfolio.depositLadder || []}
+          deposits={activePortfolio.depositLadder || []}
+        />
+      )}
+
+      {/* Multi-Währungs Cash-Konten & FX Währungstausch Modal */}
+      {showMultiCurrencyModal && (
+        <MultiCurrencyCashModal
+          isOpen={showMultiCurrencyModal}
+          onClose={() => setShowMultiCurrencyModal(false)}
+          transactions={activePortfolio.transactions}
+          onAddTransaction={handleAddTransaction}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Automatischer E-Mail- & Webhook-Abrechnungs-Dispatcher Modal */}
+      {showEmailWebhookModal && (
+        <EmailWebhookDispatcherModal
+          isOpen={showEmailWebhookModal}
+          onClose={() => setShowEmailWebhookModal(false)}
+          onAddTransaction={handleAddTransaction}
+          baseCurrency={baseCurrency}
         />
       )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, Check, AlertCircle, FileText, Image as ImageIcon, Sparkles, X, ArrowRight } from 'lucide-react';
+import { Camera, Upload, Check, AlertCircle, Sparkles, X } from 'lucide-react';
 import type { Transaction, AssetCategory } from '../types';
 
 interface ReceiptScannerModalProps {
@@ -86,6 +86,50 @@ Wechselkurs: 1,0850 EUR/USD
 Bruttobetrag EUR: 27,65 EUR
 Einbehaltene US-Quellensteuer (15%): 4,15 EUR
 Nettobetrag zu Ihren Gunsten: 23,50 EUR`
+  },
+  {
+    label: 'Flatex - Kauf ASML Holding',
+    broker: 'Flatex',
+    filename: 'flatex_kauf_asml.pdf',
+    text: `flatexDEGIRO Bank AG
+Wertpapierabrechnung Kauf / Schlussnote
+Geschäftstag: 18.04.2025 | Valuta: 22.04.2025
+Wertpapierbezeichnung: ASML Holding N.V. Aandelen aan toonder (ASML)
+ISIN: NL0010273215 | WKN: A1J4U4
+Ausgeführte Stück: 4,0000 zu Kurs: 845,20 EUR
+Kurswert: 3.380,80 EUR
+Provision / Eigene Spesen: 3,90 EUR
+Fremde Spesen: 2,00 EUR
+Gesamtbetrag zu Ihren Lasten: 3.386,70 EUR`
+  },
+  {
+    label: 'DKB - Kauf Allianz SE',
+    broker: 'DKB',
+    filename: 'dkb_kauf_allianz.pdf',
+    text: `Deutsche Kreditbank AG
+Wertpapierabrechnung Kauf
+Handelstag: 09.03.2025
+Wertpapier: Allianz SE vink.Namens-Aktien (ALV)
+ISIN: DE0008404005 | WKN: 840400
+Ausführung: 10 Stk. zum Kurs von 265,40 EUR
+Ausführungskurs: 265,40 EUR
+Provision / Entgelt: 10,00 EUR
+Endbetrag zu Ihren Lasten: 2.664,00 EUR`
+  },
+  {
+    label: 'Interactive Brokers - Buy Tesla Inc. (TSLA)',
+    broker: 'Interactive Brokers',
+    filename: 'ibkr_trade_tsla.pdf',
+    text: `Interactive Brokers LLC Trade Confirmation
+Trade Date: 2025-07-16
+Transaction: BUY
+Symbol: TSLA | Description: Tesla Inc.
+ISIN: US88160R1014
+Quantity: 25 Shares
+T. Price: 215.50 USD
+Gross Amount: 5,387.50 USD
+Comm/Fee: 1.00 USD
+Net Amount: 5,388.50 USD`
   }
 ];
 
@@ -97,12 +141,53 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
+  const [enhancedPreviewUrl, setEnhancedPreviewUrl] = useState<string | null>(null);
+  const [showEnhancedImage, setShowEnhancedImage] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedReceiptData | null>(null);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const applyCanvasEnhancement = (imageSrc: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(imageSrc);
+          return;
+        }
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        try {
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            const r = d[i];
+            const g = d[i + 1];
+            const b = d[i + 2];
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            const enhanced = lum > 140 ? 255 : lum < 70 ? 0 : Math.round((lum - 70) * (255 / 70));
+            d[i] = enhanced;
+            d[i + 1] = enhanced;
+            d[i + 2] = enhanced;
+          }
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } catch {
+          resolve(imageSrc);
+        }
+      };
+      img.onerror = () => resolve(imageSrc);
+      img.src = imageSrc;
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -209,7 +294,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
       price: isNaN(price) || price <= 0 ? 1 : price,
       fee: isNaN(fee) ? 0 : fee,
       tax: isNaN(tax) ? 0 : tax,
-      currency: 'EUR',
+      currency: (baseCurrency === 'GBP' ? 'EUR' : baseCurrency) as 'EUR' | 'USD' | 'CHF',
       exchangeRate: 1.0,
       broker: brokerGuess,
       rawText
@@ -224,11 +309,16 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setFilePreviewUrl(e.target?.result as string);
+        const rawUrl = e.target?.result as string;
+        setFilePreviewUrl(rawUrl);
+        applyCanvasEnhancement(rawUrl).then(enhanced => {
+          setEnhancedPreviewUrl(enhanced);
+        });
       };
       reader.readAsDataURL(file);
     } else {
       setFilePreviewUrl(null);
+      setEnhancedPreviewUrl(null);
     }
 
     // Read as text or simulate client OCR
@@ -365,13 +455,70 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
 
             <div>
               <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                {isProcessing ? 'Lese Belegdaten aus...' : selectedFile ? `Ausgewählt: ${selectedFile.name}` : 'Beleg / Screenshot hier ablegen oder klicken'}
+                {isProcessing ? 'Lese Belegdaten aus & optimiere Bildkontrast...' : selectedFile ? `Ausgewählt: ${selectedFile.name}` : 'Beleg / Screenshot hier ablegen oder klicken'}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                 Unterstützt Screenshots, Fotos (PNG, JPG, WebP) und PDF-Abrechnungen
               </div>
             </div>
           </div>
+
+          {errorMessage && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '8px',
+              color: '#ef4444',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.8rem'
+            }}>
+              <AlertCircle size={16} /> {errorMessage}
+            </div>
+          )}
+
+          {/* Image Preprocessing Preview Card */}
+          {filePreviewUrl && (
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '0.75rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <img
+                  src={showEnhancedImage && enhancedPreviewUrl ? enhancedPreviewUrl : filePreviewUrl}
+                  alt="Beleg Vorschau"
+                  style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+                />
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                    {showEnhancedImage ? '🔬 Kontrast-verstärkt (OCR-Filter)' : '🖼️ Originalfoto'}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    {showEnhancedImage ? 'Adaptive Schwellenwert-Binarisierung aktiv' : 'Standard Aufnahme'}
+                  </div>
+                </div>
+              </div>
+
+              {enhancedPreviewUrl && (
+                <button
+                  type="button"
+                  onClick={() => setShowEnhancedImage(prev => !prev)}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
+                >
+                  {showEnhancedImage ? 'Original anzeigen' : '🔬 Bild-Optimierung ansehen'}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Demo Simulation Shortcuts */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

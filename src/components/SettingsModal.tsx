@@ -442,6 +442,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
+          {/* Live Market Data API Config & Cache */}
+          <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-bold text-slate-200 block">Kursdaten-Schnittstellen (Finnhub & Yahoo)</span>
+                <span className="text-slate-400 block">Optionaler Finnhub API-Key für unterbrechungsfreie Echtzeitkurse</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof localStorage !== 'undefined') {
+                    localStorage.removeItem('finanz_market_prices_cache');
+                    alert('Preiscache erfolgreich geleert! Bei der nächsten Aktualisierung werden frische Kurse geladen.');
+                  }
+                }}
+                className="px-2.5 py-1 text-[11px] font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 rounded border border-slate-700 transition-colors"
+              >
+                Cache leeren
+              </button>
+            </div>
+            <input
+              type="text"
+              defaultValue={typeof localStorage !== 'undefined' ? localStorage.getItem('finanz_finnhub_api_key') || '' : ''}
+              onChange={(e) => {
+                if (typeof localStorage !== 'undefined') {
+                  if (e.target.value.trim()) {
+                    localStorage.setItem('finanz_finnhub_api_key', e.target.value.trim());
+                  } else {
+                    localStorage.removeItem('finanz_finnhub_api_key');
+                  }
+                }
+              }}
+              placeholder="Finnhub API Key (z.B. c12345... von finnhub.io) für Live-Quotes"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 font-mono text-slate-200 text-xs"
+            />
+          </div>
+
           {/* Auto Refresh */}
           <div className="flex justify-between items-center p-4 bg-slate-950/40 border border-slate-800 rounded-xl">
             <div>

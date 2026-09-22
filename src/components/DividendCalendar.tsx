@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowRight, TrendingUp, DollarSign, Clock, Calendar, BarChar
 import { convertCurrency } from './performanceUtils';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
-import { downloadIcalCalendar } from '../services/icalExporter';
 import { CalendarExportModal } from './CalendarExportModal';
 
 interface DividendCalendarProps {

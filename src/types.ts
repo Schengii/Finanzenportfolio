@@ -21,7 +21,7 @@ export interface AssetMappingRule {
 
 export interface Transaction {
   id: string;
-  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL' | 'STAKING' | 'AIRDROP' | 'MINING' | 'FEE' | 'OPTION_PREMIUM' | 'OPTION_EXPIRE' | 'OPTION_ASSIGN' | 'INTEREST' | 'RENT_INCOME' | 'MAINTENANCE_EXPENSE';
+  type: 'BUY' | 'SELL' | 'DIVIDEND' | 'DEPOSIT' | 'WITHDRAWAL' | 'STAKING' | 'AIRDROP' | 'MINING' | 'FEE' | 'OPTION_PREMIUM' | 'OPTION_EXPIRE' | 'OPTION_ASSIGN' | 'INTEREST' | 'RENT_INCOME' | 'MAINTENANCE_EXPENSE' | 'FX_SWAP';
   date: string;
   ticker: string;
   name: string;
@@ -39,6 +39,10 @@ export interface Transaction {
   strikePrice?: number;
   expirationDate?: string;
   optionType?: 'CALL' | 'PUT';
+  fromCurrency?: 'EUR' | 'USD' | 'CHF' | 'GBP';
+  toCurrency?: 'EUR' | 'USD' | 'CHF' | 'GBP';
+  fromAmount?: number;
+  toAmount?: number;
 }
 
 export interface Holding {
@@ -222,6 +226,36 @@ export interface SavingsPlan {
   sector?: Sector;
   region?: Region;
   broker?: string;
+  annualDynamizationPercent?: number; // e.g. 2, 5 percent
+  lastDynamizationDate?: string; // YYYY-MM-DD
+  pausedUntilDate?: string; // e.g. '2026-12-31'
+  minimumEmergencyCashBufferEur?: number; // threshold below which execution pauses
+}
+
+export type DividendAristocratTier = 'KING' | 'ARISTOCRAT' | 'CHAMPION' | 'CONTENDER' | 'CHALLENGER' | 'NONE';
+
+export interface DividendGrowthAnalysis {
+  ticker: string;
+  name: string;
+  yearsOfIncreases: number;
+  tier: DividendAristocratTier;
+  tierLabel: string;
+  tierBadgeColor: string;
+  cagr1y: number;
+  cagr3y: number;
+  cagr5y: number;
+  cagr10y: number;
+  payoutRatioEarningsPercent: number;
+  payoutRatioFcfPercent: number;
+  cutRisk: 'SAFE' | 'MODERATE' | 'HIGH_RISK';
+}
+
+export interface MultiCurrencyCashBalances {
+  EUR: number;
+  USD: number;
+  CHF: number;
+  GBP: number;
+  totalEurEquivalent: number;
 }
 
 export interface Portfolio {

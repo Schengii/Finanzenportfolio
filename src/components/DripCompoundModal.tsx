@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Holding, Transaction } from '../types';
-import { RefreshCw, TrendingUp, DollarSign, ArrowUpRight, Zap, X, Info, Check } from 'lucide-react';
+import { RefreshCw, Zap, X, Check } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { calculateDripComparison } from './performanceUtils';
 
@@ -157,9 +157,22 @@ export const DripCompoundModal: React.FC<DripCompoundModalProps> = ({
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>
-                Dividendenrendite p.a.: <strong style={{ color: '#10b981' }}>{expectedYieldPercent.toFixed(1)}%</strong>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Dividendenrendite p.a.: <strong style={{ color: '#10b981' }}>{expectedYieldPercent.toFixed(1)}%</strong>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setExpectedYieldPercent(Math.max(1, Math.min(9, Math.round(currentYieldPct * 10) / 10)))}
+                  style={{
+                    background: 'transparent', border: 'none', color: '#10b981', fontSize: '0.7rem',
+                    cursor: 'pointer', textDecoration: 'underline', padding: 0
+                  }}
+                  title="Portfolio-Ist-Wert übernehmen"
+                >
+                  Ist: {currentYieldPct.toFixed(1)}%
+                </button>
+              </div>
               <input
                 type="range"
                 min={1.0}

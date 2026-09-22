@@ -806,6 +806,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
          <NetWorthDashboard
            portfolios={portfolios}
            baseCurrency={baseCurrency}
+           currentTotalValue={stats.totalValue}
          />
 
          <FireFreedomWidget
