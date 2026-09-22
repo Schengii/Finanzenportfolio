@@ -27,7 +27,10 @@ import {
   Camera,
   Repeat,
   Landmark,
-  Bell
+  Bell,
+  Grid,
+  Flame,
+  TrendingUp
 } from 'lucide-react';
 import type { Holding } from '../types';
 
@@ -69,6 +72,9 @@ interface CommandPaletteModalProps {
   onOpenPriceAlerts?: () => void;
   onOpenRebalanceOrders?: () => void;
   onOpenTerAnalysis?: () => void;
+  onOpenCorrelationHeatmap?: () => void;
+  onOpenFireSimulator?: () => void;
+  onOpenSavingsGrowth?: () => void;
   onRefreshPrices: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -104,6 +110,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenPriceAlerts,
   onOpenRebalanceOrders,
   onOpenTerAnalysis,
+  onOpenCorrelationHeatmap,
+  onOpenFireSimulator,
+  onOpenSavingsGrowth,
   onRefreshPrices,
   isDarkMode,
   onToggleDarkMode,
@@ -388,6 +397,33 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         icon: <PieChart size={18} color="#a855f7" />,
         perform: () => { onClose(); if (onOpenTerAnalysis) onOpenTerAnalysis(); },
         keywords: 'ter fondskosten gebuehren etf zinseszins kostenquote expense ratio'
+      },
+      {
+        id: 'act-correlation-heatmap',
+        title: 'Portfoliokorrelations- & Diversifikations-Heatmap',
+        subtitle: 'Pearson-Korrelation (-1 bis +1) & Klumpenrisiko-Erkennung',
+        category: 'ACTION',
+        icon: <Grid size={18} color="#c084fc" />,
+        perform: () => { onClose(); if (onOpenCorrelationHeatmap) onOpenCorrelationHeatmap(); },
+        keywords: 'korrelation heatmap diversifikation cluster klumpen risiko pearson'
+      },
+      {
+        id: 'act-fire-simulator',
+        title: 'FIRE-Dynamik & Kapitalverzehr-Simulator',
+        subtitle: 'Variable Entnahmeraten, Guyton-Klinger Leitplanken & Rentenverrechnung',
+        category: 'ACTION',
+        icon: <Flame size={18} color="#f97316" />,
+        perform: () => { onClose(); if (onOpenFireSimulator) onOpenFireSimulator(); },
+        keywords: 'fire ruhestand rente kapitalverzehr entnahme bengen guyton klinger vpw freiheit'
+      },
+      {
+        id: 'act-savings-growth',
+        title: 'Sparplan-Dynamisierungs- & Zinseszins-Rechner',
+        subtitle: 'Vergleich fixer vs. dynamisierter Sparpläne & Meilenstein-Zeitersparnis',
+        category: 'ACTION',
+        icon: <TrendingUp size={18} color="#10b981" />,
+        perform: () => { onClose(); if (onOpenSavingsGrowth) onOpenSavingsGrowth(); },
+        keywords: 'sparplan dynamisierung zinseszins step up wachstum vermoegen rente sparquote'
       },
       {
         id: 'act-order-assistant',

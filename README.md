@@ -21,6 +21,10 @@
 Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier-, Immobilien-, Zins-, Krypto- und Derivate-Portfolios. 
 
 ### Warum FinanzPortfolio CoPilot?
+- 📄 **Universeller DACH-PDF Beleg-Import**: Vollautomatisches Einlesen von Abrechnungen für Trade Republic, Scalable Capital, ING, comdirect, DKB, Consorsbank, finanzen.net zero, flatex und Bitpanda.
+- 🧬 **Portfoliokorrelations- & Diversifikations-Heatmap**: Pearson-Korrelationsmatrix, Klumpenerkennung und Diversifikations-Score nach der Modernen Portfoliotheorie (Markowitz).
+- 🔥 **FIRE-Dynamik & Kapitalverzehr-Simulator**: Variable Entnahmestrategien (Guyton-Klinger, Bengen 4%, VPW) mit gesetzlicher/betrieblicher Rente und Krankenversicherung.
+- 🚀 **Sparplan-Dynamisierungs- & Zinseszins-Rechner**: Vergleich fester vs. prozentual dynamisierter Sparraten, Step-Up Boosts und Meilenstein-Projektionen bis zu 35 Jahre.
 - ⚖️ **Portfolio-Rebalancing & Order-Assistent**: Dual-Modus Soll/Ist-Vergleich (Voll-Rebalance vs. steuerschonender Cashflow-Zukauf) mit Stückzahl-Berechnung und 1-Klick-Zwischenablage für Neobroker.
 - 📉 **Fondskosten- & TER-Zinseszins-Analyse**: Portfoliogewichtete TER in % und € p.a. mit 30-Jahre Zinseszins-Verlustsimulation und Aktivfonds-Vergleich.
 - 🪙 **Krypto Tax-Loss Harvesting (§ 23 EStG)**: Haltefristen-Radar mit Countdown-Warnung vor Ablauf der 365-Tage-Frist zur Rettung von Einkommensteuer-Verlusttöpfen.
@@ -39,7 +43,50 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
 
 ## ✨ Feature-Highlights & Hauptfunktionen
 
-### 1. ⚖️ Portfolio-Rebalancing Ausführungs-Assistent & Orderliste (`RebalancingOrderModal.tsx` & `rebalanceUtils.ts`)
+### 1. 📄 Universeller DACH-PDF Beleg-Import (`BatchPdfUploadModal.tsx` & `pdfImportUtils.ts`)
+- **Breite Broker-Abdeckung**:
+  - Unterstützt Abrechnungs-PDFs aller führenden DACH-Broker und Neobroker: **Trade Republic**, **Scalable Capital**, **ING DiBa**, **comdirect**, **DKB**, **Consorsbank**, **finanzen.net zero**, **flatex** und **Bitpanda**.
+- **Intelligente Textextraktion**:
+  - Parst Wertpapierkäufe, Verkäufe, Dividendenabrechnungen und Krypto-Transaktionen automatisch aus unstrukturiertem Text.
+  - Extrahiert ISIN, WKN, Asset-Namen, Transaktionstyp, Datum, Stückzahl, Ausführungskurs, Brutto- & Nettobetrag, Gebühren sowie Steuern.
+- **Automatische Broker-Verschlagwortung**:
+  - Erkanntes Brokerhaus wird sofort in das Transaktions-Notizfeld (`[Broker: ...]`) eingetragen und steht so direkt für das Multi-Broker Depot-Mapping zur Verfügung.
+- **Transparente Vorschau & Batch-Import**:
+  - Übersichtliche Prüftabelle aller erkannten Transaktionen vor dem finalen Übertrag in das Portfolio inklusive Duplikaterkennung.
+
+### 2. 🧬 Portfoliokorrelations- & Diversifikations-Heatmap (`CorrelationHeatmapModal.tsx` & `correlationUtils.ts`)
+- **Moderne Portfoliotheorie (MPT)**:
+  - Berechnet paarweise Korrelationen zwischen allen Positionen auf Basis von Rendite- und Risikoprofilen, Asset-Klassen und Geographien.
+- **Interaktive Farb-Matrix**:
+  - Farbskala von tiefem Dunkelblau/Grün (-1,0: Perfekte Gegenläufigkeit/Hedging) über Gelb bis hin zu leuchtendem Rot (+1,0: Perfekter Gleichlauf).
+- **Cluster- & Klumpen-Radar**:
+  - Erkennt hochkorrelierte Positionscluster ($r \ge 0,85$), z. B. Überschneidungen von US Big Tech Aktien (Apple, Microsoft, Nvidia) mit Nasdaq- und S&P 500-ETFs.
+- **Portfolio-Diversifikations-Score**:
+  - Dynamischer Gesamt-Score von 0% (Extremes Klumpenrisiko) bis 100% (Optimale Diversifikation) mit konkreten Handlungsempfehlungen.
+
+### 3. 🔥 FIRE-Dynamik & Kapitalverzehr-Simulator mit variabler Entnahmerate (`FireWithdrawalSimulatorModal.tsx` & `fireSimulatorUtils.ts`)
+- **Flexible Entnahme-Strategien**:
+  - **Guyton-Klinger Leitplanken (Guardrails)**: Passt die Entnahmerate bei Marktüberschwang nach oben und bei Crash-Jahren nach unten an, um das Kapital langfristig zu sichern.
+  - **Bengen 4%-Regel**: Klassische inflationsbereinigte Entnahme.
+  - **VPW (Variable Percentage Withdrawal)**: Maximiert den Lebenszeitkonsum durch altersabhängige Entnahmequoten.
+  - **Feste prozentuale Entnahme**: Entnahme einer konstanten Quote des aktuellen Depotwerts.
+- **Reale Renten- und Kostenverrechnung**:
+  - Integriert gesetzliche Rente, betriebliche Altersvorsorge (bAV), private Krankenversicherung und Vererbungswunsch (Mindest-Restkapital).
+- **Interaktive Recharts Area-Visualisierung**:
+  - Zeigt Depotwert-Entwicklung, Entnahmen und Rentenbezüge über den gesamten Lebenshorizont (z. B. bis Alter 85 oder 95) auf einen Blick.
+
+### 4. 🚀 Sparplan-Dynamisierungs- & Zinseszins-Rechner (`SavingsPlanGrowthModal.tsx` & `savingsGrowthUtils.ts`)
+- **Multi-Szenarien-Vergleich**:
+  - Vergleicht 3 Sparstrategien über bis zu 35 Jahre:
+    1. *Fixe Sparrate* (z. B. konstant 300 € / Monat).
+    2. *Jährliche Dynamisierung* (z. B. +2,5% p.a. Inflations-/Gehaltsausgleich).
+    3. *Jährlicher Step-Up* (z. B. +50 € / Monat jedes Jahr).
+- **Zinseszins-Hebel & Rendite-Vorsprung**:
+  - Quantifiziert den exakten Vermögensmehrwert der Dynamisierung nach 10, 20 und 30 Jahren.
+- **Meilenstein-Projektion**:
+  - Ermittelt das genaue Erreichungsjahr für Meilensteine wie 25.000 €, 50.000 €, 100.000 €, 250.000 €, 500.000 € und 1.000.000 € und zeigt den Zeitgewinn in Jahren an.
+
+### 5. ⚖️ Portfolio-Rebalancing Ausführungs-Assistent & Orderliste (`RebalancingOrderModal.tsx` & `rebalanceUtils.ts`)
 - **Dual-Modus Rebalancing**:
   - **🔄 Voll-Rebalancing**: Berechnet synchrone Verkäufe übergewichteter und Zukäufe untergewichteter Anlageklassen zur exakten Wiederherstellung der Zielquoten.
   - **💸 Nur Zukäufe (Cashflow-Steuerung)**: Steuerschonender Modus ohne jegliche Wertpapierverkäufe. Weist frisches Einzahlungs- oder Barkapital gezielt untergewichteten Anlageklassen zu, um Fehlallokationen ohne steuerauslösende Transaktionen zu beheben.
@@ -49,7 +96,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
 - **1-Klick-Zwischenablage für Neobroker**:
   - Exportiert eine übersichtliche, strukturierte Orderliste direkt in die Zwischenablage für die schnelle Orderaufgabe bei Trade Republic, Scalable Capital, ING oder Interactive Brokers.
 
-### 2. 📉 Fondskosten- & TER-Zinseszins-Analyse (`TerExpenseAnalysisModal.tsx` & `terUtils.ts`)
+### 6. 📉 Fondskosten- & TER-Zinseszins-Analyse (`TerExpenseAnalysisModal.tsx` & `terUtils.ts`)
 - **Gewichtete Gesamtkostenquote (TER)**:
   - Berechnet die portfolio-gewichtete Total Expense Ratio (TER in % p.a.) und die jährlichen Gesamtkosten aller ETF- und Fondspositionen in Euro.
 - **30-Jahre Zinseszins-Verlustsimulation**:
@@ -59,7 +106,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
 - **Transparente Positionsübersicht**:
   - Aufschlüsselung jedes einzelnen ETFs mit Fondsvolumen, TER, prozentualem Anteil am Fondsdepot und laufenden Jahreskosten.
 
-### 3. 🪙 Krypto Tax-Loss Harvesting & 1-Jahres-Haltefristen-Radar (§ 23 EStG) (`CryptoTaxLossOptimizerModal.tsx` & `cryptoTaxUtils.ts`)
+### 7. 🪙 Krypto Tax-Loss Harvesting & 1-Jahres-Haltefristen-Radar (§ 23 EStG) (`CryptoTaxLossOptimizerModal.tsx` & `cryptoTaxUtils.ts`)
 - **Haltefristen-Countdown (365 Tage)**:
   - Identifiziert alle offenen Krypto-Kauftranchen mit negativer Wertentwicklung, deren Haltedauer unter einem Jahr liegt.
   - Zeigt die verbleibenden Resttage bis zum Eintritt der Steuerfreiheit an – denn ab Tag 366 verfällt der Verlust steuerlich unwiederbringlich!
@@ -70,7 +117,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
   - Gegenüberstellung mit bereits im laufenden Kalenderjahr realisierten steuerpflichtigen Krypto-Gewinnen nach § 23 Abs. 3 EStG.
 - **Berater-Export**: 1-Klick-Kopierfunktion der Verlusttranchen für Steuerberater oder private Dokumentation.
 
-### 4. 📶 PWA Offline-Status & Auto-Sync Monitor (`NetworkStatusIndicator.tsx`)
+### 8. 📶 PWA Offline-Status & Auto-Sync Monitor (`NetworkStatusIndicator.tsx`)
 - **Echtzeit-Konnektivitätsüberwachung**:
   - Überwacht den Online-/Offline-Zustand des Browsers über native HTML5 Network-Events.
 - **Visueller Header-Indikator**:
@@ -78,7 +125,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
 - **Auto-Sync bei Reconnect**:
   - Erkennt das Wiederherstellen der Internetverbindung und stößt automatisch einen Refresh der Echtzeit-Kursdaten und FX-Kurse an.
 
-### 5. 🏛️ Multi-Broker Depot-Mapping & Vergleich (`BrokerBreakdownModal.tsx`)
+### 9. 🏛️ Multi-Broker Depot-Mapping & Vergleich (`BrokerBreakdownModal.tsx`)
 - **Automatisches Broker-Screening**: Erkennt und aggregiert alle in Transaktionen und Beständen hinterlegten Broker (Trade Republic, Scalable Capital, Interactive Brokers, ING, Consorsbank, Bitpanda, etc.).
 - **Detaillierte Kennzahlen je Broker**:
   - Aktueller Depot-Marktwert und investiertes Kapital.
@@ -86,7 +133,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
   - Erhaltene Brutto-Dividenden und angefallene Ordergebühren.
 - **Interaktive Allokations-Grafik**: Recharts PieChart mit prozentualer Aufteilung des Gesamtvermögens auf die einzelnen Depots.
 
-### 2. 📊 Strukturierter Excel Multi-Sheet Export (.xlsx) (`ExcelExportModal.tsx` & `exportUtils.ts`)
+### 10. 📊 Strukturierter Excel Multi-Sheet Export (.xlsx) (`ExcelExportModal.tsx` & `exportUtils.ts`)
 - **Vollwertige Arbeitsmappen-Generierung**: Erzeugt mit einem Klick eine professionell formatierte Microsoft Excel-Datei (`.xlsx`) direkt im Browser:
   1. *Übersicht & KPIs*: Portfolio-Stammdaten, Gesamtwerte, Renditen (TTWRR, IRR), Sharpe Ratio, Max Drawdown.
   2. *Bestände*: Ticker, Asset-Name, Kategorie, Broker, Stückzahl, Einstandskurs, Marktwert, GuV (€/%), Rendite.
@@ -95,7 +142,7 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
   5. *Zinstreppe & Cash*: Laufzeiten, Zinssätze und Einlagensicherungs-Status.
   6. *DACH Steuer-Report*: Steuerpflichtige Erträge, genutzter Freibetrag und fällige Abgeltungsteuer.
 
-### 3. 🔔 Kursalarme & Web Push-Benachrichtigungen (`PriceAlertsModal.tsx` & `alertUtils.ts`)
+### 11. 🔔 Kursalarme & Web Push-Benachrichtigungen (`PriceAlertsModal.tsx` & `alertUtils.ts`)
 - **Intelligente Kursüberwachung**:
   - `ABOVE`: Kurs steigt über oder erreicht das gesetzte Kursziel (z. B. für Gewinnmitnahmen).
   - `BELOW`: Kurs fällt unter die Stop-Loss-Schwelle oder Nachkaufmarke.
@@ -103,23 +150,23 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
 - **Native Browser-Push Notifications**: Nutzt die HTML5 `Notification`-API für Desktop- und Smartphone-Benachrichtigungen.
 - **Header-Glocke mit Live-Counter**: Zeigt die Anzahl aktiver Alarme direkt in der Menüleiste an.
 
-### 4. 📸 Client-seitige Offline-OCR Texterkennung (`ReceiptScannerModal.tsx`)
+### 12. 📸 Client-seitige Offline-OCR Texterkennung (`ReceiptScannerModal.tsx`)
 - **100% Datenschutz**: Verarbeitet Abrechnungsfotos und Kamera-Screenshots via WebAssembly (`tesseract.js`) vollständig lokal im Browser des Nutzers.
 - **Fortschritts-Indikator**: Prozentuale Live-Anzeige des Erkennungsfortschritts.
 - **Mustererkennung**: Liest Stk, Ausführungskurse, Wertpapiernamen, ISINs und Gebühren automatisch in das Buchungsformular ein.
 
-### 5. 💱 Multi-Währungs Cash-Konten & FX Swap Engine (`MultiCurrencyCashModal.tsx`)
+### 13. 💱 Multi-Währungs Cash-Konten & FX Swap Engine (`MultiCurrencyCashModal.tsx`)
 - **Getrennte Verrechnungskonten**: Führe separate Bargeldbestände in **EUR (€)**, **USD ($)**, **CHF (Fr.)** und **GBP (£)**.
 - **Transaktions-Integration**: Dividenden, Zinsen, Käufe und Verkäufe in Originalwährung belasten oder entlasten direkt das passende Währungskonto.
 - **FX-Geldwechsel**: Tausche Währungen mit frei anpassbarem Wechselkurs und Gebührenabrechnung, ohne unrealistische automatische Umrechnungsverluste.
 - **Gesamtliquiditäts-Übersicht**: Aggregierte Darstellung aller Barbestände in deiner gewählten Basiswährung.
 
-### 6. 🤖 E-Mail & Webhook Automations-Dispatcher (`EmailWebhookDispatcherModal.tsx`)
+### 14. 🤖 E-Mail & Webhook Automations-Dispatcher (`EmailWebhookDispatcherModal.tsx`)
 - **Automatisierte Order-Imports**: Empfange Buchungsdaten direkt aus Automationsplattformen wie **n8n**, **Home Assistant**, **Make** oder **Google Apps Script**.
 - **Integrierter E-Mail Parser**: Erkennt Trade Republic-, Scalable Capital- und ING-Abrechnungs-Mails anhand von Betreff und Textkorpus.
 - **Sicherer Webhook-Token**: Token-basierte Authentifizierung mit fertigen cURL- und JSON-Codebeispielen sowie Live-Aktivitäts-Log.
 
-### 7. ⚖️ DACH-Steueroptimierung & Kirchensteuer (`TaxReportModal.tsx` & `performanceUtils.ts`)
+### 15. ⚖️ DACH-Steueroptimierung & Kirchensteuer (`TaxReportModal.tsx` & `performanceUtils.ts`)
 - **🇩🇪 Deutschland**:
   - Abgeltungsteuer (25%) + Solidaritätszuschlag (5,5% auf Steuerbetrag = 26,375%).
   - **Kirchensteuer-Präzisionsberechnung**: Wählbar zwischen **8%** (Bayern / Baden-Württemberg) und **9%** (übrige Bundesländer) mit der gesetzlichen Formel nach § 32d Abs. 1 Satz 3 EStG ($e = \frac{e_0}{1 + k \cdot 0{,}25}$).
@@ -213,7 +260,7 @@ npm install
 # 2. Entwicklungs-Server starten
 npm run dev
 
-# 3. Automatisierte Vitest Unit-Tests ausführen (62 Tests)
+# 3. Automatisierte Vitest Unit-Tests ausführen (81 Tests in 12 Test-Suites)
 npm run test
 
 # 4. TypeScript-Typen prüfen
@@ -227,7 +274,28 @@ npm run build
 
 ## 📝 Changelog & Versionshistorie
 
-### Version 2.4.0 (Aktuell)
+### Version 2.5.0 (Aktuell)
+- **📄 Universeller DACH-PDF Beleg-Import**:
+  - Hinzufügen von `BatchPdfUploadModal.tsx` und `pdfImportUtils.ts`.
+  - Vollautomatisches Einlesen von Wertpapier- und Kryptoabrechnungen für Trade Republic, Scalable Capital, ING DiBa, comdirect, DKB, Consorsbank, finanzen.net zero, flatex und Bitpanda.
+  - Automatisches Tagging des Brokerhauses (`[Broker: ...]`) für das Multi-Broker-Depot-Mapping.
+- **🧬 Portfoliokorrelations- & Diversifikations-Heatmap**:
+  - Hinzufügen von `CorrelationHeatmapModal.tsx` und `correlationUtils.ts`.
+  - Berechnung der paarweisen Pearson-Korrelationsmatrix, Klumpenerkennung ($r \ge 0,85$) und Diversifikations-Score (0 - 100%) nach der Modernen Portfoliotheorie.
+  - Filterung nach Anlageklassen (z. B. nur Aktien/ETFs) und farbcodierte Matrix.
+- **🔥 FIRE-Dynamik & Kapitalverzehr-Simulator mit variabler Entnahmerate**:
+  - Hinzufügen von `FireWithdrawalSimulatorModal.tsx` und `fireSimulatorUtils.ts`.
+  - Flexible Strategien: Guyton-Klinger Leitplanken, Bengen 4%, VPW (Variable Percentage Withdrawal) und fixe Depotquote.
+  - Berücksichtigung von gesetzlicher Rente, betrieblicher Altersvorsorge (bAV), Krankenversicherung und Erbe-Zielen mit Recharts Area-Chart.
+- **🚀 Sparplan-Dynamisierungs- & Zinseszins-Rechner**:
+  - Hinzufügen von `SavingsPlanGrowthModal.tsx` und `savingsGrowthUtils.ts`.
+  - Szenarien-Vergleich zwischen fixer Sparrate, jährlicher prozentualer Dynamisierung und festem Step-Up (+50 €/Jahr).
+  - Meilenstein-Erreichung (25k bis 1.000k €) und Quantifizierung des Vermögensvorsprungs über bis zu 35 Jahre.
+- **🧪 Umfassende Testsuite & Verifikation**:
+  - Anstieg auf **81 automatisierte Unit-Tests in 12 Test-Suites** (100% bestanden).
+  - Vollständige Typprüfung (`tsc -b` fehlerfrei) und Vite Production-Build.
+
+### Version 2.4.0
 - **⚖️ Portfolio-Rebalancing Ausführungs-Assistent & Orderliste**:
   - Hinzufügen von `RebalancingOrderModal.tsx` und `rebalanceUtils.ts`.
   - Dual-Modus: Voll-Rebalance (Kauf/Verkauf) vs. steuerschonender Cashflow-Zukauf (nur Zukäufe ohne Wertpapierverkäufe).

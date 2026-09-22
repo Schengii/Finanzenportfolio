@@ -495,3 +495,104 @@ export interface CryptoTaxLossHarvestingSummary {
   taxRatePercent: number;
   lots: CryptoLossLot[];
 }
+
+export interface CorrelationCluster {
+  id: string;
+  name: string;
+  tickers: string[];
+  averageCorrelation: number;
+  riskDescription: string;
+}
+
+export interface CorrelationAnalysisResult {
+  tickers: string[];
+  names: Record<string, string>;
+  categories: Record<string, AssetCategory>;
+  matrix: Record<string, Record<string, number>>;
+  averageCorrelation: number;
+  diversificationScore: 'OPTIMAL' | 'MODERATE' | 'POOR';
+  diversificationScorePercent: number; // 0 to 100
+  clusters: CorrelationCluster[];
+  recommendations: string[];
+}
+
+export interface FireWithdrawalSimulationParams {
+  currentAge: number;
+  retirementAge: number;
+  targetAge: number; // e.g. 90 or 95
+  currentPortfolioValue: number;
+  annualReturnPercent: number;
+  annualInflationPercent: number;
+  monthlyBaseExpensesEur: number;
+  monthlyHealthInsuranceEur: number;
+  monthlyStatePensionEur: number; // Gesetzliche Rente ab Rentenalter
+  statePensionStartAge: number; // e.g. 67
+  monthlyCompanyPensionEur: number; // bAV / Zusatzrente
+  companyPensionStartAge: number;
+  withdrawalStrategy: 'CONSTANT_INFLATION_ADJUSTED' | 'GUYTON_KLINGER' | 'VPW' | 'FIXED_PERCENTAGE';
+  initialWithdrawalRatePercent: number; // e.g. 3.5% or 4.0%
+  bequestGoalEur: number; // Restvermögen für Erben (0 = vollständiger Verzehr)
+}
+
+export interface FireYearlyDetail {
+  year: number;
+  age: number;
+  startingValue: number;
+  portfolioGrowth: number;
+  statePensionReceived: number;
+  companyPensionReceived: number;
+  grossExpensesNeeded: number;
+  withdrawalAmount: number;
+  healthInsurancePaid: number;
+  taxesPaid: number;
+  endingValue: number;
+  isDepleted: boolean;
+}
+
+export interface FireWithdrawalSimulationResult {
+  isSuccess: boolean;
+  depletionAge?: number;
+  finalPortfolioValueEur: number;
+  totalWithdrawnEur: number;
+  totalPensionReceivedEur: number;
+  minPortfolioValueEur: number;
+  yearlyDetails: FireYearlyDetail[];
+  recommendation: string;
+}
+
+export interface SavingsMilestone {
+  targetAmountEur: number;
+  label: string;
+  fixedScenarioMonth: number;
+  dynamizedScenarioMonth: number;
+  monthsSaved: number;
+}
+
+export interface SavingsGrowthYearPoint {
+  year: number;
+  age: number;
+  fixedTotalEur: number;
+  fixedContributionsEur: number;
+  dynamizedTotalEur: number;
+  dynamizedContributionsEur: number;
+  stepUpTotalEur: number;
+  stepUpContributionsEur: number;
+}
+
+export interface SavingsGrowthComparisonResult {
+  initialCapitalEur: number;
+  monthlyContributionEur: number;
+  annualReturnPercent: number;
+  annualDynamizationPercent: number;
+  stepUpMonthlyEur: number;
+  horizonYears: number;
+  tenYearValueFixed: number;
+  twentyYearValueFixed: number;
+  thirtyYearValueFixed: number;
+  tenYearValueDynamized: number;
+  twentyYearValueDynamized: number;
+  thirtyYearValueDynamized: number;
+  extraWealthFromDynamization30Y: number;
+  milestones: SavingsMilestone[];
+  yearlyTrajectory: SavingsGrowthYearPoint[];
+}
