@@ -21,15 +21,16 @@
 Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier-, Immobilien-, Zins-, Krypto- und Derivate-Portfolios. 
 
 ### Warum FinanzPortfolio CoPilot?
-- 🔒 **100% Datenschutz**: Keine Speicherung deiner Finanzdaten auf fremden Servern. Alle Transaktionen bleiben ausschließlich lokal in deinem Browser.
-- ⚡ **Web Crypto Tresor & Auto-Lock**: AES-GCM 256-Bit Verschlüsselung aller Depotdaten via Master-PIN inklusive Inaktivitäts-Auto-Lock, PIN-Änderung und Entschlüsselungsfunktion.
-- 🔄 **Versionierte Snapshots**: Bis zu 5 automatische Wiederherstellungspunkte vor Massenimporten mit 1-Klick Rollback.
-- 🌐 **Automatisierter Webhook Push & Dispatcher**: Verschlüsselte Tresor-Sicherungen per 1-Klick oder automatisch an private Automation-Server (n8n, Home Assistant) und REST-Endpunkte.
-- 💱 **Multi-Währungs Cash-Konten**: Getrennte Salden für EUR, USD, CHF und GBP mit integriertem FX-Swap-Rechner.
+- ⚖️ **Portfolio-Rebalancing & Order-Assistent**: Dual-Modus Soll/Ist-Vergleich (Voll-Rebalance vs. steuerschonender Cashflow-Zukauf) mit Stückzahl-Berechnung und 1-Klick-Zwischenablage für Neobroker.
+- 📉 **Fondskosten- & TER-Zinseszins-Analyse**: Portfoliogewichtete TER in % und € p.a. mit 30-Jahre Zinseszins-Verlustsimulation und Aktivfonds-Vergleich.
+- 🪙 **Krypto Tax-Loss Harvesting (§ 23 EStG)**: Haltefristen-Radar mit Countdown-Warnung vor Ablauf der 365-Tage-Frist zur Rettung von Einkommensteuer-Verlusttöpfen.
+- 📶 **PWA Offline-Status & Auto-Sync**: Nahtloser lokaler Cache-Betrieb mit visueller Online/Offline-Statusanzeige und automatischem Kurs-Refresh bei Reconnect.
 - 🏛️ **Multi-Broker Depot-Mapping**: Aufschlüsselung von Depotwerten, realisierten Gewinnen, Dividenden und Gebühren nach Brokern.
 - 📊 **Strukturierter Excel Multi-Sheet Export**: 1-Klick Download einer 6-Tabellenblatt-Arbeitsmappe (.xlsx) für Steuern, Auswertungen und Archivierung.
 - 🔔 **Kursalarme & Push-Benachrichtigungen**: Automatische Überwachung von Kurszielen, Stop-Loss und extremen Tagesabstürzen via Web Notifications.
 - 📸 **Offline-OCR Texterkennung**: Direkte Beleg- und Screenshot-Erkennung im Browser via WebAssembly / Tesseract.js ohne Server-Upload.
+- 💱 **Multi-Währungs Cash-Konten**: Getrennte Salden für EUR, USD, CHF und GBP mit integriertem FX-Swap-Rechner.
+- ⚡ **Web Crypto Tresor & Auto-Lock**: AES-GCM 256-Bit Verschlüsselung aller Depotdaten via Master-PIN inklusive Inaktivitäts-Auto-Lock.
 - ⌨️ **Spotlight Command Palette**: Schnelle Suche und Tastaturnavigation via `Strg + K`.
 - 📱 **Mobile First PWA**: 1-Klick-Installation auf iOS und Android mit touch-optimierten Tabellen und flexiblem Layout.
 - 📈 **Profianalysen**: TTWRR, IRR, dynamische Sharpe Ratio, echter Max Drawdown aus Transaktionshistorie, Fama-French 5-Faktor Zerlegung, Monte-Carlo FIRE-Simulation, Quellensteuer-Rückerstattung und Options-Prämienrenditen.
@@ -38,7 +39,46 @@ Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-
 
 ## ✨ Feature-Highlights & Hauptfunktionen
 
-### 1. 🏛️ Multi-Broker Depot-Mapping & Vergleich (`BrokerBreakdownModal.tsx`)
+### 1. ⚖️ Portfolio-Rebalancing Ausführungs-Assistent & Orderliste (`RebalancingOrderModal.tsx` & `rebalanceUtils.ts`)
+- **Dual-Modus Rebalancing**:
+  - **🔄 Voll-Rebalancing**: Berechnet synchrone Verkäufe übergewichteter und Zukäufe untergewichteter Anlageklassen zur exakten Wiederherstellung der Zielquoten.
+  - **💸 Nur Zukäufe (Cashflow-Steuerung)**: Steuerschonender Modus ohne jegliche Wertpapierverkäufe. Weist frisches Einzahlungs- oder Barkapital gezielt untergewichteten Anlageklassen zu, um Fehlallokationen ohne steuerauslösende Transaktionen zu beheben.
+- **Passgenaue Order-Berechnung**:
+  - Exakte Stückzahl- und Betragskalkulation für Einzeltitel innerhalb der Anlageklassen.
+  - Frei definierbare Toleranzbänder (0%, 0.5%, 1%, 2%), um unnötige Kleinst-Orders zu vermeiden.
+- **1-Klick-Zwischenablage für Neobroker**:
+  - Exportiert eine übersichtliche, strukturierte Orderliste direkt in die Zwischenablage für die schnelle Orderaufgabe bei Trade Republic, Scalable Capital, ING oder Interactive Brokers.
+
+### 2. 📉 Fondskosten- & TER-Zinseszins-Analyse (`TerExpenseAnalysisModal.tsx` & `terUtils.ts`)
+- **Gewichtete Gesamtkostenquote (TER)**:
+  - Berechnet die portfolio-gewichtete Total Expense Ratio (TER in % p.a.) und die jährlichen Gesamtkosten aller ETF- und Fondspositionen in Euro.
+- **30-Jahre Zinseszins-Verlustsimulation**:
+  - Dynamische Simulation des Zinseszins-Verlusts über 10, 20 und 30 Jahre ($V_{\text{Brutto}} - V_{\text{Netto}}$) bei wählbaren Marktrenditen (z. B. 7,0% p.a.).
+- **Aktivfonds-Benchmark-Vergleich**:
+  - Gegenüberstellung mit typischen Filialbank-Aktivfonds (z. B. 1,80% TER) und Visualisierung des enormen Vermögensvorteils im interaktiven Recharts AreaChart.
+- **Transparente Positionsübersicht**:
+  - Aufschlüsselung jedes einzelnen ETFs mit Fondsvolumen, TER, prozentualem Anteil am Fondsdepot und laufenden Jahreskosten.
+
+### 3. 🪙 Krypto Tax-Loss Harvesting & 1-Jahres-Haltefristen-Radar (§ 23 EStG) (`CryptoTaxLossOptimizerModal.tsx` & `cryptoTaxUtils.ts`)
+- **Haltefristen-Countdown (365 Tage)**:
+  - Identifiziert alle offenen Krypto-Kauftranchen mit negativer Wertentwicklung, deren Haltedauer unter einem Jahr liegt.
+  - Zeigt die verbleibenden Resttage bis zum Eintritt der Steuerfreiheit an – denn ab Tag 366 verfällt der Verlust steuerlich unwiederbringlich!
+- **Dringlichkeits-Warnungen**:
+  - Hebt Tranchen mit weniger als 30 Tagen Restzeit farblich als akuten Handlungsbedarf hervor.
+- **Steuerersparnis-Rechner**:
+  - Berechnet das reale Steuerentlastungspotenzial anhand des persönlichen Grenzsteuersatzes (z. B. 42%).
+  - Gegenüberstellung mit bereits im laufenden Kalenderjahr realisierten steuerpflichtigen Krypto-Gewinnen nach § 23 Abs. 3 EStG.
+- **Berater-Export**: 1-Klick-Kopierfunktion der Verlusttranchen für Steuerberater oder private Dokumentation.
+
+### 4. 📶 PWA Offline-Status & Auto-Sync Monitor (`NetworkStatusIndicator.tsx`)
+- **Echtzeit-Konnektivitätsüberwachung**:
+  - Überwacht den Online-/Offline-Zustand des Browsers über native HTML5 Network-Events.
+- **Visueller Header-Indikator**:
+  - Diskreter Status-Badge im Kopfbereich (Grün: Online / Rot: Offline-Modus mit Hinweis auf lokalen Cache).
+- **Auto-Sync bei Reconnect**:
+  - Erkennt das Wiederherstellen der Internetverbindung und stößt automatisch einen Refresh der Echtzeit-Kursdaten und FX-Kurse an.
+
+### 5. 🏛️ Multi-Broker Depot-Mapping & Vergleich (`BrokerBreakdownModal.tsx`)
 - **Automatisches Broker-Screening**: Erkennt und aggregiert alle in Transaktionen und Beständen hinterlegten Broker (Trade Republic, Scalable Capital, Interactive Brokers, ING, Consorsbank, Bitpanda, etc.).
 - **Detaillierte Kennzahlen je Broker**:
   - Aktueller Depot-Marktwert und investiertes Kapital.
@@ -187,7 +227,28 @@ npm run build
 
 ## 📝 Changelog & Versionshistorie
 
-### Version 2.3.0 (Aktuell)
+### Version 2.4.0 (Aktuell)
+- **⚖️ Portfolio-Rebalancing Ausführungs-Assistent & Orderliste**:
+  - Hinzufügen von `RebalancingOrderModal.tsx` und `rebalanceUtils.ts`.
+  - Dual-Modus: Voll-Rebalance (Kauf/Verkauf) vs. steuerschonender Cashflow-Zukauf (nur Zukäufe ohne Wertpapierverkäufe).
+  - Berücksichtigung von frischem Investitionskapital und konfigurierbaren Toleranzbändern (0% - 2%).
+  - 1-Klick-Export formatierter Orderlisten für Neobroker in die Zwischenablage.
+- **📉 Fondskosten- & TER-Zinseszins-Analyse**:
+  - Hinzufügen von `TerExpenseAnalysisModal.tsx` und `terUtils.ts`.
+  - Berechnung der gewichteten Gesamtkostenquote (TER) in % und laufender Jahreskosten in Euro.
+  - 30-Jahre Zinseszins-Verlustsimulation mit interaktivem Recharts AreaChart und Benchmark-Vergleich gegen 1,80% aktive Bank-Fonds.
+- **🪙 Krypto Tax-Loss Harvesting & 1-Jahres-Haltefristen (§ 23 EStG)**:
+  - Hinzufügen von `CryptoTaxLossOptimizerModal.tsx` und `cryptoTaxUtils.ts`.
+  - Erkennung offener Krypto-Verlusttranchen vor Ablauf der 365-Tage-Spekulationsfrist mit Live-Countdown.
+  - Berechnung der realen Einkommensteuerersparnis beim persönlichen Grenzsteuersatz und Verrechnung mit steuerpflichtigen Jahresgewinnen nach § 23 Abs. 3 EStG.
+- **📶 PWA Offline-Status & Auto-Sync Monitor**:
+  - Hinzufügen von `NetworkStatusIndicator.tsx` mit nahtloser Online/Offline-Erkennung im Header.
+  - Automatischer Kurs-Refresh bei Wiederherstellung der Netzwerkverbindung.
+- **🧪 Erweiterte Testsuite**:
+  - Anstieg auf **71 automatisierte Unit-Tests** (100% bestanden).
+  - Fehlerfreier TypeScript Compile (`tsc -b`) und stabiler Production-Build.
+
+### Version 2.3.0
 - **🏛️ Multi-Broker Depot-Mapping & Vergleich**:
   - Hinzufügen von `BrokerBreakdownModal.tsx` und `brokerUtils.ts`.
   - Aggregation von Depotwerten, realisierten Gewinnen, Ausschüttungen und Gebühren nach Brokern.

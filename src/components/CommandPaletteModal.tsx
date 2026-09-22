@@ -67,6 +67,8 @@ interface CommandPaletteModalProps {
   onOpenBrokerBreakdown?: () => void;
   onOpenExcelExport?: () => void;
   onOpenPriceAlerts?: () => void;
+  onOpenRebalanceOrders?: () => void;
+  onOpenTerAnalysis?: () => void;
   onRefreshPrices: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -100,6 +102,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenBrokerBreakdown,
   onOpenExcelExport,
   onOpenPriceAlerts,
+  onOpenRebalanceOrders,
+  onOpenTerAnalysis,
   onRefreshPrices,
   isDarkMode,
   onToggleDarkMode,
@@ -366,6 +370,24 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         icon: <Bell size={18} color="#f59e0b" />,
         perform: () => { onClose(); if (onOpenPriceAlerts) onOpenPriceAlerts(); },
         keywords: 'kursalarm alert preisalarm push notification stop loss zielkurs warnung'
+      },
+      {
+        id: 'act-rebalance-orders',
+        title: 'Portfolio-Rebalancing & Order-Assistent',
+        subtitle: 'Soll/Ist-Vergleich aller 8 Anlageklassen & Dual-Modus Rebalancing',
+        category: 'ACTION',
+        icon: <Scale size={18} color="#3b82f6" />,
+        perform: () => { onClose(); if (onOpenRebalanceOrders) onOpenRebalanceOrders(); },
+        keywords: 'rebalancing rebalance gewichtung ziel allokation order orderliste ausgleich'
+      },
+      {
+        id: 'act-ter-analysis',
+        title: 'Fondskosten- & TER-Zinseszins-Analyse',
+        subtitle: 'Total Expense Ratio & 30-Jahre Zinseszins-Gebührenverlust',
+        category: 'ACTION',
+        icon: <PieChart size={18} color="#a855f7" />,
+        perform: () => { onClose(); if (onOpenTerAnalysis) onOpenTerAnalysis(); },
+        keywords: 'ter fondskosten gebuehren etf zinseszins kostenquote expense ratio'
       },
       {
         id: 'act-order-assistant',

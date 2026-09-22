@@ -16,7 +16,6 @@ import { DepositLadderWidget } from './components/DepositLadderWidget';
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { OrderAssistantModal } from './components/OrderAssistantModal';
 import { QrSyncModal } from './components/QrSyncModal';
-import { CryptoTaxLossHarvestingModal } from './components/CryptoTaxLossHarvestingModal';
 import { PdfFactsheetExporter } from './components/PdfFactsheetExporter';
 import { DualPortfolioCompareModal } from './components/DualPortfolioCompareModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
@@ -29,6 +28,10 @@ import { EmailWebhookDispatcherModal } from './components/EmailWebhookDispatcher
 import { BrokerBreakdownModal } from './components/BrokerBreakdownModal';
 import { ExcelExportModal } from './components/ExcelExportModal';
 import { PriceAlertsModal } from './components/PriceAlertsModal';
+import { RebalancingOrderModal } from './components/RebalancingOrderModal';
+import { TerExpenseAnalysisModal } from './components/TerExpenseAnalysisModal';
+import { CryptoTaxLossOptimizerModal } from './components/CryptoTaxLossOptimizerModal';
+import { NetworkStatusIndicator } from './components/NetworkStatusIndicator';
 import { loadPriceAlerts, savePriceAlerts, checkPriceAlerts } from './utils/alertUtils';
 import type { PriceAlert } from './types';
 import { Cloud, ShoppingCart, QrCode, Coins, Columns, Search, Landmark, Repeat, Camera, Bell } from 'lucide-react';
@@ -113,6 +116,8 @@ function App() {
   const [showBrokerBreakdownModal, setShowBrokerBreakdownModal] = useState(false);
   const [showExcelExportModal, setShowExcelExportModal] = useState(false);
   const [showPriceAlertsModal, setShowPriceAlertsModal] = useState(false);
+  const [showRebalancingOrderModal, setShowRebalancingOrderModal] = useState(false);
+  const [showTerAnalysisModal, setShowTerAnalysisModal] = useState(false);
   const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>(() => loadPriceAlerts());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -244,6 +249,8 @@ function App() {
 
         {/* Action Controls & Switcher */}
         <div className="header-controls-group">
+          <NetworkStatusIndicator onReconnect={handleRefreshPrices} />
+
           <button
             onClick={() => setShowCommandPalette(true)}
             className="theme-toggle-btn"
@@ -329,6 +336,20 @@ function App() {
                     📊 Analyse & Berichte
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <button
+                      onClick={() => { setShowRebalancingOrderModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Scale size={14} style={{ color: '#3b82f6' }} /> Rebalancing & Order-Assistent
+                    </button>
+                    <button
+                      onClick={() => { setShowTerAnalysisModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <PieChart size={14} style={{ color: '#a855f7' }} /> Fondskosten- & TER-Analyse
+                    </button>
                     <button
                       onClick={() => { setShowBrokerBreakdownModal(true); setShowToolsDropdown(false); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
@@ -656,6 +677,7 @@ function App() {
             totalValue={stats.totalValue} 
             targetAllocations={activePortfolio.targetAllocations}
             onUpdateTargetAllocations={updateTargetAllocations}
+            onOpenRebalanceOrders={() => setShowRebalancingOrderModal(true)}
           />
         )}
         {currentTab === 'dividend_calendar' && (
@@ -826,9 +848,9 @@ function App() {
         />
       )}
 
-      {/* Crypto Tax Tranches & Harvesting Modal */}
+      {/* Crypto Tax Loss Optimizer & Haltefristen-Radar (§ 23 EStG) */}
       {showCryptoTaxModal && (
-        <CryptoTaxLossHarvestingModal
+        <CryptoTaxLossOptimizerModal
           isOpen={showCryptoTaxModal}
           onClose={() => setShowCryptoTaxModal(false)}
           transactions={activePortfolio.transactions || []}
@@ -896,6 +918,8 @@ function App() {
         onOpenBrokerBreakdown={() => setShowBrokerBreakdownModal(true)}
         onOpenExcelExport={() => setShowExcelExportModal(true)}
         onOpenPriceAlerts={() => setShowPriceAlertsModal(true)}
+        onOpenRebalanceOrders={() => setShowRebalancingOrderModal(true)}
+        onOpenTerAnalysis={() => setShowTerAnalysisModal(true)}
         onRefreshPrices={handleRefreshPrices}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
@@ -992,6 +1016,27 @@ function App() {
           onAddAlert={handleAddAlert}
           onToggleAlert={handleToggleAlert}
           onDeleteAlert={handleDeleteAlert}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Portfolio-Rebalancing Ausführungs-Assistent & Orderliste */}
+      {showRebalancingOrderModal && (
+        <RebalancingOrderModal
+          isOpen={showRebalancingOrderModal}
+          onClose={() => setShowRebalancingOrderModal(false)}
+          holdings={holdings}
+          targetAllocations={activePortfolio.targetAllocations}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Fondskosten- & TER-Zinseszins-Analyse */}
+      {showTerAnalysisModal && (
+        <TerExpenseAnalysisModal
+          isOpen={showTerAnalysisModal}
+          onClose={() => setShowTerAnalysisModal(false)}
+          holdings={holdings}
           baseCurrency={baseCurrency}
         />
       )}

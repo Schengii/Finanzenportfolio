@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Holding, TargetAllocation, AssetCategory } from '../types';
-import { Lightbulb, Sliders, Activity, Info, Calendar, Sparkles } from 'lucide-react';
+import { Lightbulb, Sliders, Activity, Info, Calendar, Sparkles, Scale } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
@@ -12,13 +12,15 @@ interface StrategyProps {
   totalValue: number;
   targetAllocations?: TargetAllocation[];
   onUpdateTargetAllocations?: (allocations: TargetAllocation[]) => void;
+  onOpenRebalanceOrders?: () => void;
 }
 
 export const Strategy: React.FC<StrategyProps> = ({
   holdings,
   totalValue,
   targetAllocations,
-  onUpdateTargetAllocations
+  onUpdateTargetAllocations,
+  onOpenRebalanceOrders
 }) => {
   // Tab control: 'rebalance' | 'backtest'
   const [subTab, setSubTab] = useState<'rebalance' | 'backtest'>('rebalance');
@@ -654,6 +656,19 @@ export const Strategy: React.FC<StrategyProps> = ({
                     />
                   </div>
                 </div>
+
+                {onOpenRebalanceOrders && (
+                  <div style={{ margin: '1rem 0', display: 'flex', justifyContent: 'flex-start' }}>
+                    <button
+                      onClick={onOpenRebalanceOrders}
+                      className="btn btn-primary"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
+                    >
+                      <Scale size={16} />
+                      📋 Detaillierte Orderliste & Rebalancing-Assistent öffnen
+                    </button>
+                  </div>
+                )}
 
                 <div className="strat-planner-results">
                   <h5 className="strat-planner-results-title">Empfohlene Verteilung der Einzahlung:</h5>

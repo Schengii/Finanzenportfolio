@@ -66,6 +66,7 @@ export interface Holding {
   broker?: string;
   currency?: 'EUR' | 'USD' | 'CHF' | 'GBP';
   teilfreistellungRate?: number;
+  terPercent?: number;
   notes?: string;
   tags?: string[];
 }
@@ -414,6 +415,83 @@ export interface BrokerStats {
   shareOfPortfolioPercent: number;
 }
 
+export interface RebalanceCategoryOrder {
+  category: AssetCategory;
+  currentValueEur: number;
+  currentWeightPercent: number;
+  targetWeightPercent: number;
+  targetValueEur: number;
+  driftPercent: number;
+  action: 'BUY' | 'SELL' | 'HOLD';
+  orderValueEur: number;
+  suggestedAssets: {
+    ticker: string;
+    name: string;
+    currentPrice: number;
+    suggestedShares: number;
+    suggestedAmountEur: number;
+  }[];
+}
 
+export interface RebalanceCalculationResult {
+  mode: 'FULL' | 'CASHFLOW_ONLY';
+  freshCapitalEur: number;
+  totalPortfolioValueEur: number;
+  postRebalanceValueEur: number;
+  categoryOrders: RebalanceCategoryOrder[];
+  totalBuyVolumeEur: number;
+  totalSellVolumeEur: number;
+}
 
+export interface FundFeeItem {
+  ticker: string;
+  name: string;
+  category: AssetCategory;
+  currentValueEur: number;
+  terPercent: number;
+  annualCostEur: number;
+  portfolioSharePercent: number;
+}
 
+export interface TerAnalysisResult {
+  totalAnalyzedFundValueEur: number;
+  weightedTerPercent: number;
+  totalAnnualFeeEur: number;
+  tenYearCompoundLossEur: number;
+  twentyYearCompoundLossEur: number;
+  thirtyYearCompoundLossEur: number;
+  potentialSavingVsActiveFundEur: number;
+  funds: FundFeeItem[];
+  projection: {
+    year: number;
+    withoutFeesEur: number;
+    withCurrentTerEur: number;
+    withActiveFundFeeEur: number;
+    cumulativeFeeLossEur: number;
+  }[];
+}
+
+export interface CryptoLossLot {
+  id: string;
+  ticker: string;
+  name: string;
+  buyDate: string;
+  daysHeld: number;
+  daysRemainingInTaxYearWindow: number;
+  amount: number;
+  buyPriceEur: number;
+  currentPriceEur: number;
+  costBasisEur: number;
+  currentValueEur: number;
+  unrealizedLossEur: number;
+  potentialTaxSavingsEur: number;
+  isActionable: boolean;
+}
+
+export interface CryptoTaxLossHarvestingSummary {
+  realizedGainsThisYearEur: number;
+  totalHarvestableLossesEur: number;
+  estimatedTaxSavingsEur: number;
+  taxRatePercent: number;
+  lots: CryptoLossLot[];
+}
