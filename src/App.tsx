@@ -26,7 +26,12 @@ import { ReceiptScannerModal } from './components/ReceiptScannerModal';
 import { CalendarExportModal } from './components/CalendarExportModal';
 import { MultiCurrencyCashModal } from './components/MultiCurrencyCashModal';
 import { EmailWebhookDispatcherModal } from './components/EmailWebhookDispatcherModal';
-import { Cloud, ShoppingCart, QrCode, Coins, Columns, Search, Landmark, Repeat, Camera } from 'lucide-react';
+import { BrokerBreakdownModal } from './components/BrokerBreakdownModal';
+import { ExcelExportModal } from './components/ExcelExportModal';
+import { PriceAlertsModal } from './components/PriceAlertsModal';
+import { loadPriceAlerts, savePriceAlerts, checkPriceAlerts } from './utils/alertUtils';
+import type { PriceAlert } from './types';
+import { Cloud, ShoppingCart, QrCode, Coins, Columns, Search, Landmark, Repeat, Camera, Bell } from 'lucide-react';
 
 const BatchPdfUploadModal = lazy(() => import('./components/BatchPdfUploadModal').then(m => ({ default: m.BatchPdfUploadModal })));
 const TaxReportModal = lazy(() => import('./components/TaxReportModal').then(m => ({ default: m.TaxReportModal })));
@@ -105,7 +110,45 @@ function App() {
   const [showCalendarExportModal, setShowCalendarExportModal] = useState(false);
   const [showMultiCurrencyModal, setShowMultiCurrencyModal] = useState(false);
   const [showEmailWebhookModal, setShowEmailWebhookModal] = useState(false);
+  const [showBrokerBreakdownModal, setShowBrokerBreakdownModal] = useState(false);
+  const [showExcelExportModal, setShowExcelExportModal] = useState(false);
+  const [showPriceAlertsModal, setShowPriceAlertsModal] = useState(false);
+  const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>(() => loadPriceAlerts());
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Check price alerts when holdings change
+  useEffect(() => {
+    if (holdings.length > 0 && priceAlerts.length > 0) {
+      const { updatedAlerts, newlyTriggered } = checkPriceAlerts(priceAlerts, holdings);
+      if (newlyTriggered.length > 0) {
+        setPriceAlerts(updatedAlerts);
+      }
+    }
+  }, [holdings, priceAlerts]);
+
+  const handleAddAlert = (alertData: Omit<PriceAlert, 'id' | 'createdAt' | 'isActive'>) => {
+    const newAlert: PriceAlert = {
+      ...alertData,
+      id: `alert-${Date.now()}`,
+      createdAt: new Date().toLocaleDateString('de-DE'),
+      isActive: true
+    };
+    const updated = [...priceAlerts, newAlert];
+    setPriceAlerts(updated);
+    savePriceAlerts(updated);
+  };
+
+  const handleToggleAlert = (id: string) => {
+    const updated = priceAlerts.map(a => a.id === id ? { ...a, isActive: !a.isActive } : a);
+    setPriceAlerts(updated);
+    savePriceAlerts(updated);
+  };
+
+  const handleDeleteAlert = (id: string) => {
+    const updated = priceAlerts.filter(a => a.id !== id);
+    setPriceAlerts(updated);
+    savePriceAlerts(updated);
+  };
 
   // Global Keyboard Shortcut: Ctrl+K / Cmd+K
   useEffect(() => {
@@ -220,6 +263,26 @@ function App() {
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
           </button>
 
+          {/* Price Alerts Bell Button */}
+          <button
+            onClick={() => setShowPriceAlertsModal(true)}
+            className="theme-toggle-btn"
+            title="Kursalarme verwalten"
+            style={{ position: 'relative' }}
+          >
+            <Bell size={16} />
+            {priceAlerts.filter(a => a.isActive).length > 0 && (
+              <span style={{
+                position: 'absolute', top: '-4px', right: '-4px',
+                background: '#ef4444', color: '#fff', fontSize: '0.65rem',
+                fontWeight: 'bold', minWidth: '15px', height: '15px', borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px'
+              }}>
+                {priceAlerts.filter(a => a.isActive).length}
+              </span>
+            )}
+          </button>
+
           {/* Categorized Tools & Assistants Dropdown */}
           <div style={{ position: 'relative' }}>
             <button
@@ -267,6 +330,13 @@ function App() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <button
+                      onClick={() => { setShowBrokerBreakdownModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Landmark size={14} style={{ color: '#3b82f6' }} /> Multi-Broker Depot-Mapping
+                    </button>
+                    <button
                       onClick={() => { setShowCompareModal(true); setShowToolsDropdown(false); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
                       className="hover:bg-slate-800"
@@ -293,6 +363,13 @@ function App() {
                       className="hover:bg-slate-800"
                     >
                       <Calendar size={14} style={{ color: '#f59e0b' }} /> Finanzkalender & iCal Export
+                    </button>
+                    <button
+                      onClick={() => { setShowPriceAlertsModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Bell size={14} style={{ color: '#f59e0b' }} /> Kursalarme & Push-Warnungen
                     </button>
                     <button
                       onClick={() => { setShowStressTestModal(true); setShowToolsDropdown(false); }}
@@ -404,13 +481,19 @@ function App() {
                       <QrCode size={14} style={{ color: '#a855f7' }} /> Offline QR-Code Transfer
                     </button>
                     <button
+                      onClick={() => { setShowExcelExportModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <FileSpreadsheet size={14} style={{ color: '#10b981' }} /> Excel Multi-Sheet Export (.xlsx)
+                    </button>
+                    <button
                       onClick={() => { setShowEmailWebhookModal(true); setShowToolsDropdown(false); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
                       className="hover:bg-slate-800"
                     >
                       <Cloud size={14} style={{ color: '#06b6d4' }} /> E-Mail & Webhook Dispatcher
-'
-'                    </button>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -810,6 +893,9 @@ function App() {
         onOpenCalendarExport={() => setShowCalendarExportModal(true)}
         onOpenMultiCurrency={() => setShowMultiCurrencyModal(true)}
         onOpenEmailWebhook={() => setShowEmailWebhookModal(true)}
+        onOpenBrokerBreakdown={() => setShowBrokerBreakdownModal(true)}
+        onOpenExcelExport={() => setShowExcelExportModal(true)}
+        onOpenPriceAlerts={() => setShowPriceAlertsModal(true)}
         onRefreshPrices={handleRefreshPrices}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
@@ -867,6 +953,45 @@ function App() {
           isOpen={showEmailWebhookModal}
           onClose={() => setShowEmailWebhookModal(false)}
           onAddTransaction={handleAddTransaction}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Multi-Broker Depot-Mapping & Vergleich Modal */}
+      {showBrokerBreakdownModal && (
+        <BrokerBreakdownModal
+          isOpen={showBrokerBreakdownModal}
+          onClose={() => setShowBrokerBreakdownModal(false)}
+          holdings={holdings}
+          transactions={activePortfolio.transactions}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Excel Multi-Sheet Export Modal */}
+      {showExcelExportModal && (
+        <ExcelExportModal
+          isOpen={showExcelExportModal}
+          onClose={() => setShowExcelExportModal(false)}
+          portfolio={activePortfolio}
+          stats={stats}
+          holdings={holdings}
+          transactions={activePortfolio.transactions}
+          depositLadder={activePortfolio.depositLadder || []}
+          baseCurrency={baseCurrency}
+        />
+      )}
+
+      {/* Kursalarme & Push-Benachrichtigungen Modal */}
+      {showPriceAlertsModal && (
+        <PriceAlertsModal
+          isOpen={showPriceAlertsModal}
+          onClose={() => setShowPriceAlertsModal(false)}
+          holdings={holdings}
+          alerts={priceAlerts}
+          onAddAlert={handleAddAlert}
+          onToggleAlert={handleToggleAlert}
+          onDeleteAlert={handleDeleteAlert}
           baseCurrency={baseCurrency}
         />
       )}

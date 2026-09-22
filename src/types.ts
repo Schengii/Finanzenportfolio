@@ -388,6 +388,32 @@ export interface FireMonteCarloSummary {
   paths: { year: number; p10: number; p50: number; p90: number }[];
 }
 
+export interface PriceAlert {
+  id: string;
+  ticker: string;
+  name: string;
+  condition: 'ABOVE' | 'BELOW' | 'DAILY_DROP_PCT';
+  targetValue: number;
+  currentValue?: number;
+  createdAt: string;
+  triggeredAt?: string;
+  isActive: boolean;
+  notes?: string;
+}
+
+export interface BrokerStats {
+  brokerName: string;
+  holdingsCount: number;
+  totalMarketValueEur: number;
+  totalInvestedEur: number;
+  totalGainEur: number;
+  totalGainPercent: number;
+  totalDividendsEur: number;
+  totalFeesEur: number;
+  transactionsCount: number;
+  shareOfPortfolioPercent: number;
+}
+
 
 
 

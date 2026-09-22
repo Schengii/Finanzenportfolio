@@ -144,6 +144,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   const [enhancedPreviewUrl, setEnhancedPreviewUrl] = useState<string | null>(null);
   const [showEnhancedImage, setShowEnhancedImage] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [ocrProgress, setOcrProgress] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedReceiptData | null>(null);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
@@ -301,10 +302,11 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     };
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     setSelectedFile(file);
     setErrorMessage(null);
     setIsProcessing(true);
+    setOcrProgress(0);
 
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
@@ -316,12 +318,38 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
         });
       };
       reader.readAsDataURL(file);
+
+      // Perform real client-side OCR using tesseract.js
+      try {
+        setOcrProgress(15);
+        const { createWorker } = await import('tesseract.js');
+        const worker = await createWorker(['deu', 'eng'], 1, {
+          logger: m => {
+            if (m.status === 'recognizing text' && m.progress != null) {
+              setOcrProgress(Math.min(99, Math.max(15, Math.round(m.progress * 100))));
+            }
+          }
+        });
+        const ret = await worker.recognize(file);
+        await worker.terminate();
+        setOcrProgress(100);
+        setIsProcessing(false);
+        const ocrText = ret.data?.text || '';
+        const parsed = parseTextToTransaction(ocrText || file.name, 'OCR Beleg-Erkennung');
+        setParsedData(parsed);
+      } catch (ocrErr) {
+        console.warn('OCR error, falling back to basic extraction:', ocrErr);
+        setIsProcessing(false);
+        const parsed = parseTextToTransaction(file.name, 'Beleg Upload');
+        setParsedData(parsed);
+      }
+      return;
     } else {
       setFilePreviewUrl(null);
       setEnhancedPreviewUrl(null);
     }
 
-    // Read as text or simulate client OCR
+    // Read as text for txt/csv/pdf fallback
     const textReader = new FileReader();
     textReader.onload = (e) => {
       const textContent = (e.target?.result as string) || '';
@@ -329,7 +357,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
         setIsProcessing(false);
         const parsed = parseTextToTransaction(textContent || file.name, 'Beleg Upload');
         setParsedData(parsed);
-      }, 750);
+      }, 500);
     };
 
     textReader.onerror = () => {
@@ -455,10 +483,12 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
 
             <div>
               <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                {isProcessing ? 'Lese Belegdaten aus & optimiere Bildkontrast...' : selectedFile ? `Ausgewählt: ${selectedFile.name}` : 'Beleg / Screenshot hier ablegen oder klicken'}
+                {isProcessing 
+                  ? (ocrProgress > 0 ? `🔬 Client-OCR läuft (${ocrProgress}%)...` : 'Lese Belegdaten aus & optimiere Bildkontrast...') 
+                  : selectedFile ? `Ausgewählt: ${selectedFile.name}` : 'Beleg / Screenshot hier ablegen oder klicken'}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                Unterstützt Screenshots, Fotos (PNG, JPG, WebP) und PDF-Abrechnungen
+                Unterstützt Smartphone-Fotos (PNG, JPG, WebP), PDF-Abrechnungen & Screenshots (100% Offline-OCR)
               </div>
             </div>
           </div>

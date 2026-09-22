@@ -25,7 +25,9 @@ import {
   Columns,
   DollarSign,
   Camera,
-  Repeat
+  Repeat,
+  Landmark,
+  Bell
 } from 'lucide-react';
 import type { Holding } from '../types';
 
@@ -62,6 +64,9 @@ interface CommandPaletteModalProps {
   onOpenCalendarExport?: () => void;
   onOpenMultiCurrency?: () => void;
   onOpenEmailWebhook?: () => void;
+  onOpenBrokerBreakdown?: () => void;
+  onOpenExcelExport?: () => void;
+  onOpenPriceAlerts?: () => void;
   onRefreshPrices: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -92,6 +97,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenCalendarExport,
   onOpenMultiCurrency,
   onOpenEmailWebhook,
+  onOpenBrokerBreakdown,
+  onOpenExcelExport,
+  onOpenPriceAlerts,
   onRefreshPrices,
   isDarkMode,
   onToggleDarkMode,
@@ -331,6 +339,33 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         icon: <Cloud size={18} color="#06b6d4" />,
         perform: () => { onClose(); if (onOpenEmailWebhook) onOpenEmailWebhook(); },
         keywords: 'webhook email dispatcher api automations n8n zapier shortcuts pdf abrechnung'
+      },
+      {
+        id: 'act-broker-breakdown',
+        title: 'Multi-Broker Depot-Mapping & Vergleich',
+        subtitle: 'Bestände, Renditen & Gebühren je Broker aufgeschlüsselt',
+        category: 'ACTION',
+        icon: <Landmark size={18} color="#3b82f6" />,
+        perform: () => { onClose(); if (onOpenBrokerBreakdown) onOpenBrokerBreakdown(); },
+        keywords: 'broker depot mapping trade republic scalable ing interactive consors bitpanda'
+      },
+      {
+        id: 'act-excel-export',
+        title: 'Excel Multi-Sheet Export (.xlsx)',
+        subtitle: '6 getrennte Tabellenblätter mit KPIs, Beständen, Trades & Steuern',
+        category: 'ACTION',
+        icon: <FileSpreadsheet size={18} color="#10b981" />,
+        perform: () => { onClose(); if (onOpenExcelExport) onOpenExcelExport(); },
+        keywords: 'excel xlsx export download tabelle sheet spreadsheet exportieren'
+      },
+      {
+        id: 'act-price-alerts',
+        title: 'Kursalarme & Push-Benachrichtigungen',
+        subtitle: 'Stop-Loss, Zielkurse und Tagesabsturz-Warnungen definieren',
+        category: 'ACTION',
+        icon: <Bell size={18} color="#f59e0b" />,
+        perform: () => { onClose(); if (onOpenPriceAlerts) onOpenPriceAlerts(); },
+        keywords: 'kursalarm alert preisalarm push notification stop loss zielkurs warnung'
       },
       {
         id: 'act-order-assistant',
