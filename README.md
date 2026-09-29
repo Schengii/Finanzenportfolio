@@ -21,6 +21,9 @@
 Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier-, Immobilien-, Zins-, Krypto- und Derivate-Portfolios. 
 
 ### Warum FinanzPortfolio CoPilot?
+- 🔑 **Passkey- & Biometrie-Tresor (WebAuthn)**: Entsperre dein verschlüsseltes Depot nahtlos mit Touch ID, Face ID oder Windows Hello als sichere Alternative zur Master-PIN.
+- 🏦 **Lombardkredit- & Leverage-Simulator**: Exakte Berechnung von Beleihungswerten (ETFs 70%, Aktien 50%, Anleihen 80%), laufenden Sollzinsen, Hebelquoten und Margin-Call-Schwellen.
+- 🔄 **Parqet & Portfolio Performance Export-Hub**: Direkter 1-Klick-Download von Parqet-kompatiblem Activity-JSON und Portfolio Performance Buchungs-CSV.
 - ⚖️ **KEST-Verlustverrechnungstöpfe & Übertrag (§ 20 Abs. 6 EStG)**: Strikte Trennung von Aktien-Verlusttopf vs. Sonstigem Verlusttopf (ETFs, Derivate, Zinsen) mit genauer Jahressimulation und automatischem Verlustvortrag ins Folgejahr.
 - 👻 **Ghostfolio & Parqet Auto-Importer**: 1-Klick-Import von Ghostfolio JSON & CSV Aktivitäten inklusive automatischer Asset-Klassifizierung und Wechselkursen.
 - ⚡ **Asynchroner Monte-Carlo Simulator**: Non-blocking Berechnungen für zehntausende Iterationen ohne Einfrieren des Main UI-Threads.
@@ -281,7 +284,24 @@ npm run build
 
 ## 📝 Changelog & Versionshistorie
 
-### Version 2.8.0 (Aktuell)
+### Version 2.9.0 (Aktuell)
+- **🔑 Biometrischer Passkey- & WebAuthn-Login für den Datentresor**:
+  - Hinzufügen von `webAuthnService.ts` und nahtlose Verknüpfung in `VaultUnlockModal.tsx` und `SettingsModal.tsx`.
+  - Entsperre den AES-GCM 256-Bit verschlüsselten Depot-Tresor mit Fingerabdruck, Face ID oder Windows Hello via W3C WebAuthn / Passkeys.
+  - Sichere Schlüssel-Ummantelung (Key Wrapping) zur Hardware-gebundenen Verwahrung auf dem Endgerät.
+- **🏦 Lombardkredit- & Wertpapier-Hebel-Simulator**:
+  - Hinzufügen von `lombardLoanUtils.ts` und neuem Tab *Lombard-Kredit & Hebel* in `StressTestModal.tsx`.
+  - Modellierung banküblicher Beleihungsgrenzen je Assetklasse (ETFs ~70%, Aktien ~50%, Anleihen ~80%, Krypto 0%).
+  - Simulation von maximalen Kreditlinien, monatlichen Sollzinskosten, effektivem Portfoliohebel und Puffer bis zum Margin Call bei Marktkorrekturen.
+- **🔄 Parqet & Portfolio Performance Export Hub**:
+  - Hinzufügen von `parqetPpExportService.ts` und neuem Export-Tab in `CsvImportModal.tsx`.
+  - 1-Klick-Download im offiziellen Parqet Activity-JSON Format (inkl. Asset-Metadaten, Gebühren & Steuern).
+  - 1-Klick-Download standardisierter Portfolio Performance Buchungs-CSVs mit deutscher Zahlen- und Datumsformatierung.
+- **🧪 Umfassende Testsuite & Verifikation**:
+  - Anstieg auf **109 automatisierte Unit-Tests in 23 Test-Suites** (100% bestanden).
+  - Vollständige Typprüfung (`tsc -b`) und optimierter Vite Production-Build.
+
+### Version 2.8.0
 - **📤 Automatischer Sparplan-Export als OpenBanking/SEPA-XML (ISO 20022 pain.001.001.03)**:
   - Hinzufügen von `sepaXmlExporter.ts` und 1-Klick-Export im Rebalancing- & Sparplan-Allokator (`SavingsPlanGrowthModal.tsx`).
   - Generiert validierte SEPA-Sammelüberweisungsdateien im offiziellen ISO 20022 Bankenstandard für den direkten Upload in Online-Banking-Portale aller Banken (FinTS / EBICS / Web-Banking).
