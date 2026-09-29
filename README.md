@@ -281,7 +281,22 @@ npm run build
 
 ## 📝 Changelog & Versionshistorie
 
-### Version 2.6.0 (Aktuell)
+### Version 2.7.0 (Aktuell)
+- **⚖️ Intelligente Sparraten-Allokation mit dynamischem Rebalancing**:
+  - Hinzufügen von `dynamicSavingsAllocationUtils.ts` und neuem Tab *⚖️ Dynamische Sparraten-Aufteilung (Rebalancing)* in `SavingsPlanGrowthModal.tsx`.
+  - Frisches Sparplankapital wird automatisch in die am stärksten untergewichteten Anlageklassen und Einzelwerte gelenkt.
+  - Ermöglicht steuerschonendes Rebalancing des Portfolios allein über monatliche Einzahlungen ohne jegliche Wertpapierverkäufe.
+- **📅 Auto-Tax-Loss-Harvesting Jahresend-Radar (31.12. Stichtag)**:
+  - Erweiterung von `TaxLossHarvestingModal.tsx` um automatische Erkennung verbleibender Tage bis zum 30./31. Dezember.
+  - Warnhinweis bei ungenutztem Sparer-Pauschbetrag vor drohendem Verfall zum Jahreswechsel.
+- **💱 Dynamische Multi-Währungs FX-Engine (EZB & Open Exchange API)**:
+  - Erweiterung von `fxRatesService.ts` um `fetchAndCacheLiveEcbRates()` und dynamische Cache-Aktualisierung (`updateEcbRateCache`).
+  - Offline-fähiges Caching für tagesaktuelle EZB-Wechselkurse (EUR, USD, CHF, GBP) für exaktere Fremdwährungs-Renditen.
+- **🧪 Erweiterte Testsuite**:
+  - Anstieg auf **98 automatisierte Unit-Tests in 18 Test-Suites** (100% bestanden).
+  - Vollständige Typprüfung (`tsc -b` fehlerfrei) und optimierter Vite Production-Build.
+
+### Version 2.6.0
 - **⚖️ KEST-Verlustverrechnungstöpfe & Verlustvortrag (§ 20 Abs. 6 EStG)**:
   - Hinzufügen von `lossPoolCarryForwardUtils.ts` und neuem Tab *Verlusttöpfe & Vortrag* in `TaxReportModal.tsx`.
   - Exakte rechnerische Trennung zwischen Aktien-Verlusttopf (nur mit Aktienkursgewinnen verrechenbar) und allgemeinem Verlusttopf (ETFs, Derivate, Zinsen, Dividenden).

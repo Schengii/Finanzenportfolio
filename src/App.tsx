@@ -1114,6 +1114,8 @@ function App() {
           onClose={() => setShowSavingsGrowthModal(false)}
           portfolioValue={stats.totalValue}
           baseCurrency={baseCurrency}
+          holdings={holdings}
+          targetAllocations={activePortfolio.targetAllocations}
         />
       )}
 

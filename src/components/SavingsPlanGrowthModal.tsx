@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { TrendingUp, X } from 'lucide-react';
+import { TrendingUp, X, Scale, Sparkles, ArrowRight } from 'lucide-react';
 import { calculateSavingsGrowthComparison } from '../utils/savingsGrowthUtils';
+import { calculateDynamicSavingsAllocation } from '../utils/dynamicSavingsAllocationUtils';
+import type { Holding, TargetAllocation } from '../types';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface SavingsPlanGrowthModalProps {
@@ -8,14 +10,19 @@ interface SavingsPlanGrowthModalProps {
   onClose: () => void;
   portfolioValue: number;
   baseCurrency?: string;
+  holdings?: Holding[];
+  targetAllocations?: TargetAllocation[];
 }
 
 export const SavingsPlanGrowthModal: React.FC<SavingsPlanGrowthModalProps> = ({
   isOpen,
   onClose,
   portfolioValue,
-  baseCurrency = 'EUR'
+  baseCurrency = 'EUR',
+  holdings = [],
+  targetAllocations = []
 }) => {
+  const [activeTab, setActiveTab] = useState<'GROWTH' | 'DYNAMIC_REBALANCE'>('GROWTH');
   const [initialCapital, setInitialCapital] = useState<number>(Math.round(portfolioValue || 10000));
   const [monthlyContribution, setMonthlyContribution] = useState<number>(300);
   const [annualReturn, setAnnualReturn] = useState<number>(7.0);
@@ -32,6 +39,14 @@ export const SavingsPlanGrowthModal: React.FC<SavingsPlanGrowthModalProps> = ({
       horizonYears: 35
     });
   }, [initialCapital, monthlyContribution, annualReturn, dynamizationPercent, stepUpAmount]);
+
+  const dynamicSavingsAllocation = useMemo(() => {
+    return calculateDynamicSavingsAllocation(
+      holdings,
+      targetAllocations,
+      monthlyContribution
+    );
+  }, [holdings, targetAllocations, monthlyContribution]);
 
   if (!isOpen) return null;
 
@@ -55,7 +70,7 @@ export const SavingsPlanGrowthModal: React.FC<SavingsPlanGrowthModalProps> = ({
             <div>
               <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 'bold' }}>Sparplan-Dynamisierungs- & Zinseszins-Rechner</h3>
               <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Auswirkung von jährlichen Gehaltserhöhungs-Dynamisierungen & Step-Ups auf das Endvermögen
+                Zinseszins-Hebel, Meilensteine & intelligente Sparraten-Allokation
               </p>
             </div>
           </div>
@@ -64,9 +79,51 @@ export const SavingsPlanGrowthModal: React.FC<SavingsPlanGrowthModalProps> = ({
           </button>
         </div>
 
+        {/* Tab Switcher */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.2)', padding: '0 1.25rem' }}>
+          <button
+            onClick={() => setActiveTab('GROWTH')}
+            style={{
+              padding: '0.75rem 1.25rem',
+              border: 'none',
+              background: 'transparent',
+              borderBottom: activeTab === 'GROWTH' ? '2px solid #10b981' : '2px solid transparent',
+              color: activeTab === 'GROWTH' ? '#10b981' : 'var(--text-muted)',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <TrendingUp size={16} /> 🚀 Zinseszins & Meilensteine
+          </button>
+          <button
+            onClick={() => setActiveTab('DYNAMIC_REBALANCE')}
+            style={{
+              padding: '0.75rem 1.25rem',
+              border: 'none',
+              background: 'transparent',
+              borderBottom: activeTab === 'DYNAMIC_REBALANCE' ? '2px solid #3b82f6' : '2px solid transparent',
+              color: activeTab === 'DYNAMIC_REBALANCE' ? '#3b82f6' : 'var(--text-muted)',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Scale size={16} /> ⚖️ Dynamische Sparraten-Aufteilung (Rebalancing)
+          </button>
+        </div>
+
         {/* Content */}
         <div style={{ padding: '1.25rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Summary KPIs */}
+          {activeTab === 'GROWTH' ? (
+            <>
+              {/* Summary KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: '8px' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Konstante Sparrate (30J)</span>
@@ -215,6 +272,117 @@ export const SavingsPlanGrowthModal: React.FC<SavingsPlanGrowthModalProps> = ({
               </tbody>
             </table>
           </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Info banner */}
+              <div style={{ padding: '0.85rem 1rem', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '10px', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <Sparkles size={20} color="#3b82f6" style={{ flexShrink: 0 }} />
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-color)' }}>
+                  <strong>Intelligenter Rebalancing-Sparplan:</strong> Die monatliche Sparrate wird automatisch in die am stärksten untergewichteten Anlageklassen und Einzelwerte gelenkt. So wächst dein Portfolio steuerschonend in die Zielallokation, ganz ohne Wertpapierverkäufe.
+                </div>
+              </div>
+
+              {/* Monthly budget selector */}
+              <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>
+                    Verfügbares monatliches Sparbudget:
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      type="number"
+                      step="25"
+                      min="25"
+                      value={monthlyContribution}
+                      onChange={e => setMonthlyContribution(Math.max(0, Number(e.target.value) || 0))}
+                      style={{ padding: '0.4rem 0.75rem', background: 'var(--bg-dark)', border: '1px solid var(--border-color)', borderRadius: '6px', color: '#fff', fontSize: '1rem', fontWeight: 'bold', width: '130px' }}
+                    />
+                    <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{baseCurrency} / Monat</span>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Status:</span>
+                  <span style={{
+                    fontSize: '0.85rem',
+                    fontWeight: 'bold',
+                    color: dynamicSavingsAllocation.isPortfolioBalanced ? '#10b981' : '#f59e0b',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '6px',
+                    background: dynamicSavingsAllocation.isPortfolioBalanced ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                    display: 'inline-block',
+                    marginTop: '0.2rem'
+                  }}>
+                    {dynamicSavingsAllocation.isPortfolioBalanced ? '✓ Optimal ausbalanciert' : '⚖️ Allokations-Ausgleich aktiv'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Allocations Breakdown */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border-color)', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Empfohlene Sparraten-Verteilung ({monthlyContribution.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })})</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
+                    {dynamicSavingsAllocation.summaryNote}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {dynamicSavingsAllocation.allocations.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      Keine Bestände oder Zielgewichtungen zur Berechnung vorhanden.
+                    </div>
+                  ) : (
+                    dynamicSavingsAllocation.allocations.map((alloc) => (
+                      <div
+                        key={alloc.category}
+                        style={{
+                          padding: '1rem',
+                          borderBottom: '1px solid var(--border-color)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '1rem',
+                          background: alloc.underweightPercent > 0 ? 'rgba(59, 130, 246, 0.02)' : 'transparent'
+                        }}
+                      >
+                        <div style={{ flex: '1 1 200px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{alloc.category}</span>
+                            {alloc.underweightPercent > 0 && (
+                              <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', fontWeight: 600 }}>
+                                -{alloc.underweightPercent}% Untergewicht
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            Ist: {alloc.currentWeightPercent.toFixed(1)}% | Ziel: {alloc.targetWeightPercent.toFixed(1)}%
+                          </div>
+                          {alloc.topCandidate && (
+                            <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <ArrowRight size={12} />
+                              Kandidat: <strong>{alloc.topCandidate.name} ({alloc.topCandidate.ticker})</strong>
+                              <span style={{ color: 'var(--text-muted)' }}>~{alloc.topCandidate.sharesEstimate} Stk.</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#3b82f6' }}>
+                            {alloc.allocatedSavingsEur.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {alloc.allocatedPercentOfMonthly.toFixed(1)}% der Monatsrate
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -227,3 +395,4 @@ export const SavingsPlanGrowthModal: React.FC<SavingsPlanGrowthModalProps> = ({
     </div>
   );
 };
+
