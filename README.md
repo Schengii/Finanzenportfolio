@@ -21,6 +21,9 @@
 Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier-, Immobilien-, Zins-, Krypto- und Derivate-Portfolios. 
 
 ### Warum FinanzPortfolio CoPilot?
+- ⚖️ **KEST-Verlustverrechnungstöpfe & Übertrag (§ 20 Abs. 6 EStG)**: Strikte Trennung von Aktien-Verlusttopf vs. Sonstigem Verlusttopf (ETFs, Derivate, Zinsen) mit genauer Jahressimulation und automatischem Verlustvortrag ins Folgejahr.
+- 👻 **Ghostfolio & Parqet Auto-Importer**: 1-Klick-Import von Ghostfolio JSON & CSV Aktivitäten inklusive automatischer Asset-Klassifizierung und Wechselkursen.
+- ⚡ **Asynchroner Monte-Carlo Simulator**: Non-blocking Berechnungen für zehntausende Iterationen ohne Einfrieren des Main UI-Threads.
 - 📑 **Deutscher Vorabpauschale-Rechner (InvStG § 18 & § 20)**: Exakte Berechnung des Basisertrags mit 70%-Faktor, Deckelung auf reale Wertsteigerung, Verrechnung von Dividenden und Berücksichtigung der 30% Teilfreistellung für thesaurierende ETFs.
 - 📈 **Dividenden-Wachstumsanalyse (CAGR 1Y / 3Y / 5Y)**: Ermittlung der jährlichen Payout-Wachstumsrate je Einzelwert im Auszahlungskalender.
 - 💾 **IndexedDB Storage Engine**: Zukunftsfähiger Client-Speicher ohne 5-MB LocalStorage-Limitierung für große Transaktionshistorien und Belege.
@@ -278,7 +281,23 @@ npm run build
 
 ## 📝 Changelog & Versionshistorie
 
-### Version 2.5.0 (Aktuell)
+### Version 2.6.0 (Aktuell)
+- **⚖️ KEST-Verlustverrechnungstöpfe & Verlustvortrag (§ 20 Abs. 6 EStG)**:
+  - Hinzufügen von `lossPoolCarryForwardUtils.ts` und neuem Tab *Verlusttöpfe & Vortrag* in `TaxReportModal.tsx`.
+  - Exakte rechnerische Trennung zwischen Aktien-Verlusttopf (nur mit Aktienkursgewinnen verrechenbar) und allgemeinem Verlusttopf (ETFs, Derivate, Zinsen, Dividenden).
+  - Berechnung des verbleibenden Verlustvortrags ins Folgejahr und Simulation von Steuerersparnissen durch zukünftige Gewinne.
+- **🔄 Ghostfolio & Parqet Ingestion im Universal CSV/JSON Importer**:
+  - Erweiterung von `universalCsvImporter.ts` für Ghostfolio-Exporte (sowohl strukturierte JSON-Aktivitäten als auch CSV) sowie Parqet Activity-JSON.
+  - Automatische Erkennung und Formatnormalisierung von ISIN, Ticker, Gebühren, Währungen und Aktivitätstypen (BUY, SELL, DIVIDEND, INTEREST, FEE).
+- **⚡ Asynchrone Monte Carlo Portfolio-Simulation**:
+  - Hinzufügen von `runGeneralMonteCarloSimulationAsync()` in `monteCarloRunner.ts` für unterbrechungsfreie Berechnungen komplexer Portfoliosimulationen.
+- **🏗️ Code Health & Modularisierung der Finanzmathematik**:
+  - Aufteilung der monolithischen `performanceUtils.ts` in modulare Unterpakete (`src/utils/finance/currencyUtils.ts`, `src/utils/finance/returnCalculations.ts`) mit 100% abwärtskompatiblen Re-Exports.
+- **🧪 Erweiterte Testsuite**:
+  - Anstieg auf **90 automatisierte Unit-Tests in 16 Test-Suites** (100% bestanden).
+  - Vollständige Typprüfung (`tsc -b` fehlerfrei) und schlanker Vite Production-Build.
+
+### Version 2.5.0
 - **📄 Universeller DACH-PDF Beleg-Import**:
   - Hinzufügen von `BatchPdfUploadModal.tsx` und `pdfImportUtils.ts`.
   - Vollautomatisches Einlesen von Wertpapier- und Kryptoabrechnungen für Trade Republic, Scalable Capital, ING DiBa, comdirect, DKB, Consorsbank, finanzen.net zero, flatex und Bitpanda.

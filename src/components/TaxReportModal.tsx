@@ -6,7 +6,8 @@ import {
   calculateCryptoFifoTranches,
   calculateDachTax
 } from './performanceUtils';
-import { FileText, Printer, Copy, Check, X, ShieldAlert, Globe } from 'lucide-react';
+import { calculateLossPoolCarryForward } from '../utils/lossPoolCarryForwardUtils';
+import { FileText, Printer, Copy, Check, X, ShieldAlert, Globe, Scale } from 'lucide-react';
 
 interface TaxReportModalProps {
   isOpen: boolean;
@@ -33,11 +34,18 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
   const [hasChurchTax, setHasChurchTax] = useState<boolean>(false);
   const [churchTaxRate, setChurchTaxRate] = useState<number>(9); // 9% oder 8% (BY, BW)
   const [copied, setCopied] = useState<boolean>(false);
-  const [activeTaxTab, setActiveTaxTab] = useState<'KAP' | 'SO'>('KAP');
+  const [activeTaxTab, setActiveTaxTab] = useState<'KAP' | 'SO' | 'POOLS'>('KAP');
 
   if (!isOpen) return null;
 
   const currentYear = new Date().getFullYear();
+
+  const lossPoolDetail = calculateLossPoolCarryForward(
+    portfolio.transactions || [],
+    portfolio.taxLossPools?.stockLossPool || 0,
+    portfolio.taxLossPools?.generalLossPool || 0,
+    currentYear
+  );
 
   // Effective holdings either from props or reconstructed from transactions
   const effectiveHoldings: Holding[] = holdings.length > 0
@@ -270,6 +278,21 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
               }}
             >
               🪙 Anlage SO (§ 22/23 EStG Krypto)
+            </button>
+            <button
+              onClick={() => setActiveTaxTab('POOLS')}
+              style={{
+                padding: '0.75rem 1.25rem',
+                border: 'none',
+                background: 'transparent',
+                borderBottom: activeTaxTab === 'POOLS' ? '2px solid #10b981' : '2px solid transparent',
+                color: activeTaxTab === 'POOLS' ? '#10b981' : 'var(--text-muted)',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              ⚖️ Verlusttöpfe & Übertrag (§ 20 Abs. 6 EStG)
             </button>
           </div>
         )}
@@ -510,7 +533,7 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
                 </div>
               </div>
             </>
-          ) : (
+          ) : activeTaxTab === 'SO' ? (
             /* Germany - Anlage SO */
             <>
               <div style={{ background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '1rem', borderRadius: '10px' }}>
@@ -572,6 +595,82 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
                   <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Hinweis nach BMF-Schreiben: Der Zufluss von Staking/Mining ist als sonstige Leistung bei Erhalt steuerbar. Die Haltefrist für die veräußerten Coins beträgt dennoch regulär 1 Jahr ab Zufluss.
                   </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Germany - Verlusttöpfe & Übertrag (§ 20 Abs. 6 EStG) */
+            <>
+              <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1rem', borderRadius: '10px' }}>
+                <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Scale size={16} /> Verlustverrechnungstöpfe & Übertrag (§ 20 Abs. 6 EStG)
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.4rem 0 0 0' }}>
+                  Verluste aus Aktien dürfen nach § 20 Abs. 6 Satz 4 EStG nur mit Aktiengewinnen verrechnet werden. Allgemeine Verluste (ETFs, Derivate, Zinsen) dürfen mit allen Erträgen verrechnet werden. Nicht verrechnete Verluste werden unbegrenzt in das Folgejahr vorgetragen.
+                </p>
+              </div>
+
+              {/* Status Töpfe Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Aktien-Verlusttopf Start</span>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#ef4444', marginTop: '0.25rem' }}>
+                    {lossPoolDetail.initialStockLossPoolEur.toFixed(2)} €
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Vortrag aus Vorjahren</span>
+                </div>
+
+                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sonstiger Verlusttopf Start</span>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#3b82f6', marginTop: '0.25rem' }}>
+                    {lossPoolDetail.initialGeneralLossPoolEur.toFixed(2)} €
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>ETFs, Anleihen, Optionen</span>
+                </div>
+
+                <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1rem', borderRadius: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>Ersparte Steuer durch Verrechnung</span>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#10b981', marginTop: '0.25rem' }}>
+                    {lossPoolDetail.totalTaxSavedByLossOffsetEur.toFixed(2)} €
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>26,375% Abgeltungsteuer + Soli</span>
+                </div>
+              </div>
+
+              {/* Detail Offsetting Table */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                  Verrechnungssimulation & Übertrag ins Folgejahr ({currentYear + 1})
+                </div>
+                <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Realisierte Aktiengewinne im laufenden Jahr:</span>
+                    <strong>{lossPoolDetail.stockGainsEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981' }}>
+                    <span>Verrechnet mit Aktien-Verlusttopf:</span>
+                    <strong>-{lossPoolDetail.stockLossesUsedEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem' }}>
+                    <span>Sonstige Erträge (ETFs, Fonds, Dividenden, Zinsen):</span>
+                    <strong>{lossPoolDetail.otherGainsEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981' }}>
+                    <span>Verrechnet mit allgemeinem Verlusttopf:</span>
+                    <strong>-{lossPoolDetail.otherLossesUsedEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', fontWeight: 'bold' }}>
+                    <span>Verbleibende steuerpflichtige Kapitalerträge:</span>
+                    <strong>{lossPoolDetail.totalTaxableCapitalGainsEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '0.5rem', borderRadius: '6px', marginTop: '0.3rem' }}>
+                    <span style={{ color: '#ef4444', fontWeight: 600 }}>Verlustvortrag Aktien in {currentYear + 1}:</span>
+                    <strong style={{ color: '#ef4444' }}>{lossPoolDetail.finalStockLossPoolEur.toFixed(2)} €</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '0.5rem', borderRadius: '6px' }}>
+                    <span style={{ color: '#3b82f6', fontWeight: 600 }}>Verlustvortrag Sonstiges in {currentYear + 1}:</span>
+                    <strong style={{ color: '#3b82f6' }}>{lossPoolDetail.finalGeneralLossPoolEur.toFixed(2)} €</strong>
+                  </div>
                 </div>
               </div>
             </>
