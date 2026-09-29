@@ -281,7 +281,23 @@ npm run build
 
 ## 📝 Changelog & Versionshistorie
 
-### Version 2.7.0 (Aktuell)
+### Version 2.8.0 (Aktuell)
+- **📤 Automatischer Sparplan-Export als OpenBanking/SEPA-XML (ISO 20022 pain.001.001.03)**:
+  - Hinzufügen von `sepaXmlExporter.ts` und 1-Klick-Export im Rebalancing- & Sparplan-Allokator (`SavingsPlanGrowthModal.tsx`).
+  - Generiert validierte SEPA-Sammelüberweisungsdateien im offiziellen ISO 20022 Bankenstandard für den direkten Upload in Online-Banking-Portale aller Banken (FinTS / EBICS / Web-Banking).
+  - XML-Zeichensatzbereinigung, Umlaut-Normalisierung und IBAN/BIC-Prüfungen.
+- **🌿 Erweiterte ESG- & CO₂-Intensitätsanalyse für Fonds (SFDR Art. 6, 8, 9)**:
+  - Hinzufügen von `sfdrCarbonAuditUtils.ts` und Erweiterung von `EsgAuditWidget.tsx` im Dashboard.
+  - EU-Offenlegungsverordnungs-Klassifizierung aller Bestände in **Artikel 6** (Konventionell), **Artikel 8** (Hellgrün / ESG-Merkmal) und **Artikel 9** (Dunkelgrün / Impact).
+  - Berechnung der portfoliogewichteten Treibhausgas-Intensität (Scope 1+2 t CO₂ / Mio. € Umsatz) und Konformitäts-Prüfung zum Pariser Klimaabkommen.
+- **🏆 Dividenden-Wiederanlage-Simulator (DRIP-Auto-Reinvest & Aristokraten-Fokus)**:
+  - Erweiterung von `DripCompoundModal.tsx` um einen automatischen Selektionsfilter für Dividenden-Aristokraten und Cashflow-Stabilitäts-Kandidaten basierend auf Yield-on-Cost und Kurshistorie.
+  - Nahtlose Verknüpfung von DRIP-Projektionen mit gezielten Wiederanlageempfehlungen.
+- **🧪 Umfassende Testsuite & Verifikation**:
+  - Anstieg auf **102 automatisierte Unit-Tests in 20 Test-Suites** (100% bestanden).
+  - Fehlerfreier TypeScript-Compile (`tsc -b`) und Vite Production-Build.
+
+### Version 2.7.0
 - **⚖️ Intelligente Sparraten-Allokation mit dynamischem Rebalancing**:
   - Hinzufügen von `dynamicSavingsAllocationUtils.ts` und neuem Tab *⚖️ Dynamische Sparraten-Aufteilung (Rebalancing)* in `SavingsPlanGrowthModal.tsx`.
   - Frisches Sparplankapital wird automatisch in die am stärksten untergewichteten Anlageklassen und Einzelwerte gelenkt.

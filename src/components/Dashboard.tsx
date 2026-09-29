@@ -14,6 +14,7 @@ import { PerformanceAttribution } from './PerformanceAttribution';
 import { AllocationRadarChart } from './AllocationRadarChart';
 import { NetWorthDashboard } from './NetWorthDashboard';
 import { AchievementBadges } from './AchievementBadges';
+import { EsgAuditWidget } from './EsgAuditWidget';
 import { BenchmarkComparison } from './BenchmarkComparison';
 import { RebalancingOrderPlanner } from './RebalancingOrderPlanner';
 import { ExDateDividendRadar } from './ExDateDividendRadar';
@@ -815,7 +816,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, holdings, transacti
            baseCurrency={baseCurrency}
          />
 
-         <AchievementBadges
+         <EsgAuditWidget holdings={holdings} />
+
+          <AchievementBadges
            stats={stats}
            holdings={holdings}
            transactions={transactions}

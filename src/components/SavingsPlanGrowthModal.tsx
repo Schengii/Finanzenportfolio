@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { TrendingUp, X, Scale, Sparkles, ArrowRight } from 'lucide-react';
+import { TrendingUp, X, Scale, Sparkles, ArrowRight, Download, CheckCircle2 } from 'lucide-react';
+import { downloadSepaXmlFile } from '../services/sepaXmlExporter';
 import { calculateSavingsGrowthComparison } from '../utils/savingsGrowthUtils';
 import { calculateDynamicSavingsAllocation } from '../utils/dynamicSavingsAllocationUtils';
 import type { Holding, TargetAllocation } from '../types';
@@ -28,6 +29,7 @@ export const SavingsPlanGrowthModal: React.FC<SavingsPlanGrowthModalProps> = ({
   const [annualReturn, setAnnualReturn] = useState<number>(7.0);
   const [dynamizationPercent, setDynamizationPercent] = useState<number>(2.5);
   const [stepUpAmount, setStepUpAmount] = useState<number>(50);
+  const [sepaExportSuccess, setSepaExportSuccess] = useState<boolean>(false);
 
   const comparison = useMemo(() => {
     return calculateSavingsGrowthComparison({
@@ -47,6 +49,31 @@ export const SavingsPlanGrowthModal: React.FC<SavingsPlanGrowthModalProps> = ({
       monthlyContribution
     );
   }, [holdings, targetAllocations, monthlyContribution]);
+
+  
+  const handleExportSepaXml = () => {
+    const orders = dynamicSavingsAllocation.allocations
+      .filter((a) => a.allocatedSavingsEur > 0)
+      .map((a) => ({
+        recipientName: a.topCandidate ? a.topCandidate.name : a.category + ' Sparplan',
+        recipientIban: 'DE89370400440532013000',
+        amount: a.allocatedSavingsEur,
+        purpose: 'Sparplan ' + (a.topCandidate ? a.topCandidate.ticker : a.category)
+      }));
+
+    if (orders.length === 0) return;
+
+    downloadSepaXmlFile({
+      initiatorName: 'Finanzenportfolio Nutzer',
+      debtorName: 'Haupt-Girokonto',
+      debtorIban: 'DE02100100100123456789',
+      debtorBic: 'PBNKDEFFXXX',
+      orders
+    }, 'Sparplan_SEPA_' + new Date().toISOString().slice(0, 10) + '.xml');
+
+    setSepaExportSuccess(true);
+    setTimeout(() => setSepaExportSuccess(false), 4000);
+  };
 
   if (!isOpen) return null;
 
@@ -386,7 +413,25 @@ export const SavingsPlanGrowthModal: React.FC<SavingsPlanGrowthModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {activeTab === 'DYNAMIC_REBALANCE' && dynamicSavingsAllocation.allocations.length > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleExportSepaXml}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+                title="Generiert ISO 20022 pain.001.001.03 SEPA-Sammelüberweisungs-XML für Ihr Online-Banking / FinTS"
+              >
+                <Download size={15} />
+                SEPA-XML Überweisung exportieren
+              </button>
+              {sepaExportSuccess && (
+                <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={14} /> XML erfolgreich heruntergeladen!
+                </span>
+              )}
+            </div>
+          ) : <div />}
           <button className="btn btn-secondary" onClick={onClose}>
             Schließen
           </button>
