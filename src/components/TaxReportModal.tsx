@@ -7,6 +7,7 @@ import {
   calculateDachTax
 } from './performanceUtils';
 import { calculateLossPoolCarryForward } from '../utils/lossPoolCarryForwardUtils';
+import { calculateSwissWealthTax, SWISS_CANTON_WEALTH_TAX_DATA, type SwissCanton } from '../utils/wealthTaxUtils';
 import { FileText, Printer, Copy, Check, X, ShieldAlert, Globe, Scale } from 'lucide-react';
 
 interface TaxReportModalProps {
@@ -32,7 +33,9 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
   const [personalTaxRate, setPersonalTaxRate] = useState<number>(18);
   const [enableGuenstiger, setEnableGuenstiger] = useState<boolean>(true);
   const [hasChurchTax, setHasChurchTax] = useState<boolean>(false);
-  const [churchTaxRate, setChurchTaxRate] = useState<number>(9); // 9% oder 8% (BY, BW)
+  const [churchTaxRate, setChurchTaxRate] = useState<number>(9);
+  const [swissCanton, setSwissCanton] = useState<SwissCanton>('ZH');
+  const [isMarried, setIsMarried] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [activeTaxTab, setActiveTaxTab] = useState<'KAP' | 'SO' | 'POOLS'>('KAP');
 
@@ -65,6 +68,13 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
         yieldOnCost: 0,
         teilfreistellungRate: 0.30
       }));
+
+  const totalHoldingsValue = effectiveHoldings.reduce((sum, h) => sum + (h.currentValue || 0), 0);
+  const swissWealthTax = calculateSwissWealthTax({
+    totalAssetsChf: totalHoldingsValue,
+    canton: swissCanton,
+    isMarried
+  });
 
   // DACH Tax calculation
   const dachTax = calculateDachTax(
@@ -387,15 +397,49 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
                 </div>
               </div>
 
+              {/* Kantonale Vermögenssteuer Simulator */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1.25rem', background: 'rgba(255,255,255,0.02)' }}>
-                <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', fontWeight: 'bold' }}>Schweizer Steuernachweis & Vermögenssteuer</h4>
-                <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {dachTax.details.map((detail, idx) => (
-                    <li key={idx}>{detail}</li>
-                  ))}
-                  <li>Eidg. Verrechnungssteuer (35% VSt): Wird von Schweizer Banken einbehalten und bei korrekter Deklaration im Wertschriftenverzeichnis vollständig rückerstattet.</li>
-                  <li>Vermögenssteuer: Das Gesamtdepot wird zum Steuerwert per 31.12. deklariert (Sätze kantonal ca. 1 bis 5 Promille).</li>
-                </ul>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold', color: '#10b981' }}>
+                    🇨🇭 Kantonale Vermögenssteuer-Kalkulation (ESTV-Tarif 2026)
+                  </h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Wohnkanton:</label>
+                    <select
+                      value={swissCanton}
+                      onChange={(e) => setSwissCanton(e.target.value as SwissCanton)}
+                      style={{ padding: '0.3rem 0.6rem', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 'bold' }}
+                    >
+                      {Object.values(SWISS_CANTON_WEALTH_TAX_DATA).map((c) => (
+                        <option key={c.code} value={c.code}>{c.code} - {c.cantonName} (~{c.averageTaxRatePromille} ‰)</option>
+                      ))}
+                    </select>
+                    <label style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={isMarried} onChange={(e) => setIsMarried(e.target.checked)} />
+                      Verheiratet
+                    </label>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
+                  <div style={{ background: 'var(--card-bg)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Freibetrag ({swissWealthTax.cantonName})</span>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{swissWealthTax.allowanceChf.toLocaleString('de-CH')} CHF</div>
+                  </div>
+                  <div style={{ background: 'var(--card-bg)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Steuerbares Vermögen</span>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{swissWealthTax.taxableAssetsChf.toLocaleString('de-CH')} CHF</div>
+                  </div>
+                  <div style={{ background: 'var(--card-bg)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Geschätzte Vermögenssteuer</span>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#10b981' }}>{swissWealthTax.effectiveTaxDueChf.toLocaleString('de-CH')} CHF/Jahr</div>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>~{swissWealthTax.effectiveTaxDueEur.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {swissWealthTax.summaryNote} Eidg. Verrechnungssteuer (35% VSt) wird bei korrekter Deklaration im Wertschriftenverzeichnis voll rückvergütet.
+                </div>
               </div>
             </>
           ) : activeTaxTab === 'KAP' ? (

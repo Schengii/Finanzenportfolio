@@ -21,6 +21,9 @@
 Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier-, Immobilien-, Zins-, Krypto- und Derivate-Portfolios. 
 
 ### Warum FinanzPortfolio CoPilot?
+- 📊 **Optionen-Greeks & Delta-Hedging Dashboard**: Black-Scholes Modell zur Echtzeitberechnung von Delta ($\Delta$), Gamma ($\Gamma$), Vega ($\mathcal{V}$) und Theta ($\Theta$/Tag), Netto-Portfolio-Delta-Exposure und automatisiertes Protective Put Crash-Hedging.
+- 🇨🇭 **Schweizer Vermögenssteuer-Simulator (26 Kantone & ESTV Tarife)**: Kantonal-spezifische Steuerkurven (Zürich, Schwyz, Zug, Genf etc.), Freibeträge für Ledige/Verheiratete und Planspiel-Simulation für Vermögensabgaben in DE/AT.
+- 📲 **PWA Background-Sync & Push-Alerts für Ex-Dividenden & Zinstreppe**: Automatisches Radar für anstehende Ex-Dividenden-Termine im Depot und fällige Festgelder/Sparbriefe in den nächsten 14-30 Tagen mit Desktop-Push.
 - 🔑 **Passkey- & Biometrie-Tresor (WebAuthn)**: Entsperre dein verschlüsseltes Depot nahtlos mit Touch ID, Face ID oder Windows Hello als sichere Alternative zur Master-PIN.
 - 🏦 **Lombardkredit- & Leverage-Simulator**: Exakte Berechnung von Beleihungswerten (ETFs 70%, Aktien 50%, Anleihen 80%), laufenden Sollzinsen, Hebelquoten und Margin-Call-Schwellen.
 - 🔄 **Parqet & Portfolio Performance Export-Hub**: Direkter 1-Klick-Download von Parqet-kompatiblem Activity-JSON und Portfolio Performance Buchungs-CSV.
@@ -284,7 +287,26 @@ npm run build
 
 ## 📝 Changelog & Versionshistorie
 
-### Version 2.9.0 (Aktuell)
+### Version 3.0.0 (Aktuell)
+- **📊 Optionen-Greeks & Delta-Hedging Dashboard**:
+  - Hinzufügen von `optionGreeksUtils.ts` und visuelle Integration im `OptionIncomeTracker.tsx`.
+  - Vollständiges **Black-Scholes-Optionspreismodell** mit geschlossenen Formeln für alle Kern-Greeks: Delta ($\Delta$), Gamma ($\Gamma$), Vega ($\mathcal{V}$) und tägliches Theta ($\Theta$/Tag).
+  - Berechnung des aggregierten Portfolio-Netto-Deltas über alle gehaltenen Aktien und Covered Calls / Cash-Secured Puts.
+  - Automatisierter **Protective Put Crash-Hedging Assistent**: Berechnet exakt die benötigte Kontraktanzahl (z. B. auf SPY oder QQQ mit 10% OTM Strike und 90 Tagen Laufzeit), um ein Depot bei extremen Markteinbrüchen gegen Verluste abzusichern.
+- **🇨🇭 Schweizer Vermögenssteuer-Simulator (ESTV Tarife aller 26 Kantone)**:
+  - Hinzufügen von `wealthTaxUtils.ts` und Integration des Schweizer Vermögenssteuer-Rechners in `TaxReportModal.tsx`.
+  - Exakte Steuertarife (in ‰), Sozialabzüge und Freibeträge für alle 26 Schweizer Kantone (Zürich, Bern, Luzern, Schwyz, Zug, Genf, Tessin etc.) für Alleinstehende und Verheiratete.
+  - Planspiel-Simulator für einmalige oder gestaffelte Vermögensabgaben in Deutschland und Österreich mit Freibeträgen und Jahresscheiben.
+- **📲 PWA Background-Sync & Push-Alerts für Ex-Dividenden & Fälligkeiten**:
+  - Hinzufügen von `pwaNotificationSyncService.ts` und Integration des PWA-Radars in `PriceAlertsModal.tsx`.
+  - Automatisches Vorwarn-Radar für bevorstehende Ex-Dividenden-Termine der gehaltenen Depotwerte innerhalb der nächsten 14 Tage ("Dringend halten für Dividendenberechtigung").
+  - Automatische Überwachung fälliger Festgelder, Sparbriefe und Tagesgelder in der Zinstreppe innerhalb der nächsten 30 Tage.
+  - Desktop-Push-Dispatcher via HTML5 & Service Worker Notification API inklusive Test-Alarm-Trigger.
+- **🧪 Umfassende Testsuite & Verifikation**:
+  - Anstieg auf **117 automatisierte Unit-Tests in 26 Test-Suites** (100% bestanden).
+  - Vollständige Typprüfung (`tsc -b` fehlerfrei) und schlanker Vite Production-Build.
+
+### Version 2.9.0
 - **🔑 Biometrischer Passkey- & WebAuthn-Login für den Datentresor**:
   - Hinzufügen von `webAuthnService.ts` und nahtlose Verknüpfung in `VaultUnlockModal.tsx` und `SettingsModal.tsx`.
   - Entsperre den AES-GCM 256-Bit verschlüsselten Depot-Tresor mit Fingerabdruck, Face ID oder Windows Hello via W3C WebAuthn / Passkeys.

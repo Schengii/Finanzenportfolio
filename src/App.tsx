@@ -1063,6 +1063,7 @@ function App() {
           onToggleAlert={handleToggleAlert}
           onDeleteAlert={handleDeleteAlert}
           baseCurrency={baseCurrency}
+          depositLadder={activePortfolio.depositLadder || []}
         />
       )}
 
