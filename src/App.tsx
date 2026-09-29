@@ -48,8 +48,9 @@ const PdfExportModal = lazy(() => import('./components/PdfExportModal').then(m =
 
 import { VaultUnlockModal } from './components/VaultUnlockModal';
 import { TaxLossHarvestingModal } from './components/TaxLossHarvestingModal';
+import { VorabpauschaleModal } from './components/VorabpauschaleModal';
 import { OptionIncomeTracker } from './components/OptionIncomeTracker';
-import { Scale, DollarSign } from 'lucide-react';
+import { Scale, DollarSign, Calculator } from 'lucide-react';
 
 function App() {
   const {
@@ -100,6 +101,7 @@ function App() {
   const [showBatchPdfModal, setShowBatchPdfModal] = useState(false);
   const [showTaxReportModal, setShowTaxReportModal] = useState(false);
   const [showTaxHarvestingModal, setShowTaxHarvestingModal] = useState(false);
+  const [showVorabpauschaleModal, setShowVorabpauschaleModal] = useState(false);
   const [showWithholdingTaxModal, setShowWithholdingTaxModal] = useState(false);
   const [showStressTestModal, setShowStressTestModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -464,6 +466,13 @@ function App() {
                       <Scale size={14} style={{ color: '#10b981' }} /> Tax Loss Harvesting & Freibetrag
                     </button>
                     <button
+                      onClick={() => { setShowVorabpauschaleModal(true); setShowToolsDropdown(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
+                      className="hover:bg-slate-800"
+                    >
+                      <Calculator size={14} style={{ color: '#3b82f6' }} /> ETF Vorabpauschale-Rechner (InvStG)
+                    </button>
+                    <button
                       onClick={() => { setShowWithholdingTaxModal(true); setShowToolsDropdown(false); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.4rem 0.5rem', background: 'transparent', border: 'none', borderRadius: '6px', color: 'var(--text-color)', textAlign: 'left', cursor: 'pointer', fontSize: '0.8rem' }}
                       className="hover:bg-slate-800"
@@ -808,6 +817,15 @@ function App() {
             baseCurrency={baseCurrency}
           />
         )}
+        {showVorabpauschaleModal && (
+          <VorabpauschaleModal
+            isOpen={showVorabpauschaleModal}
+            onClose={() => setShowVorabpauschaleModal(false)}
+            holdings={holdings}
+            transactions={activePortfolio.transactions || []}
+            baseCurrency={baseCurrency}
+          />
+        )}
         {showStressTestModal && (
           <StressTestModal
             isOpen={showStressTestModal}
@@ -928,6 +946,7 @@ function App() {
         onOpenCsvImport={() => setShowCsvImportModal(true)}
         onOpenSettings={() => setShowSettingsModal(true)}
         onOpenTaxHarvesting={() => setShowTaxHarvestingModal(true)}
+        onOpenVorabpauschale={() => setShowVorabpauschaleModal(true)}
         onOpenTaxReport={() => setShowTaxReportModal(true)}
         onOpenStressTest={() => setShowStressTestModal(true)}
         onOpenOrderAssistant={() => setShowOrderAssistantModal(true)}
@@ -1097,6 +1116,30 @@ function App() {
           baseCurrency={baseCurrency}
         />
       )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="mobile-bottom-nav">
+        <button className={`mobile-bottom-btn ${currentTab === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentTab('dashboard')}>
+          <PieChart size={18} />
+          <span>Dashboard</span>
+        </button>
+        <button className={`mobile-bottom-btn ${currentTab === 'holdings' ? 'active' : ''}`} onClick={() => setCurrentTab('holdings')}>
+          <Wallet size={18} />
+          <span>Depot</span>
+        </button>
+        <button className={`mobile-bottom-btn ${currentTab === 'transactions' ? 'active' : ''}`} onClick={() => setCurrentTab('transactions')}>
+          <Activity size={18} />
+          <span>Aktivitäten</span>
+        </button>
+        <button className={`mobile-bottom-btn ${currentTab === 'dividend_calendar' ? 'active' : ''}`} onClick={() => setCurrentTab('dividend_calendar')}>
+          <Calendar size={18} />
+          <span>Zahltage</span>
+        </button>
+        <button className={`mobile-bottom-btn ${showToolsDropdown ? 'active' : ''}`} onClick={() => setShowToolsDropdown(prev => !prev)}>
+          <Sparkles size={18} />
+          <span>Tools</span>
+        </button>
+      </nav>
 
       {/* Security Master PIN Unlock Modal */}
       <VaultUnlockModal

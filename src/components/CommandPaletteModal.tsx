@@ -53,6 +53,7 @@ interface CommandPaletteModalProps {
   onOpenCsvImport: () => void;
   onOpenSettings: () => void;
   onOpenTaxHarvesting: () => void;
+  onOpenVorabpauschale?: () => void;
   onOpenTaxReport: () => void;
   onOpenStressTest: () => void;
   onOpenOrderAssistant: () => void;
@@ -91,6 +92,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenCsvImport,
   onOpenSettings,
   onOpenTaxHarvesting,
+  onOpenVorabpauschale,
   onOpenTaxReport,
   onOpenStressTest,
   onOpenOrderAssistant,
@@ -262,6 +264,15 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         icon: <Scale size={18} color="#f59e0b" />,
         perform: () => { onClose(); onOpenTaxHarvesting(); },
         keywords: 'steuer freibetrag tax loss harvesting sparerpauschbetrag'
+      },
+      {
+        id: 'act-vorabpauschale',
+        title: 'ETF Vorabpauschale-Rechner (InvStG § 18)',
+        subtitle: 'Berechnung des Basisertrags und Steuerabzugs für Fonds',
+        category: 'ACTION',
+        icon: <Scale size={18} color="#3b82f6" />,
+        perform: () => { onClose(); if (onOpenVorabpauschale) onOpenVorabpauschale(); },
+        keywords: 'vorabpauschale basisertrag basiszins etf fonds invstg steuer thesaurierer'
       },
       {
         id: 'act-tax-report',

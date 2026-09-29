@@ -3,6 +3,7 @@ import type { Portfolio, Transaction, WatchlistItem, SavingsPlan, AssetMappingRu
 import { fetchLiveExchangeRates, fetchLiveCryptoPrices, fetchLiveStockPrices } from '../services/marketDataApi';
 import { calculateIRR, calculateTTWRR, calculateRealizedGains, calculateCryptoTaxFreeShares, calculateDynamicPortfolioRiskMetrics } from '../components/performanceUtils';
 import { encryptData, decryptData } from '../services/cryptoStorage';
+import { saveToIndexedDB } from '../services/indexedDbStorage';
 
 interface PortfolioContextType {
   portfolios: Portfolio[];
@@ -223,10 +224,11 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     MSFT: 415.50
   });
 
-  // Save to localStorage
+  // Save to localStorage and IndexedDB
   useEffect(() => {
     if (!isVaultLocked) {
       localStorage.setItem('finanz_portfolios', JSON.stringify(portfolios));
+      saveToIndexedDB('finanz_portfolios', portfolios);
     }
   }, [portfolios, isVaultLocked]);
 

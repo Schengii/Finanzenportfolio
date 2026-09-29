@@ -21,6 +21,10 @@
 Der **FinanzPortfolio CoPilot** ist eine moderne, datenschutzorientierte Client-Side Webapplikation (PWA) zur vollumfänglichen Analyse, Verfolgung und Optimierung von Wertpapier-, Immobilien-, Zins-, Krypto- und Derivate-Portfolios. 
 
 ### Warum FinanzPortfolio CoPilot?
+- 📑 **Deutscher Vorabpauschale-Rechner (InvStG § 18 & § 20)**: Exakte Berechnung des Basisertrags mit 70%-Faktor, Deckelung auf reale Wertsteigerung, Verrechnung von Dividenden und Berücksichtigung der 30% Teilfreistellung für thesaurierende ETFs.
+- 📈 **Dividenden-Wachstumsanalyse (CAGR 1Y / 3Y / 5Y)**: Ermittlung der jährlichen Payout-Wachstumsrate je Einzelwert im Auszahlungskalender.
+- 💾 **IndexedDB Storage Engine**: Zukunftsfähiger Client-Speicher ohne 5-MB LocalStorage-Limitierung für große Transaktionshistorien und Belege.
+- 📱 **Mobile Responsive Bottom-Navigation**: Schneller Daumen-Zugriff auf Dashboard, Depot, Transaktionen, Zahltage und Tools auf Smartphones.
 - 📄 **Universeller DACH-PDF Beleg-Import**: Vollautomatisches Einlesen von Abrechnungen für Trade Republic, Scalable Capital, ING, comdirect, DKB, Consorsbank, finanzen.net zero, flatex und Bitpanda.
 - 🧬 **Portfoliokorrelations- & Diversifikations-Heatmap**: Pearson-Korrelationsmatrix, Klumpenerkennung und Diversifikations-Score nach der Modernen Portfoliotheorie (Markowitz).
 - 🔥 **FIRE-Dynamik & Kapitalverzehr-Simulator**: Variable Entnahmestrategien (Guyton-Klinger, Bengen 4%, VPW) mit gesetzlicher/betrieblicher Rente und Krankenversicherung.
@@ -293,6 +297,23 @@ npm run build
   - Meilenstein-Erreichung (25k bis 1.000k €) und Quantifizierung des Vermögensvorsprungs über bis zu 35 Jahre.
 - **🧪 Umfassende Testsuite & Verifikation**:
   - Anstieg auf **81 automatisierte Unit-Tests in 12 Test-Suites** (100% bestanden).
+  - Vollständige Typprüfung (`tsc -b` fehlerfrei) und Vite Production-Build.
+
+### Version 2.5.0
+- **📑 Deutscher ETF Vorabpauschale-Rechner (§ 18 & § 20 InvStG)**:
+  - Hinzufügen von `VorabpauschaleModal.tsx` und `vorabpauschaleUtils.ts`.
+  - Exakte Berechnung des Basisertrags mit 70%-Faktor, Deckelung auf die tatsächliche Wertsteigerung und Verrechnung unterjähriger Ausschüttungen.
+  - Berücksichtigung der gesetzlichen Teilfreistellungs-Sätze (30% Aktienfonds, 15% Mischfonds, 0% Renten/Geldmarktfonds) und Abgeltungsteuer 26,375%.
+  - Integration in die Tools-Leiste und die globale Spotlight-Befehlspalette (`Strg + K`).
+- **📈 Dividenden-Wachstumsanalyse (CAGR 1Y / 3Y / 5Y)**:
+  - Hinzufügen von `dividendCagrUtils.ts` und Einbindung des neuen Tabs *CAGR Wachstum* in `DividendCalendar.tsx`.
+  - Analyse der Payout-Entwicklung je Einzelaktie und ETF über mehrere Jahre.
+- **💾 IndexedDB Storage Adapter**:
+  - Hinzufügen von `indexedDbStorage.ts` zur asynchronen Speicherung unbegrenzter Transaktions- und Belegdaten ohne 5-MB LocalStorage-Limitierung.
+- **📱 Mobile Responsive Bottom-Navigation**:
+  - Optimierung der App-Navigation für Smartphones mit Daumen-Bedienleiste (`Dashboard`, `Depot`, `Aktivitäten`, `Zahltage`, `Tools`).
+- **🧪 Erweiterte Testsuite**:
+  - Anstieg auf **86 automatisierte Unit-Tests in 14 Test-Suites** (100% bestanden).
   - Vollständige Typprüfung (`tsc -b` fehlerfrei) und Vite Production-Build.
 
 ### Version 2.4.0
