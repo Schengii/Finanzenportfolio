@@ -1,8 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { runMonteCarloSimulation, runStressTestScenarios } from './performanceUtils';
-import { X, Activity, Sparkles, Sliders, Landmark, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { X, Activity, Sparkles, Sliders, Landmark, AlertTriangle, ShieldCheck, Layers } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { calculateLombardCreditMetrics } from '../utils/lombardLoanUtils';
+import {
+  PRESET_MACRO_SHOCK_FACTORS,
+  calculateStackedMacroScenarios
+} from '../utils/scenarioStackingUtils';
 import type { Holding } from '../types';
 
 interface StressTestModalProps {
@@ -22,7 +26,7 @@ export const StressTestModal: React.FC<StressTestModalProps> = ({
   baseCurrency,
   holdings = []
 }) => {
-  const [activeTab, setActiveTab] = useState<'montecarlo' | 'stresstest' | 'custom' | 'lombard'>('montecarlo');
+  const [activeTab, setActiveTab] = useState<'montecarlo' | 'stresstest' | 'custom' | 'lombard' | 'stacking'>('montecarlo');
   const [years, setYears] = useState<number>(20);
   const [expectedReturn, setExpectedReturn] = useState<number>(7);
   const [volatility, setVolatility] = useState<number>(15);
@@ -62,6 +66,20 @@ export const StressTestModal: React.FC<StressTestModalProps> = ({
       dropPct: Math.abs(customStockShock)
     };
   }, [currentPortfolioValue, customStockShock]);
+
+  // Scenario Stacking State
+  const [selectedFactorIds, setSelectedFactorIds] = useState<string[]>([
+    'rate-hike-200bps',
+    'tech-valuation-reset'
+  ]);
+
+  const activeFactors = useMemo(() => {
+    return PRESET_MACRO_SHOCK_FACTORS.filter(f => selectedFactorIds.includes(f.id));
+  }, [selectedFactorIds]);
+
+  const stackedResult = useMemo(() => {
+    return calculateStackedMacroScenarios(activeFactors, currentPortfolioValue);
+  }, [activeFactors, currentPortfolioValue]);
 
   const chartData = useMemo(() => {
     return monteCarlo.years.map(y => ({
@@ -115,6 +133,12 @@ export const StressTestModal: React.FC<StressTestModalProps> = ({
                 className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${activeTab === 'custom' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Eigener Stresstest
+              </button>
+              <button 
+                onClick={() => setActiveTab('stacking')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${activeTab === 'stacking' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Scenario Stacking
               </button>
             </div>
 
@@ -514,6 +538,113 @@ export const StressTestModal: React.FC<StressTestModalProps> = ({
                     <span className="text-slate-400 block">Neuer Depotwert im Stresstest:</span>
                     <span className="text-lg font-black text-slate-200 mt-1 block">
                       {customImpact.newValue.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'stacking' && (
+            <div className="space-y-6">
+              {/* Introduction Banner */}
+              <div className="p-4 bg-purple-500/10 border border-purple-500/25 rounded-2xl flex items-start gap-3">
+                <Layers className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <div className="font-bold text-purple-300 text-sm">Interactive Scenario Stacking (Kombinierte Makro-Schocks)</div>
+                  <p className="text-slate-300 leading-relaxed">
+                    Kombiniere mehrere gleichzeitige Schocks (Zinsanstieg, Tech-Einbruch, Dollar-Abwertung, Liquiditäts-Krise), um fat-tail Crash-Szenarien und Margin-Call-Risiken auf das Gesamtdepot realistisch abzubilden.
+                  </p>
+                </div>
+              </div>
+
+              {/* Factors Selection Checklist */}
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-slate-300">Wähle Schock-Faktoren zur Kumulierung aus:</div>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {PRESET_MACRO_SHOCK_FACTORS.map(factor => {
+                    const isChecked = selectedFactorIds.includes(factor.id);
+                    return (
+                      <div
+                        key={factor.id}
+                        onClick={() => {
+                          setSelectedFactorIds(prev => 
+                            isChecked ? prev.filter(id => id !== factor.id) : [...prev, factor.id]
+                          );
+                        }}
+                        className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                          isChecked 
+                            ? 'bg-purple-950/40 border-purple-500/40 shadow-sm' 
+                            : 'bg-slate-950/40 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="accent-purple-500 w-4 h-4 cursor-pointer"
+                          />
+                          <div>
+                            <div className="font-semibold text-xs text-slate-100">{factor.name}</div>
+                            <div className="text-[11px] text-slate-400">{factor.description}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-[11px] font-mono">
+                          <span className="px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded">
+                            Aktien: {factor.equityDropPercent}%
+                          </span>
+                          <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">
+                            Krypto: {factor.cryptoDropPercent}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Stacked Result Card */}
+              <div className="p-5 bg-slate-950/90 border border-slate-800 rounded-2xl space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-purple-400" />
+                      Kumuliertes Stresstest-Ergebnis ({activeFactors.length} Schocks aktiv)
+                    </h4>
+                    <span className="text-[11px] text-slate-400">
+                      Erholungsdauer geschätzt: ca. {stackedResult.estimatedRecoveryMonths} Monate
+                    </span>
+                  </div>
+                  <span className={`px-3 py-1 rounded-xl text-xs font-mono font-black ${
+                    stackedResult.isMarginCallTriggered
+                      ? 'bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse'
+                      : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+                  }`}>
+                    -{stackedResult.netPortfolioDropPct}% Gesamtabfall
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 pt-3 border-t border-slate-800 text-xs">
+                  <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                    <span className="text-slate-400 block text-[11px]">Kumulierter Depotverlust:</span>
+                    <span className="text-lg font-black text-red-400 mt-1 block">
+                      -{stackedResult.portfolioLossEur.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                    <span className="text-slate-400 block text-[11px]">Verbleibender Depotwert:</span>
+                    <span className="text-lg font-black text-slate-200 mt-1 block">
+                      {stackedResult.portfolioNewValueEur.toLocaleString('de-DE', { style: 'currency', currency: baseCurrency })}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                    <span className="text-slate-400 block text-[11px]">Margin-Call / Hebelrisiko:</span>
+                    <span className={`text-base font-black mt-1 block ${
+                      stackedResult.isMarginCallTriggered ? 'text-red-400' : 'text-emerald-400'
+                    }`}>
+                      {stackedResult.isMarginCallTriggered ? '⚠️ HOHE GEFAHR' : '✅ Gesichert (>35% Puffer)'}
                     </span>
                   </div>
                 </div>

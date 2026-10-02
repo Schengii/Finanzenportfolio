@@ -8,7 +8,8 @@ import {
 } from './performanceUtils';
 import { calculateLossPoolCarryForward } from '../utils/lossPoolCarryForwardUtils';
 import { calculateSwissWealthTax, SWISS_CANTON_WEALTH_TAX_DATA, type SwissCanton } from '../utils/wealthTaxUtils';
-import { FileText, Printer, Copy, Check, X, ShieldAlert, Globe, Scale } from 'lucide-react';
+import { calculateTaxWaterfallLiquidation, buildWaterfallBucketsFromPortfolio } from '../utils/taxWaterfallUtils';
+import { FileText, Printer, Copy, Check, X, ShieldAlert, Globe, Scale, ArrowDownCircle, Layers } from 'lucide-react';
 
 interface TaxReportModalProps {
   isOpen: boolean;
@@ -37,7 +38,8 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
   const [swissCanton, setSwissCanton] = useState<SwissCanton>('ZH');
   const [isMarried, setIsMarried] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
-  const [activeTaxTab, setActiveTaxTab] = useState<'KAP' | 'SO' | 'POOLS'>('KAP');
+  const [activeTaxTab, setActiveTaxTab] = useState<'KAP' | 'SO' | 'POOLS' | 'WATERFALL'>('KAP');
+  const [targetWithdrawalEur, setTargetWithdrawalEur] = useState<number>(10000);
 
   if (!isOpen) return null;
 
@@ -303,6 +305,21 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
               }}
             >
               ⚖️ Verlusttöpfe & Übertrag (§ 20 Abs. 6 EStG)
+            </button>
+            <button
+              onClick={() => setActiveTaxTab('WATERFALL')}
+              style={{
+                padding: '0.75rem 1.25rem',
+                border: 'none',
+                background: 'transparent',
+                borderBottom: activeTaxTab === 'WATERFALL' ? '2px solid #8b5cf6' : '2px solid transparent',
+                color: activeTaxTab === 'WATERFALL' ? '#8b5cf6' : 'var(--text-muted)',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              🌊 Steuer-Kaskade (Entnahme-Plan)
             </button>
           </div>
         )}
@@ -642,7 +659,7 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
                 </div>
               </div>
             </>
-          ) : (
+          ) : activeTaxTab === 'POOLS' ? (
             /* Germany - Verlusttöpfe & Übertrag (§ 20 Abs. 6 EStG) */
             <>
               <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1rem', borderRadius: '10px' }}>
@@ -717,6 +734,124 @@ export const TaxReportModal: React.FC<TaxReportModalProps> = ({
                   </div>
                 </div>
               </div>
+            </>
+          ) : (
+            /* Germany - Steuer-Kaskade (Entnahme-Plan & Steuer-Reihenfolge) */
+            <>
+              <div style={{ background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.25)', padding: '1rem', borderRadius: '12px' }}>
+                <div style={{ fontSize: '0.9rem', color: '#a78bfa', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Layers size={18} /> Steuersparende Liquidations-Kaskade (Entnahme-Planung)
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.4rem 0 0 0' }}>
+                  Optimierte Verkaufsreihenfolge (Cash &rarr; Verlustpositionen &rarr; Dividenden &rarr; ETF-Gewinne mit Teilfreistellung), um die effektive Steuerlast bei Entnahmen drastisch zu senken.
+                </p>
+              </div>
+
+              {/* Target Input and Calculation */}
+              {(() => {
+                const buckets = buildWaterfallBucketsFromPortfolio(effectiveHoldings, 5000);
+                const waterfallResult = calculateTaxWaterfallLiquidation(buckets, targetWithdrawalEur, Math.max(0, taxExemptionLimit - enhancedTax.taxableGainsFinalEur));
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                      <div>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block' }}>Gewünschte Netto-Auszahlung:</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Betrag, der nach Steuern auf deinem Girokonto ankommen soll</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <input
+                          type="number"
+                          step={1000}
+                          min={1000}
+                          value={targetWithdrawalEur}
+                          onChange={(e) => setTargetWithdrawalEur(Math.max(0, Number(e.target.value)))}
+                          style={{
+                            background: 'rgba(0,0,0,0.3)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '6px',
+                            color: '#fff',
+                            padding: '0.4rem 0.75rem',
+                            fontWeight: 'bold',
+                            width: '130px',
+                            textAlign: 'right'
+                          }}
+                        />
+                        <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>€</span>
+                      </div>
+                    </div>
+
+                    {/* Metric Cards */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                      <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: '10px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Brutto-Auflösung</span>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold', marginTop: '0.25rem' }}>
+                          {waterfallResult.totalGrossLiquidatedEur.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Verkaufsvolumen</span>
+                      </div>
+
+                      <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: '10px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Effektiver Steuersatz</span>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: waterfallResult.effectiveTaxRatePercent <= 10 ? '#10b981' : '#f59e0b', marginTop: '0.25rem' }}>
+                          {waterfallResult.effectiveTaxRatePercent.toFixed(1)} %
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>statt 26,375 % Abgeltungsteuer</span>
+                      </div>
+
+                      <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1rem', borderRadius: '10px' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>Steuerersparnis Kaskade</span>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#10b981', marginTop: '0.25rem' }}>
+                          {waterfallResult.taxSavingsVsNaivePercent.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>ggü. unüberlegtem Verkauf</span>
+                      </div>
+                    </div>
+
+                    {/* Step-by-Step Liquidation Sequence */}
+                    <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.02)', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <ArrowDownCircle size={16} color="#8b5cf6" />
+                        Empfohlene Verkaufsreihenfolge (Schritt für Schritt)
+                      </div>
+                      <div style={{ padding: '0.5rem 1rem' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                          <thead>
+                            <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                              <th style={{ padding: '0.5rem 0' }}>Priorität & Asset-Topf</th>
+                              <th style={{ padding: '0.5rem 0' }}>Typ</th>
+                              <th style={{ padding: '0.5rem 0', textAlign: 'right' }}>Brutto-Verkauf</th>
+                              <th style={{ padding: '0.5rem 0', textAlign: 'right' }}>Steuerabzug</th>
+                              <th style={{ padding: '0.5rem 0', textAlign: 'right' }}>Netto-Auszahlung</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {waterfallResult.steps.map((st, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                <td style={{ padding: '0.5rem 0', fontWeight: 'bold' }}>
+                                  #{idx + 1} {st.bucketName}
+                                </td>
+                                <td style={{ padding: '0.5rem 0', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                  {st.category}
+                                </td>
+                                <td style={{ padding: '0.5rem 0', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                  {st.withdrawnGrossEur.toFixed(2)} €
+                                </td>
+                                <td style={{ padding: '0.5rem 0', textAlign: 'right', color: st.taxPaidEur > 0 ? '#ef4444' : '#10b981', fontVariantNumeric: 'tabular-nums' }}>
+                                  {st.taxPaidEur.toFixed(2)} €
+                                </td>
+                                <td style={{ padding: '0.5rem 0', textAlign: 'right', fontWeight: 'bold', color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>
+                                  {st.withdrawnNetEur.toFixed(2)} €
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>

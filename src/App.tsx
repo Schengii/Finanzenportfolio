@@ -858,6 +858,7 @@ function App() {
             onClose={() => setShowPdfExportModal(false)}
             portfolio={activePortfolio}
             baseCurrency={baseCurrency}
+            holdings={holdings}
           />
         )}
       </Suspense>

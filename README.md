@@ -287,7 +287,30 @@ npm run build
 
 ## 📝 Changelog & Versionshistorie
 
-### Version 3.0.0 (Aktuell)
+### Version 3.1.0 (Aktuell)
+- **📑 Amtlicher Steuerbescheinigungs-Generator & Anlage KAP Druckansicht (`PdfExportModal.tsx` & `kapTaxExporter.ts`)**:
+  - Hinzufügen von `kapTaxExporter.ts` und nahtlose Umschaltung in `PdfExportModal.tsx` zwischen Standard-Jahresbericht und **offizieller Steuerbescheinigung (Anlage KAP)**.
+  - Automatische Befüllung der amtlichen Zeilen für die Einkommensteuererklärung:
+    - **Zeile 7**: Inländische Kapitalerträge gesamt (Dividenden, Zinsen & Kursgewinne)
+    - **Zeile 8**: Darin enthaltene Gewinne aus Aktienveräußerungen gem. § 20 Abs. 2 Satz 1 Nr. 1 EStG
+    - **Zeile 14**: Verluste ohne Aktienverkäufe (ETFs, Derivate, Zinsen)
+    - **Zeile 15**: Verluste aus der Veräußerung von Aktien (separater Verlusttopf)
+    - **Zeile 16/17**: In Anspruch genommener Sparer-Pauschbetrag
+    - **Zeile 41**: Anrechenbare ausländische Quellensteuer (nach DBA)
+  - Interaktive Steuerjahr- und Freibetragswahl (1.000 € / 2.000 € / 0 €) mit Druckansicht und Belegnachweisen.
+- **🌊 Steuersparende Liquidations-Kaskade / Tax Waterfall (`taxWaterfallUtils.ts` & `TaxReportModal.tsx`)**:
+  - Hinzufügen von `taxWaterfallUtils.ts` und Integration des neuen Tabs *🌊 Steuer-Kaskade (Entnahme-Plan)* in `TaxReportModal.tsx`.
+  - Berechnet die optimale Verkaufsreihenfolge (Cash &rarr; Verlustpositionen &rarr; Dividenden &rarr; ETF-Gewinne mit Teilfreistellung), um die effektive Steuerlast bei Entnahmen drastisch unter die regulären 26,375% Abgeltungsteuer zu senken.
+  - Quantifizierung der Steuerersparnis gegenüber naivem anteiligen Verkaufen.
+- **⚡ Interaktives Scenario Stacking / Makro-Crash-Kumulierung (`scenarioStackingUtils.ts` & `StressTestModal.tsx`)**:
+  - Hinzufügen von `scenarioStackingUtils.ts` und neuem Tab *Scenario Stacking* in `StressTestModal.tsx`.
+  - Erlaubt das freie Kombinieren multipler gleichzeitiger Makro-Schocks (Zinsanstieg, Tech-Einbruch, USD-Schwäche, Liquiditätskrisen).
+  - Berechnet kumulierte Fat-Tail Portfolioverluste, geschätzte Erholungsdauer in Monaten und akute Margin-Call-Risiken für gehebelte Depots.
+- **🧪 Umfassende Testsuite & Verifikation**:
+  - Anstieg auf **123 automatisierte Unit-Tests in 29 Test-Suites** (100% bestanden).
+  - Vollständige Typprüfung (`tsc -b` fehlerfrei) und Vite Production-Build.
+
+### Version 3.0.0
 - **📊 Optionen-Greeks & Delta-Hedging Dashboard**:
   - Hinzufügen von `optionGreeksUtils.ts` und visuelle Integration im `OptionIncomeTracker.tsx`.
   - Vollständiges **Black-Scholes-Optionspreismodell** mit geschlossenen Formeln für alle Kern-Greeks: Delta ($\Delta$), Gamma ($\Gamma$), Vega ($\mathcal{V}$) und tägliches Theta ($\Theta$/Tag).
