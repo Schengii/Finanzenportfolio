@@ -1,5 +1,12 @@
 # 📈 FinanzPortfolio CoPilot
 
+> **In short (EN):** Privacy-first portfolio tracker for investors in Germany, Austria and Switzerland. Imports broker PDFs, applies country-specific capital-gains tax rules, encrypts all data locally with AES-GCM and works offline as a PWA.
+> **Stack:** React 19 · TypeScript · Vite · Recharts · Web Crypto API · WebAuthn · Vitest (117 tests)
+
+<!-- Screenshot: Datei unter docs/screenshots/dashboard.png ablegen und die nächste Zeile einkommentieren -->
+<!-- ![Portfolio-Dashboard](docs/screenshots/dashboard.png) -->
+
+
 > **Professioneller, datenschutzfreundlicher & hochleistungsfähiger Portfolio-Tracker & Finanzanalyst** auf Basis von React 19, TypeScript, Vite, Web Crypto API, PWA und Vitest.
 
 ---
