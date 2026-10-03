@@ -497,3 +497,7 @@ npm run build
 ---
 
 *Erstellt mit ❤️ für maximale finanzielle Unabhängigkeit, Transparenz und kompromisslosen Datenschutz.*
+
+## License
+
+MIT, see [LICENSE](LICENSE).
