@@ -108,15 +108,15 @@ export async function sendDesktopPushNotification(
       const reg = await navigator.serviceWorker.ready;
       await reg.showNotification(item.title, {
         body: item.body,
-        icon: '/pwa-192x192.png',
-        badge: '/pwa-192x192.png',
+        icon: `${import.meta.env.BASE_URL}pwa-192x192.png`,
+        badge: `${import.meta.env.BASE_URL}pwa-192x192.png`,
         tag: item.id
       });
       return true;
     } else {
       new Notification(item.title, {
         body: item.body,
-        icon: '/pwa-192x192.png',
+        icon: `${import.meta.env.BASE_URL}pwa-192x192.png`,
         tag: item.id
       });
       return true;
