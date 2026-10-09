@@ -1,5 +1,7 @@
 # 📈 FinanzPortfolio CoPilot
 
+[![Deploy](https://github.com/Schengii/Finanzenportfolio/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/Schengii/Finanzenportfolio/actions/workflows/deploy.yml) [![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-yellow.svg)](LICENSE) [![Live-Demo](https://img.shields.io/badge/Live--Demo-GitHub_Pages-2ea44f?logo=github)](https://schengii.github.io/Finanzenportfolio/) ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+
 > **In short (EN):** Privacy-first portfolio tracker for investors in Germany, Austria and Switzerland. Imports broker PDFs, applies country-specific capital-gains tax rules, encrypts all data locally with AES-GCM and works offline as a PWA.
 > **Stack:** React 19 · TypeScript · Vite · Recharts · Web Crypto API · WebAuthn · Vitest (117 tests)
 
