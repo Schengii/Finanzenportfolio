@@ -23,6 +23,11 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
   - Automatisierter Webhook Push-Backup (z. B. n8n, Home Assistant) und verschlüsselter WebDAV / Nextcloud Sync.
   - Automatischer Git Pre-Commit Hook (`.githooks/pre-commit`) zum Schutz vor unbeabsichtigtem Committen von `.env`-Dateien und echten API-Keys / Secrets.
 
+- **🧹 Architektur-Bereinigung & Modularisierung**:
+  - Bereinigung redundanter / ungenutzter Prototyp-Dateien (`CryptoTaxLossHarvestingModal.tsx`, `ocrParser.ts`).
+  - Zentrale TypeScript Barrel-Exporte für modulare Architektur: [`src/components/index.ts`](file:///c:/Users/sche-/Desktop/Programmieren%20Projekte/Finanzenportfolio/src/components/index.ts), [`src/services/index.ts`](file:///c:/Users/sche-/Desktop/Programmieren%20Projekte/Finanzenportfolio/src/services/index.ts) und [`src/utils/index.ts`](file:///c:/Users/sche-/Desktop/Programmieren%20Projekte/Finanzenportfolio/src/utils/index.ts).
+  - Konsolidierung redundanter Imports und Standardisierung der Projektversion auf 1.0.0 in `package.json`.
+
 - **Portfolio-Analyse & Risikometriken**:
   - Zeitgewichtete Rendite (TTWRR) und interner Zinsfuß (IRR / IZF).
   - Volatilität, Sharpe Ratio und historischer Maximum Drawdown.
