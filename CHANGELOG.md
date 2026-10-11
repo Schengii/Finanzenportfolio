@@ -21,6 +21,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
   - Master-PIN-Schutz und konfigurierbarer Inaktivitäts-Auto-Lock (5, 15, 30, 60 Minuten oder aus).
   - Versionierte Snapshots (letzte 5 Sicherungspunkte) mit 1-Klick Rollback vor destruktiven Aktionen oder Massenimporten.
   - Automatisierter Webhook Push-Backup (z. B. n8n, Home Assistant) und verschlüsselter WebDAV / Nextcloud Sync.
+  - Automatischer Git Pre-Commit Hook (`.githooks/pre-commit`) zum Schutz vor unbeabsichtigtem Committen von `.env`-Dateien und echten API-Keys / Secrets.
 
 - **Portfolio-Analyse & Risikometriken**:
   - Zeitgewichtete Rendite (TTWRR) und interner Zinsfuß (IRR / IZF).

@@ -52,9 +52,10 @@ npm run build
 3. **Typensicherheit**:
    - Keine Nutzung von `any`. Sämtliche Schnittstellen sind in `src/types.ts` typisiert.
    - Änderungen an Datenmodellen müssen abwärtskompatibel zu bestehenden Snapshots und Backups sein.
-4. **Umgebungsvariablen**:
+4. **Umgebungsvariablen & Git Pre-Commit Hook**:
    - Alle im Browser benötigten Variablen müssen das Präfix `VITE_` tragen und in `.env.example` dokumentiert sein.
    - Geheimnisse dürfen niemals hardcodiert oder in Git committet werden.
+   - Der Pre-Commit Hook (`.githooks/pre-commit`, aktiv via `core.hooksPath`) blockiert `.env`-Dateien und API-Keys vor jedem Commit.
 
 ---
 

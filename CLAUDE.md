@@ -57,12 +57,19 @@ Finanzenportfolio/
 1. **100% Client-Side Privacy**:
    - Es dürfen NIEMALS sensible Portfolio-Daten, Transaktionen oder PINs unverschlüsselt an externe Server gesendet werden.
    - Synchronisation (WebDAV / Webhooks) MUSS stets über den AES-GCM 256-Bit Tresor (`cryptoStorage.ts`) verschlüsselt sein.
-2. **Keine ungetypten Daten**:
+2. **🛡️ Git Pre-Commit Hook (Secret & .env Schutz)**:
+   - Im Projekt ist ein automatischer Pre-Commit Hook in `.githooks/pre-commit` eingerichtet und in Git aktiviert (`git config core.hooksPath .githooks`).
+   - Der Hook blockiert automatisch:
+     - Jegliche `.env`-Dateien (`.env`, `.env.local`, `.env.production` usw., außer `.env.example`).
+     - Echte API-Keys, Private Keys (`-----BEGIN ... PRIVATE KEY-----`), GitHub/AWS/OpenAI/Anthropic Tokens (`sk-...`, `ghp_...`, `AKIA...`).
+   - **Regel für Claude**: Committe NIEMALS echte Keys oder `.env`-Dateien. Nutze immer Platzhalter in `.env.example`.
+   - Bei Neuinstallation wird der Hook automatisch über `npm run prepare` (in `package.json`) scharf geschaltet.
+3. **Keine ungetypten Daten**:
    - Vermeide `any`. Verwende strikte Typen aus `src/types.ts`.
    - Bei neuen Portfolio-Feldern stets Abwärtskompatibilität für bestehende JSON-Snapshots sicherstellen (optionale Felder / Migrations-Fallbacks).
-3. **Performance & Asynchronität**:
+4. **Performance & Asynchronität**:
    - Schwere mathematische Berechnungen (z. B. Monte-Carlo 500+ Pfade) gehören in Web Workers oder asynchrone Batches, um den Main UI Thread nicht zu blockieren.
-4. **Steuerlogik (DACH)**:
+5. **Steuerlogik (DACH)**:
    - Berechnungen für Abgeltungsteuer (25% + Soli 5,5% = 26,375%), Sparerpauschbetrag (1.000 € / 2.000 €), Teilfreistellungen (Aktienfonds 30%) und Spekulationsfristen (§ 23 EStG) müssen fachlich exakt bleiben.
 
 ---
@@ -72,4 +79,5 @@ Finanzenportfolio/
 Vor jedem Commit oder Pull Request:
 1. `npm run lint` muss fehlerfrei durchlaufen (0 Type-Errors).
 2. `npm run test` muss alle Tests bestehen.
-3. Bei neuen Features: Entsprechende Tests in `src/components/__tests__/` ergänzen.
+3. Pre-Commit Hook führt vor jedem Commit den Secret-Check automatisch aus.
+4. Bei neuen Features: Entsprechende Tests in `src/components/__tests__/` ergänzen.
