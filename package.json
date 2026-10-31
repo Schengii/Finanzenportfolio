@@ -12,7 +12,7 @@
     "prepare": "git config core.hooksPath .githooks || exit 0"
   },
   "dependencies": {
-    "lucide-react": "^1.61.0",
+    "lucide-react": "^1.63.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
