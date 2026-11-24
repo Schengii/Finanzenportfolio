@@ -126,12 +126,12 @@ describe('calculateGermanTax – Krypto-Haltefrist (§ 23 EStG)', () => {
     tx({ type: 'SELL', date: sellDate, ticker: 'BTC', amount: 1, price: 30000, category: 'Crypto' })
   ];
 
-  it('genau 365 Tage: noch steuerpflichtig', () => {
-    expect(calculateGermanTax(crypto('01.01.2024'), 0).taxableGains).toBeCloseTo(10000, 6);
+  it('genau 365 Tage: noch steuerpflichtig (§ 23, separat von der Abgeltungsteuer)', () => {
+    expect(calculateGermanTax(crypto('01.01.2024'), 0).cryptoPrivateSaleGains).toBeCloseTo(10000, 6);
   });
 
   it('366 Tage (mehr als ein Jahr): steuerfrei', () => {
-    expect(calculateGermanTax(crypto('02.01.2024'), 0).taxableGains).toBe(0);
+    expect(calculateGermanTax(crypto('02.01.2024'), 0).cryptoPrivateSaleGains).toBe(0);
   });
 });
 
