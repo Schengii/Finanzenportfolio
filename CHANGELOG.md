@@ -18,6 +18,11 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 - Verlustverrechnung: Verluste einzelner Verkäufe werden mit Gewinnen anderer Verkäufe verrechnet (`calculateGermanTax`).
 - Kirchensteuer nach § 32d EStG korrekt (9 % → 27,99 %, 8 % → 27,82 %); zuvor falsche Formel und doppelte Berücksichtigung.
 
+- Verlusttöpfe (`calculateEnhancedGermanTax`) nutzen echte FIFO-Einzelgewinne statt der 10 %-Umsatzschätzung; Aktienverluste nur mit Aktiengewinnen, Verlustvorträge fließen in die Steuer ein.
+- `calculateDachTax` (DE) rechnet jetzt mit Teilfreistellung, Verlustverrechnung und ohne kurzfristige Krypto-Gewinne.
+- Dividenden werden brutto versteuert (Quellensteuer mindert die Bemessungsgrundlage nicht mehr).
+- Krypto: kurzfristige Gewinne laufen getrennt nach § 23 EStG (Freigrenze 1.000 €, ab 1.000 € voll steuerpflichtig) und nicht mehr über die 26,375 %-Abgeltungsteuer.
+- Vorabpauschale: monatsanteilige Kürzung bei Erwerb im Steuerjahr (§ 18 Abs. 2 InvStG).
 ### Entwicklung
 - Neue Tests für Krypto/Tresor, Secret-Store, Proxy-Allowlist und Steuerrecht (`germanTaxLaw.test.ts`).
 - Linting mit Biome (`npm run lint` = Typecheck + Biome; `npm run lint:warnings` zeigt zusätzlich Warnungen). typescript-eslint unterstützt TypeScript 7 noch nicht.
