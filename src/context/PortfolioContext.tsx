@@ -17,6 +17,7 @@ import {
   restoreSecretsToPlaintext,
   removeSecretsBundle
 } from '../services/secureStore';
+import { createRecoveryKey, removeRecoveryKey } from '../services/recoveryKey';
 
 interface PortfolioContextType {
   portfolios: Portfolio[];
@@ -38,6 +39,8 @@ interface PortfolioContextType {
   lockVault: () => Promise<void>;
   unlockVault: (unlockedPortfolios: Portfolio[], pin: string) => Promise<void>;
   enableVault: (pin: string) => Promise<void>;
+  /** Erzeugt einen neuen Recovery-Key für die aktuelle PIN (nur bei entsperrtem Tresor); einmalig anzeigen. */
+  createVaultRecoveryKey: () => Promise<string | null>;
   resetVault: () => void;
   changeVaultPin: (oldPin: string, newPin: string) => Promise<boolean>;
   disableVault: (pin: string) => Promise<boolean>;
@@ -311,6 +314,12 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     void removeFromIndexedDB('finanz_portfolios');
   };
 
+  const createVaultRecoveryKey = async (): Promise<string | null> => {
+    const pin = getSessionPin();
+    if (!pin || !isVaultConfigured()) return null;
+    return createRecoveryKey(pin);
+  };
+
   // Change PIN with old PIN verification
   const changeVaultPin = async (oldPin: string, newPin: string): Promise<boolean> => {
     const cipher = localStorage.getItem(VAULT_KEY);
@@ -320,6 +329,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       localStorage.setItem(VAULT_KEY, await encryptData(JSON.stringify(portfoliosRef.current), newPin));
       setSessionPin(newPin);
       await persistSecrets();
+      removeRecoveryKey(); // wrappt die alte PIN -> neuen Key erzeugen lassen
       return true;
     } catch {
       return false;
@@ -337,6 +347,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       await decryptData(cipher, pin); // Verifikation
       localStorage.removeItem(VAULT_KEY);
       restoreSecretsToPlaintext();
+      removeRecoveryKey();
       setSessionPin(null);
       setPortfolios([...portfoliosRef.current]); // löst Klartext-Persistenz aus
       setIsVaultLocked(false);
@@ -396,6 +407,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const resetVault = () => {
     localStorage.removeItem(VAULT_KEY);
     removeSecretsBundle();
+    removeRecoveryKey();
     lockSecrets();
     setIsVaultLocked(false);
   };
@@ -929,6 +941,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       lockVault,
       unlockVault,
       enableVault,
+      createVaultRecoveryKey,
       resetVault,
       changeVaultPin,
       disableVault,

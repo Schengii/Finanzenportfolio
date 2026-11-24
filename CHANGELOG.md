@@ -13,6 +13,11 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 - API-Key, Webhook-URL/-Token/-Logs, WebDAV-Zugang, Snapshots, Tags und Netto-Vermögen-Posten liegen bei aktivem Tresor nur noch verschlüsselt (`secureStore.ts`).
 - `corsproxy.io` entfernt: Yahoo-Abfragen laufen über den eigenen, per Allowlist begrenzten Proxy `api/yahoo.ts` (`VITE_MARKET_PROXY_URL`, `off` zum Deaktivieren).
 - Base64-Kodierung großer Tresore ohne Stack-Überlauf.
+- **Passkey**: Entsperrung nutzt die WebAuthn-PRF-Erweiterung; der Schlüssel zum Entpacken der PIN liegt nicht mehr im Klartext neben den Daten. Alte Registrierungen werden verworfen (Passkey neu einrichten); ohne PRF-Unterstützung bleibt nur die PIN.
+- **Recovery-Key** (160 Bit): Wiederherstellung der Master-PIN bei Vergessen; wird einmalig angezeigt, nach PIN-Änderung neu erzeugen.
+- **Webhook-Backup** sendet nur noch den verschlüsselten Tresor (kein `local_unencrypted` mehr).
+- **CSP** (Vercel, Netlify, `<meta>` im Build für GitHub Pages) ohne Inline-Skripte/eval; Service-Worker-Registrierung nach `main.tsx` verschoben. Zusätzlich HSTS und Permissions-Policy.
+- CI: `npm audit --audit-level=high`.
 
 ### Behoben
 - Verlustverrechnung: Verluste einzelner Verkäufe werden mit Gewinnen anderer Verkäufe verrechnet (`calculateGermanTax`).
