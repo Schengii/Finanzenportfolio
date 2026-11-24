@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Lock, ShieldCheck, RefreshCw, Sun, Moon, History, RotateCcw, Trash2, ShieldAlert, Send, Fingerprint } from 'lucide-react';
 import { hasRegisteredPasskey, registerPasskeyForVault, unregisterPasskey } from '../services/webAuthnService';
 import { secureGet, secureSet, secureRemove } from '../services/secureStore';
+import { hasRecoveryKey } from '../services/recoveryKey';
 import { usePortfolio } from '../context/PortfolioContext';
 
 interface SettingsModalProps {
@@ -35,6 +36,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setTaxAllowanceEur,
     changeVaultPin,
     enableVault,
+    createVaultRecoveryKey,
     disableVault
   } = usePortfolio();
 
@@ -48,6 +50,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [passkeyActive, setPasskeyActive] = useState<boolean>(() => hasRegisteredPasskey());
   const [passkeyPinInput, setPasskeyPinInput] = useState<string>('');
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState<boolean>(false);
+
+  const [recoveryKeyShown, setRecoveryKeyShown] = useState<string | null>(null);
+  const [recoveryCopied, setRecoveryCopied] = useState(false);
 
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [oldPin, setOldPin] = useState('');
@@ -67,10 +72,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     try {
       await enableVault(pinPassword);
+      setRecoveryKeyShown(await createVaultRecoveryKey());
       setEncryptionStatus('Passwortschutz & AES-GCM 256-Bit Verschlüsselung erfolgreich aktiviert!');
       setPinPassword('');
     } catch {
       alert('Fehler beim Verschlüsseln der Daten.');
+    }
+  };
+
+  const handleCreateRecoveryKey = async () => {
+    if (hasRecoveryKey() && !confirm('Der bisherige Recovery-Key wird dadurch ungültig. Neuen Key erzeugen?')) return;
+    const key = await createVaultRecoveryKey();
+    if (key) {
+      setRecoveryKeyShown(key);
+      setRecoveryCopied(false);
+    } else {
+      alert('Recovery-Key konnte nicht erzeugt werden. Bitte Tresor zuerst entsperren.');
     }
   };
 
@@ -79,7 +96,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (!oldPin || !newPin) return;
     const success = await changeVaultPin(oldPin, newPin);
     if (success) {
-      setEncryptionStatus('Master-PIN erfolgreich geändert!');
+      setEncryptionStatus('Master-PIN erfolgreich geändert! Bitte einen neuen Recovery-Key erzeugen.');
       setIsChangingPin(false);
       setOldPin('');
       setNewPin('');
@@ -225,7 +242,50 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </form>
                 )}
 
-                
+                {/* Recovery-Key */}
+                <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-300">Recovery-Key (falls du die PIN vergisst)</span>
+                    <button
+                      type="button"
+                      onClick={handleCreateRecoveryKey}
+                      className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-600 font-semibold"
+                    >
+                      {hasRecoveryKey() ? 'Neu erzeugen' : 'Erzeugen'}
+                    </button>
+                  </div>
+                  {recoveryKeyShown && (
+                    <div className="p-3 bg-amber-950/30 border border-amber-500/40 rounded-lg space-y-2">
+                      <p className="text-amber-300 font-semibold">Jetzt sicher notieren – er wird nur dieses eine Mal angezeigt:</p>
+                      <code className="block font-mono text-sm text-amber-100 break-all select-all">{recoveryKeyShown}</code>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(recoveryKeyShown);
+                            setRecoveryCopied(true);
+                          }}
+                          className="px-2 py-1 bg-amber-600/20 text-amber-200 rounded border border-amber-500/40 font-semibold"
+                        >
+                          {recoveryCopied ? 'Kopiert' : 'Kopieren'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRecoveryKeyShown(null)}
+                          className="px-2 py-1 bg-slate-800 text-slate-200 rounded border border-slate-600 font-semibold"
+                        >
+                          Habe ich gesichert
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-slate-500">
+                    {hasRecoveryKey()
+                      ? 'Ein Recovery-Key ist eingerichtet. Nach einer PIN-Änderung bitte einen neuen erzeugen.'
+                      : 'Noch kein Recovery-Key. Ohne Key oder PIN sind die Daten unwiederbringlich verloren.'}
+                  </p>
+                </div>
+
                 {/* Biometric Passkey / WebAuthn Options */}
                 <div className="pt-2 border-t border-slate-800/80">
                   <div className="flex items-center justify-between">
@@ -405,12 +465,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     alert('Bitte trage zuerst eine Webhook URL ein!');
                     return;
                   }
+                  const vaultCipher = localStorage.getItem('finanz_encrypted_vault');
+                  if (!vaultCipher) {
+                    alert('Der Webhook-Push sendet nur den verschlüsselten Tresor. Bitte zuerst den Passwortschutz aktivieren.');
+                    return;
+                  }
                   try {
                     const payload = {
                       event: 'PORTFOLIO_BACKUP_DISPATCH',
                       timestamp: new Date().toISOString(),
                       portfolioCount: 1,
-                      encryptedVault: localStorage.getItem('finanz_encrypted_vault') || 'local_unencrypted'
+                      encryptedVault: vaultCipher
                     };
                     await fetch(url, {
                       method: 'POST',
