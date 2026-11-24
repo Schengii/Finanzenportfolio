@@ -235,7 +235,9 @@ export function calculateGermanTax(
       }
       
       realizedGainsRaw += rawGainForTx;
-      taxableGains += Math.max(0, taxableGainForTx);
+      // Verluste werden mit Gewinnen anderer Verkäufe desselben Zeitraums verrechnet
+      // (§ 20 Abs. 6 EStG); ein negatives Gesamtergebnis wird erst am Ende auf 0 begrenzt.
+      taxableGains += taxableGainForTx;
     } else if (tx.type === 'DIVIDEND') {
       // Dividends are fully taxable (with ETF exemption if applicable)
       const divRevenue = ((tx.amount * tx.price) - (tx.tax || 0)) / rate;
@@ -247,6 +249,7 @@ export function calculateGermanTax(
     }
   });
 
+  taxableGains = Math.max(0, taxableGains);
   const taxableGainsExceedingExemption = Math.max(0, taxableGains - exemptionLimit);
   const withholdingTaxEstimate = taxableGainsExceedingExemption * 0.26375; // 25% KapESt + 5.5% Soli on KapESt
   const taxExemptionRemaining = Math.max(0, exemptionLimit - taxableGains);
@@ -1410,10 +1413,14 @@ export function calculateEnhancedGermanTax(
   let baseFlatRate = 0.26375;
   let churchTaxFactor = 0;
   if (hasChurchTax) {
-    // Formula under KiSt: e = (K - 4*E) / (4 + k)
+    // § 32d Abs. 1 EStG: Die Kirchensteuer mindert die Bemessungsgrundlage der Einkommensteuer:
+    //   e = 0,25 / (1 + 0,25 · k)   (k = Kirchensteuersatz)
+    // Soli (5,5 %) und Kirchensteuer (k) werden auf diese ermäßigte Einkommensteuer erhoben.
+    // 9 % KiSt -> 27,99 %, 8 % KiSt -> 27,82 % Gesamtbelastung.
     const k = churchTaxRatePercent / 100;
-    baseFlatRate = 0.25 / (1 + k) * (1 + 0.055 + k);
-    churchTaxFactor = (0.25 / (1 + k)) * k;
+    const reducedIncomeTaxRate = 0.25 / (1 + 0.25 * k);
+    baseFlatRate = reducedIncomeTaxRate * 1.055; // ESt + Soli (ohne Kirchensteuer)
+    churchTaxFactor = reducedIncomeTaxRate * k;
   }
 
   const abgeltungsteuerStandardEur = taxableExceedingExemption * baseFlatRate;
@@ -1468,7 +1475,7 @@ export function calculateCorrelationMatrix(holdings: Holding[]): CorrelationMatr
   const activeHoldings = holdings.filter(h => h.currentValue > 0).slice(0, 10);
   const tickers = activeHoldings.map(h => h.ticker);
   const names: Record<string, string> = {};
-  activeHoldings.forEach(h => names[h.ticker] = h.name);
+  activeHoldings.forEach(h => { names[h.ticker] = h.name; });
 
   const matrix: Record<string, Record<string, number>> = {};
   const pairwise: CorrelationItem[] = [];

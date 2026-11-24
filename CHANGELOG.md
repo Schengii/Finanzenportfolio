@@ -7,6 +7,22 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 ---
 
 ## [Unreleased]
+### Sicherheit
+- **Tresor**: PBKDF2 jetzt mit 600.000 Iterationen (neues `v2:`-Format); alte 100k-Tresore bleiben lesbar und werden beim nächsten Speichern automatisch migriert.
+- **Tresor**: Bei aktivem Tresor werden Portfolios nicht mehr zusätzlich im Klartext in localStorage/IndexedDB abgelegt; der Tresor wird bei jeder Änderung aktualisiert (vorher veralteter Schnappschuss). Bestehende Klartext-Kopien werden beim Entsperren übernommen und entfernt.
+- API-Key, Webhook-URL/-Token/-Logs, WebDAV-Zugang, Snapshots, Tags und Netto-Vermögen-Posten liegen bei aktivem Tresor nur noch verschlüsselt (`secureStore.ts`).
+- `corsproxy.io` entfernt: Yahoo-Abfragen laufen über den eigenen, per Allowlist begrenzten Proxy `api/yahoo.ts` (`VITE_MARKET_PROXY_URL`, `off` zum Deaktivieren).
+- Base64-Kodierung großer Tresore ohne Stack-Überlauf.
+
+### Behoben
+- Verlustverrechnung: Verluste einzelner Verkäufe werden mit Gewinnen anderer Verkäufe verrechnet (`calculateGermanTax`).
+- Kirchensteuer nach § 32d EStG korrekt (9 % → 27,99 %, 8 % → 27,82 %); zuvor falsche Formel und doppelte Berücksichtigung.
+
+### Entwicklung
+- Neue Tests für Krypto/Tresor, Secret-Store, Proxy-Allowlist und Steuerrecht (`germanTaxLaw.test.ts`).
+- Linting mit Biome (`npm run lint` = Typecheck + Biome; `npm run lint:warnings` zeigt zusätzlich Warnungen). typescript-eslint unterstützt TypeScript 7 noch nicht.
+
+### Offen
 ### Geplant
 - WebSocket / Realtime-Kursticker für erweiterte Börsenplätze
 - Multi-Währungs-Historisierung mit tagesgenauen EZB-Wechselkursen

@@ -6,7 +6,7 @@ import type { Portfolio } from '../types';
 
 interface VaultUnlockModalProps {
   isOpen: boolean;
-  onUnlocked: (portfolios: Portfolio[]) => void;
+  onUnlocked: (portfolios: Portfolio[], pin: string) => void | Promise<void>;
   onResetVault: () => void;
 }
 
@@ -39,7 +39,7 @@ export const VaultUnlockModal: React.FC<VaultUnlockModalProps> = ({
     const parsedPortfolios: Portfolio[] = JSON.parse(decryptedJson);
 
     if (Array.isArray(parsedPortfolios)) {
-      onUnlocked(parsedPortfolios);
+      await onUnlocked(parsedPortfolios, pinToUse);
     } else {
       throw new Error('Ungültiges Datenformat');
     }

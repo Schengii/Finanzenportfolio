@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Lock, ShieldCheck, RefreshCw, Sun, Moon, History, RotateCcw, Trash2, ShieldAlert, Send, Fingerprint } from 'lucide-react';
 import { hasRegisteredPasskey, registerPasskeyForVault, unregisterPasskey } from '../services/webAuthnService';
-import { encryptData } from '../services/cryptoStorage';
+import { secureGet, secureSet, secureRemove } from '../services/secureStore';
 import { usePortfolio } from '../context/PortfolioContext';
 
 interface SettingsModalProps {
@@ -34,6 +34,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     taxAllowanceEur,
     setTaxAllowanceEur,
     changeVaultPin,
+    enableVault,
     disableVault
   } = usePortfolio();
 
@@ -65,9 +66,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
 
     try {
-      const rawData = localStorage.getItem('finanz_portfolios') || '[]';
-      const cipher = await encryptData(rawData, pinPassword);
-      localStorage.setItem('finanz_encrypted_vault', cipher);
+      await enableVault(pinPassword);
       setEncryptionStatus('Passwortschutz & AES-GCM 256-Bit Verschlüsselung erfolgreich aktiviert!');
       setPinPassword('');
     } catch {
@@ -170,7 +169,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <ShieldCheck className="w-4 h-4 text-emerald-400" /> Web Crypto Master-PIN Tresor (AES-GCM 256)
               </div>
               <button
-                onClick={() => { lockVault(); onClose(); }}
+                onClick={() => { void lockVault(); onClose(); }}
                 className="px-2.5 py-1 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded border border-amber-500/30 font-semibold"
               >
                 Tresor jetzt sperren
@@ -401,7 +400,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </span>
               <button
                 onClick={async () => {
-                  const url = localStorage.getItem('finanz_webhook_url');
+                  const url = secureGet('finanz_webhook_url');
                   if (!url) {
                     alert('Bitte trage zuerst eine Webhook URL ein!');
                     return;
@@ -411,7 +410,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       event: 'PORTFOLIO_BACKUP_DISPATCH',
                       timestamp: new Date().toISOString(),
                       portfolioCount: 1,
-                      encryptedVault: localStorage.getItem('finanz_portfolios_vault') || 'local_unencrypted'
+                      encryptedVault: localStorage.getItem('finanz_encrypted_vault') || 'local_unencrypted'
                     };
                     await fetch(url, {
                       method: 'POST',
@@ -433,10 +432,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </p>
             <input
               type="text"
-              defaultValue={typeof localStorage !== 'undefined' ? localStorage.getItem('finanz_webhook_url') || '' : ''}
+              defaultValue={typeof localStorage !== 'undefined' ? secureGet('finanz_webhook_url') || '' : ''}
               onChange={(e) => {
                 if (typeof localStorage !== 'undefined') {
-                  localStorage.setItem('finanz_webhook_url', e.target.value);
+                  secureSet('finanz_webhook_url', e.target.value);
                 }
               }}
               placeholder="https://n8n.meinedomain.de/webhook/portfolio-backup"
@@ -539,13 +538,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <input
               type="text"
-              defaultValue={typeof localStorage !== 'undefined' ? localStorage.getItem('finanz_finnhub_api_key') || '' : ''}
+              defaultValue={typeof localStorage !== 'undefined' ? secureGet('finanz_finnhub_api_key') || '' : ''}
               onChange={(e) => {
                 if (typeof localStorage !== 'undefined') {
                   if (e.target.value.trim()) {
-                    localStorage.setItem('finanz_finnhub_api_key', e.target.value.trim());
+                    secureSet('finanz_finnhub_api_key', e.target.value.trim());
                   } else {
-                    localStorage.removeItem('finanz_finnhub_api_key');
+                    secureRemove('finanz_finnhub_api_key');
                   }
                 }
               }}
